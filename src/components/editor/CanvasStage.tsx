@@ -1,0 +1,773 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import Konva from 'konva'
+import { Circle, Group, Layer, Line, Rect, Shape, Stage, Transformer } from 'react-konva'
+import type { KonvaEventObject } from 'konva/lib/Node'
+import type { BubbleElement, ComicElement, DrawingElement, Stroke, TextElement } from '../../types'
+import { currentPage, findEl, useCurrentPage, useEditor } from '../../store/editor'
+import { createBubble, createDrawing, createPanel, createText, TEXT_PRESETS } from '../../lib/factories'
+import { importFiles, placeAsset } from '../../lib/placement'
+import { ensureGlyphs, loadFonts } from '../../lib/fonts'
+import { PageContent } from './nodes/PageContent'
+import type { NodeProps } from './nodes/ElementNode'
+import { paintStroke } from './nodes/strokes'
+import { bubbleTextBox } from './nodes/bubblePath'
+
+Konva.dragDistance = 3
+
+const SNAP_PX = 6
+const PAD = 60
+
+interface Guide {
+  orientation: 'v' | 'h'
+  pos: number
+}
+
+export function CanvasStage() {
+  const project = useEditor((s) => s.project)!
+  const page = useCurrentPage()
+  const tool = useEditor((s) => s.tool)
+  const selection = useEditor((s) => s.selection)
+  const zoom = useEditor((s) => s.zoom)
+  const view = useEditor((s) => s.view)
+  const brush = useEditor((s) => s.brush)
+  const cropping = useEditor((s) => s.croppingPanelId)
+  const editingText = useEditor((s) => s.editingTextId)
+  const fitRequest = useEditor((s) => s.fitRequest)
+
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<Konva.Stage>(null)
+  const trRef = useRef<Konva.Transformer>(null)
+  const liveRef = useRef<Konva.Shape>(null)
+  const cursorRef = useRef<Konva.Circle>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [guides, setGuides] = useState<Guide[]>([])
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [draftPanel, setDraftPanel] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [spaceDown, setSpaceDown] = useState(false)
+  const [fontsReady, setFontsReady] = useState(0)
+
+  const { width: PW, height: PH, margin, bleed } = project.format
+  const interaction = useRef<
+    | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
+    | { kind: 'marquee'; x: number; y: number; additive: boolean }
+    | { kind: 'panel'; x: number; y: number }
+    | { kind: 'stroke'; stroke: Stroke }
+    | null
+  >(null)
+  const dragStart = useRef<Map<string, { x: number; y: number }>>(new Map())
+  const zoomRef = useRef(zoom)
+
+  useEffect(() => {
+    void loadFonts().then(() => setFontsReady((n) => n + 1))
+    const onFonts = () => setFontsReady((n) => n + 1)
+    window.addEventListener('vineta:fonts', onFonts)
+    return () => window.removeEventListener('vineta:fonts', onFonts)
+  }, [])
+
+  // ---------- Tamaño y encuadre ----------
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => setSize({ w: entry.contentRect.width, h: entry.contentRect.height }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const fit = useCallback(() => {
+    if (!size.w || !size.h) return
+    const pad = size.w < 640 ? 14 : PAD
+    const z = Math.min((size.w - pad * 2) / PW, (size.h - pad * 2) / PH, 2)
+    zoomRef.current = z
+    useEditor.getState().setZoom(z)
+    setPan({ x: (size.w - PW * z) / 2, y: Math.max(pad / 2, (size.h - PH * z) / 2) })
+  }, [size.w, size.h, PW, PH])
+
+  const fittedFor = useRef(-1)
+  useEffect(() => {
+    if (size.w && fittedFor.current !== fitRequest) {
+      fittedFor.current = fitRequest
+      fit()
+    }
+  }, [fitRequest, size.w, fit])
+
+  // Zoom pedido desde afuera (barra superior): mantener el centro de la vista.
+  useEffect(() => {
+    const prev = zoomRef.current
+    if (prev === zoom) return
+    const cx = size.w / 2
+    const cy = size.h / 2
+    setPan((p) => ({ x: cx - ((cx - p.x) / prev) * zoom, y: cy - ((cy - p.y) / prev) * zoom }))
+    zoomRef.current = zoom
+  }, [zoom, size.w, size.h])
+
+  // ---------- Barra espaciadora = mano temporal ----------
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !isTyping(e)) {
+        e.preventDefault()
+        setSpaceDown(true)
+      }
+    }
+    const up = (e: KeyboardEvent) => e.code === 'Space' && setSpaceDown(false)
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [])
+
+  // ---------- Pellizco con dos dedos (móvil / tablet) ----------
+  const viewRef = useRef({ pan, zoom })
+  viewRef.current = { pan, zoom }
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    let last: { d: number; cx: number; cy: number } | null = null
+    const read = (t: TouchList) => {
+      const r = el.getBoundingClientRect()
+      const [a, b] = [t[0], t[1]]
+      return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), cx: (a.clientX + b.clientX) / 2 - r.left, cy: (a.clientY + b.clientY) / 2 - r.top }
+    }
+    const start = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // El segundo dedo cancela cualquier trazo o arrastre en curso.
+        interaction.current = null
+        stageRef.current?.stopDrag()
+        last = read(e.touches)
+      }
+    }
+    const move = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !last) return
+      e.preventDefault()
+      const cur = read(e.touches)
+      const { pan: p, zoom: z } = viewRef.current
+      const nz = Math.max(0.05, Math.min(8, z * (cur.d / last.d)))
+      const px = (last.cx - p.x) / z
+      const py = (last.cy - p.y) / z
+      zoomRef.current = nz
+      useEditor.getState().setZoom(nz)
+      setPan({ x: cur.cx - px * nz, y: cur.cy - py * nz })
+      last = cur
+    }
+    const end = (e: TouchEvent) => {
+      if (e.touches.length < 2) last = null
+    }
+    el.addEventListener('touchstart', start, { passive: true })
+    el.addEventListener('touchmove', move, { passive: false })
+    el.addEventListener('touchend', end)
+    return () => {
+      el.removeEventListener('touchstart', start)
+      el.removeEventListener('touchmove', move)
+      el.removeEventListener('touchend', end)
+    }
+  }, [])
+
+  // ---------- Transformer ----------
+  const transformable = useMemo(() => {
+    if (!page || cropping || editingText || tool !== 'select') return []
+    return page.elements.filter((e) => selection.includes(e.id) && !e.locked && !e.hidden)
+  }, [page, selection, cropping, editingText, tool])
+
+  useEffect(() => {
+    const tr = trRef.current
+    const stage = stageRef.current
+    if (!tr || !stage) return
+    const nodes = transformable.map((e) => stage.findOne('#' + e.id)).filter(Boolean) as Konva.Node[]
+    tr.nodes(nodes)
+    tr.getLayer()?.batchDraw()
+  }, [transformable, page])
+
+  const keepRatio = transformable.length > 0 && transformable.every((e) => e.type === 'image' || e.type === 'drawing')
+
+  // ---------- Coordenadas ----------
+  const pagePointer = () => {
+    const stage = stageRef.current
+    const p = stage?.getPointerPosition()
+    if (!stage || !p) return null
+    return { x: (p.x - pan.x) / zoom, y: (p.y - pan.y) / zoom }
+  }
+
+  const elementIdFrom = (target: Konva.Node): string | null => {
+    const g = target.hasName('element') ? target : target.findAncestor('.element')
+    return g ? g.id() : null
+  }
+
+  // ---------- Pointer ----------
+  const onPointerDown = (e: KonvaEventObject<PointerEvent>) => {
+    const s = useEditor.getState()
+    const evt = e.evt
+    const stage = stageRef.current!
+    const pos = stage.getPointerPosition()!
+    if (evt.button === 1 || tool === 'hand' || spaceDown) {
+      evt.preventDefault()
+      interaction.current = { kind: 'pan', sx: pos.x, sy: pos.y, px: pan.x, py: pan.y }
+      return
+    }
+    if (evt.button !== 0) return
+    const p = pagePointer()!
+    if (e.target.hasName('tail-handle') || e.target.hasName('crop-ghost') || e.target.hasName('crop-rect') || e.target.getParent()?.className === 'Transformer') return
+
+    if (tool === 'brush' || tool === 'eraser') {
+      ;(evt.target as Element)?.setPointerCapture?.(evt.pointerId)
+      interaction.current = {
+        kind: 'stroke',
+        stroke: {
+          points: [[p.x, p.y, evt.pointerType === 'pen' ? evt.pressure : 0.5]],
+          color: brush.color,
+          size: tool === 'eraser' ? brush.eraserSize : brush.size,
+          opacity: brush.opacity,
+          brush: brush.kind,
+          erase: tool === 'eraser',
+        },
+      }
+      liveRef.current?.getLayer()?.batchDraw()
+      return
+    }
+    if (tool === 'panel') {
+      interaction.current = { kind: 'panel', x: p.x, y: p.y }
+      setDraftPanel({ x: p.x, y: p.y, w: 0, h: 0 })
+      return
+    }
+    if (tool === 'bubble') {
+      const b = createBubble('speech', 0, 0, PW / 900)
+      b.x = Math.round(p.x - b.width / 2)
+      b.y = Math.round(p.y - b.height / 2)
+      b.tailY = b.height + b.height * 0.4
+      s.addElements([b])
+      s.setTool('select')
+      return
+    }
+    if (tool === 'text') {
+      const t = createText(0, 0, TEXT_PRESETS[4])
+      t.fontSize = Math.round(PW / 28)
+      t.height = Math.round(t.fontSize * 1.4)
+      t.width = Math.round(PW / 3)
+      t.x = Math.round(p.x - t.width / 2)
+      t.y = Math.round(p.y - t.height / 2)
+      s.addElements([t])
+      s.setTool('select')
+      setTimeout(() => useEditor.getState().setEditingText(t.id), 30)
+      return
+    }
+
+    // Herramienta selección
+    const id = elementIdFrom(e.target)
+    if (s.croppingPanelId && id !== s.croppingPanelId) s.setCropping(null)
+    if (s.editingTextId) s.setEditingText(null)
+    if (id) {
+      if (evt.shiftKey || evt.metaKey || evt.ctrlKey) s.toggleSelect(id)
+      else if (!s.selection.includes(id)) s.select([id])
+      return
+    }
+    if (!evt.shiftKey) s.select([])
+    if (evt.pointerType === 'touch') {
+      // En pantallas táctiles, arrastrar sobre el vacío desplaza la vista.
+      interaction.current = { kind: 'pan', sx: pos.x, sy: pos.y, px: pan.x, py: pan.y }
+      return
+    }
+    interaction.current = { kind: 'marquee', x: p.x, y: p.y, additive: evt.shiftKey }
+  }
+
+  const onPointerMove = (e: KonvaEventObject<PointerEvent>) => {
+    const stage = stageRef.current!
+    const p = pagePointer()
+    const cur = cursorRef.current
+    if (cur && p && (tool === 'brush' || tool === 'eraser')) {
+      cur.position(p)
+      cur.radius(((tool === 'eraser' ? brush.eraserSize : brush.size) / 2) * (tool === 'eraser' ? 1 : 1.2))
+      cur.visible(true)
+      cur.getLayer()?.batchDraw()
+    }
+    const it = interaction.current
+    if (!it || !p) return
+    if (it.kind === 'pan') {
+      const pos = stage.getPointerPosition()!
+      setPan({ x: it.px + pos.x - it.sx, y: it.py + pos.y - it.sy })
+    } else if (it.kind === 'stroke') {
+      // Eventos "coalesced": más puntos por frame con lápiz óptico = trazo más suave.
+      const events = e.evt.getCoalescedEvents?.() ?? [e.evt]
+      const rect = stage.container().getBoundingClientRect()
+      for (const ev of events.length ? events : [e.evt]) {
+        const x = (ev.clientX - rect.left - pan.x) / zoom
+        const y = (ev.clientY - rect.top - pan.y) / zoom
+        it.stroke.points.push([x, y, ev.pointerType === 'pen' ? ev.pressure : 0.5])
+      }
+      liveRef.current?.getLayer()?.batchDraw()
+    } else if (it.kind === 'marquee') {
+      setMarquee({ x: Math.min(it.x, p.x), y: Math.min(it.y, p.y), w: Math.abs(p.x - it.x), h: Math.abs(p.y - it.y) })
+    } else if (it.kind === 'panel') {
+      setDraftPanel({ x: Math.min(it.x, p.x), y: Math.min(it.y, p.y), w: Math.abs(p.x - it.x), h: Math.abs(p.y - it.y) })
+    }
+  }
+
+  const endInteraction = () => {
+    const it = interaction.current
+    interaction.current = null
+    if (!it) return
+    const s = useEditor.getState()
+    if (it.kind === 'stroke') {
+      commitStroke(it.stroke)
+      liveRef.current?.getLayer()?.batchDraw()
+    } else if (it.kind === 'marquee') {
+      const m = marquee
+      setMarquee(null)
+      if (m && m.w > 3 && m.h > 3 && page) {
+        const hit = page.elements
+          .filter((el) => !el.locked && !el.hidden && el.type !== 'drawing')
+          .filter((el) => el.x < m.x + m.w && el.x + el.width > m.x && el.y < m.y + m.h && el.y + el.height > m.y)
+          .map((el) => el.id)
+        s.select(it.additive ? [...new Set([...s.selection, ...hit])] : hit)
+      }
+    } else if (it.kind === 'panel') {
+      const d = draftPanel
+      setDraftPanel(null)
+      if (d && d.w > 20 && d.h > 20) {
+        const panel = createPanel(Math.round(d.x), Math.round(d.y), Math.round(d.w), Math.round(d.h))
+        panel.strokeWidth = Math.max(3, Math.round(PW / 200))
+        // Las viñetas nuevas van debajo de globos y textos.
+        const els = currentPage()?.elements ?? []
+        const firstOverlay = els.findIndex((el) => el.type === 'bubble' || el.type === 'text')
+        s.addElements([panel], { index: firstOverlay >= 0 ? firstOverlay : undefined })
+      }
+    }
+  }
+
+  useEffect(() => {
+    const up = () => endInteraction()
+    window.addEventListener('pointerup', up)
+    return () => window.removeEventListener('pointerup', up)
+  })
+
+  const commitStroke = (stroke: Stroke) => {
+    const s = useEditor.getState()
+    const pg = currentPage()
+    if (!pg || stroke.points.length < 1) return
+    const selected = s.selection.length === 1 ? pg.elements.find((e) => e.id === s.selection[0] && e.type === 'drawing' && !e.locked) : undefined
+    let layer = (selected ?? [...pg.elements].reverse().find((e) => e.type === 'drawing' && !e.locked && !e.hidden)) as DrawingElement | undefined
+    if (!layer) {
+      if (stroke.erase) {
+        s.toast('No hay capa de dibujo para borrar', 'info')
+        return
+      }
+      layer = createDrawing(PW, PH)
+      layer.strokes = [stroke]
+      s.addElements([layer])
+      return
+    }
+    const L = layer
+    const kx = L.baseWidth / L.width
+    const ky = L.baseHeight / L.height
+    const local: Stroke = {
+      ...stroke,
+      size: stroke.size * kx,
+      points: stroke.points.map(([x, y, pr]) => [(x - L.x) * kx, (y - L.y) * ky, pr]),
+    }
+    s.updateElement(L.id, (el) => {
+      if (el.type === 'drawing') el.strokes = [...el.strokes, local] as typeof el.strokes
+    })
+  }
+
+  // ---------- Rueda: zoom y desplazamiento ----------
+  const onWheel = (e: KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault()
+    const stage = stageRef.current!
+    const pointer = stage.getPointerPosition()
+    if (!pointer) return
+    if (e.evt.ctrlKey || e.evt.metaKey) {
+      const factor = Math.exp(-e.evt.deltaY * 0.0022)
+      const z = Math.max(0.05, Math.min(8, zoom * factor))
+      const px = (pointer.x - pan.x) / zoom
+      const py = (pointer.y - pan.y) / zoom
+      zoomRef.current = z
+      useEditor.getState().setZoom(z)
+      setPan({ x: pointer.x - px * z, y: pointer.y - py * z })
+    } else {
+      const dx = e.evt.shiftKey ? e.evt.deltaY : e.evt.deltaX
+      const dy = e.evt.shiftKey ? 0 : e.evt.deltaY
+      setPan((p) => ({ x: p.x - dx, y: p.y - dy }))
+    }
+  }
+
+  // ---------- Arrastre con imanes ----------
+  const onDragStart = (e: KonvaEventObject<DragEvent>) => {
+    const id = elementIdFrom(e.target)
+    if (!id || !e.target.hasName('element')) return
+    const s = useEditor.getState()
+    const ids = s.selection.includes(id) ? s.selection : [id]
+    const stage = stageRef.current!
+    dragStart.current = new Map(ids.map((i) => [i, stage.findOne('#' + i)?.position() ?? { x: 0, y: 0 }]))
+  }
+
+  const onDragMove = (e: KonvaEventObject<DragEvent>) => {
+    const node = e.target
+    if (!node.hasName('element')) return
+    const id = node.id()
+    const start = dragStart.current.get(id)
+    if (!start) return
+    if (view.snap && !e.evt.altKey) {
+      const lines = snapNode(node, id)
+      setGuides(lines)
+    } else if (guides.length) setGuides([])
+    const dx = node.x() - start.x
+    const dy = node.y() - start.y
+    const stage = stageRef.current!
+    for (const [other, pos] of dragStart.current) {
+      if (other === id) continue
+      stage.findOne('#' + other)?.position({ x: pos.x + dx, y: pos.y + dy })
+    }
+  }
+
+  const onDragEnd = (e: KonvaEventObject<DragEvent>) => {
+    if (!e.target.hasName('element')) return
+    setGuides([])
+    const stage = stageRef.current!
+    const moved = [...dragStart.current.keys()]
+    dragStart.current = new Map()
+    useEditor.getState().mutate((d) => {
+      const pg = d.pages.find((p) => p.id === useEditor.getState().pageId)
+      if (!pg) return
+      for (const id of moved) {
+        const n = stage.findOne('#' + id)
+        const el = pg.elements.find((x) => x.id === id)
+        if (n && el) {
+          el.x = Math.round(n.x() * 10) / 10
+          el.y = Math.round(n.y() * 10) / 10
+        }
+      }
+    })
+  }
+
+  const snapNode = (node: Konva.Node, id: string): Guide[] => {
+    const layer = node.getLayer()!
+    const box = node.getClientRect({ relativeTo: layer as unknown as Konva.Container, skipShadow: true, skipStroke: true })
+    // getClientRect relativo a la capa ya descuenta el zoom del stage.
+    const th = SNAP_PX / zoom
+    const vTargets = [0, PW / 2, PW, margin, PW - margin]
+    const hTargets = [0, PH / 2, PH, margin, PH - margin]
+    for (const el of page?.elements ?? []) {
+      if (el.id === id || dragStart.current.has(el.id) || el.hidden || el.type === 'drawing') continue
+      vTargets.push(el.x, el.x + el.width / 2, el.x + el.width)
+      hTargets.push(el.y, el.y + el.height / 2, el.y + el.height)
+    }
+    const best = (edges: number[], targets: number[]) => {
+      let res: { delta: number; pos: number } | null = null
+      for (const edge of edges)
+        for (const t of targets) {
+          const d = t - edge
+          if (Math.abs(d) < th && (!res || Math.abs(d) < Math.abs(res.delta))) res = { delta: d, pos: t }
+        }
+      return res
+    }
+    const v = best([box.x, box.x + box.width / 2, box.x + box.width], vTargets)
+    const h = best([box.y, box.y + box.height / 2, box.y + box.height], hTargets)
+    const out: Guide[] = []
+    if (v) {
+      node.x(node.x() + v.delta)
+      out.push({ orientation: 'v', pos: v.pos })
+    }
+    if (h) {
+      node.y(node.y() + h.delta)
+      out.push({ orientation: 'h', pos: h.pos })
+    }
+    return out
+  }
+
+  // ---------- Transformación ----------
+  const onTransformEnd = () => {
+    const stage = stageRef.current!
+    const ids = transformable.map((e) => e.id)
+    useEditor.getState().mutate((d) => {
+      const pg = d.pages.find((p) => p.id === useEditor.getState().pageId)
+      if (!pg) return
+      for (const id of ids) {
+        const n = stage.findOne('#' + id)
+        const el = pg.elements.find((x) => x.id === id)
+        if (!n || !el) continue
+        const sx = n.scaleX()
+        const sy = n.scaleY()
+        n.scale({ x: 1, y: 1 })
+        el.x = n.x()
+        el.y = n.y()
+        el.rotation = Math.round(n.rotation() * 100) / 100
+        el.width = Math.max(8, el.width * sx)
+        el.height = Math.max(8, el.height * sy)
+        if (el.type === 'bubble') {
+          el.tailX *= sx
+          el.tailY *= sy
+        } else if (el.type === 'text') {
+          // Escalar un texto cambia su cuerpo de letra, como en cualquier editor.
+          if (Math.abs(sy - 1) > 0.01 && Math.abs(sx - sy) < 0.2) el.fontSize = Math.max(6, Math.round(el.fontSize * sy))
+        } else if (el.type === 'panel' && el.image) {
+          el.image.x *= sx
+          el.image.y *= sy
+          el.image.scale *= Math.max(sx, sy)
+        }
+      }
+    })
+  }
+
+  // ---------- Doble clic ----------
+  const onDblClick = (e: KonvaEventObject<MouseEvent>) => {
+    if (tool !== 'select') return
+    const id = elementIdFrom(e.target)
+    const el = id ? findEl(id) : undefined
+    const s = useEditor.getState()
+    if (!el || el.locked) return
+    if (el.type === 'text' || el.type === 'bubble') s.setEditingText(el.id)
+    else if (el.type === 'image') s.setCropping(el.id)
+    else if (el.type === 'panel') {
+      if (el.image) s.setCropping(el.id)
+      else pickImageFor(el.id)
+    }
+  }
+
+  // ---------- Soltar recursos / archivos ----------
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    const stage = stageRef.current
+    if (!stage) return
+    stage.setPointersPositions(e.nativeEvent)
+    const p = pagePointer()
+    if (!p) return
+    const assetId = e.dataTransfer.getData('application/x-vineta-asset')
+    const s = useEditor.getState()
+    if (assetId) {
+      const asset = s.project?.assets.find((a) => a.id === assetId)
+      if (asset) placeAsset(asset, p)
+      return
+    }
+    if (e.dataTransfer.files.length) {
+      const assets = await importFiles(e.dataTransfer.files)
+      assets.forEach((a, i) => placeAsset(a, { x: p.x + i * 30, y: p.y + i * 30 }, { intoPanel: i === 0 }))
+    }
+  }
+
+  // ---------- Callbacks de nodos ----------
+  const onTailChange = useCallback((id: string, x: number, y: number) => {
+    useEditor.getState().updateElement(id, { tailX: x, tailY: y } as Partial<BubbleElement>)
+  }, [])
+  const onCropChange = useCallback((id: string, x: number, y: number, scale: number) => {
+    useEditor.getState().updateElement(
+      id,
+      (el) => {
+        if (el.type === 'panel' && el.image) Object.assign(el.image, { x, y, scale })
+      },
+      'crop',
+    )
+  }, [])
+
+  const onImageCrop = useCallback((id: string, patch: Partial<ComicElement>) => {
+    useEditor.getState().updateElement(id, patch)
+  }, [])
+
+  const canDrag = tool === 'select' && !spaceDown
+  const nodeProps = useCallback(
+    (id: string): Partial<NodeProps> => {
+      const el = page?.elements.find((x) => x.id === id)
+      return {
+        draggable: canDrag && !!el && !el.locked && cropping !== id && editingText !== id,
+        selected: selection.includes(id),
+        cropping: cropping === id,
+        textHidden: editingText === id,
+        onTailChange,
+        onCropChange,
+        onImageCrop,
+      }
+    },
+    [page, canDrag, cropping, editingText, selection, onTailChange, onCropChange, onImageCrop],
+  )
+
+  const cursor =
+    spaceDown || tool === 'hand' ? (interaction.current?.kind === 'pan' ? 'grabbing' : 'grab') : tool === 'brush' || tool === 'eraser' ? 'none' : tool === 'panel' ? 'crosshair' : tool === 'text' ? 'text' : tool === 'bubble' ? 'copy' : 'default'
+
+  if (!page) return null
+
+  return (
+    <div
+      ref={wrapRef}
+      className="canvas-bg relative h-full w-full touch-none overflow-hidden select-none"
+      style={{ cursor }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+      }}
+      onDrop={onDrop}
+      onPointerLeave={() => {
+        cursorRef.current?.visible(false)
+        cursorRef.current?.getLayer()?.batchDraw()
+      }}
+    >
+      {size.w > 0 && (
+        <Stage
+          ref={stageRef}
+          width={size.w}
+          height={size.h}
+          x={pan.x}
+          y={pan.y}
+          scaleX={zoom}
+          scaleY={zoom}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onWheel={onWheel}
+          onDblClick={onDblClick}
+          onDblTap={onDblClick as never}
+          onDragStart={onDragStart}
+          onDragMove={onDragMove}
+          onDragEnd={onDragEnd}
+          onContextMenu={(e) => e.evt.preventDefault()}
+        >
+          <Layer name="content">
+            <Rect x={0} y={0} width={PW} height={PH} fill="#000" shadowColor="#000" shadowBlur={40 / zoom} shadowOpacity={0.55} listening={false} />
+            {/* Konva mide el texto al crearlo: al llegar fuentes nuevas se vuelve a montar. */}
+            <PageContent key={fontsReady} page={page} format={project.format} interactive nodeProps={nodeProps} />
+          </Layer>
+          <Layer name="overlay">
+            {view.grid && <GridLines w={PW} h={PH} zoom={zoom} />}
+            {view.guides && (
+              <Group listening={false}>
+                {bleed > 0 && <Rect x={-bleed} y={-bleed} width={PW + bleed * 2} height={PH + bleed * 2} stroke="#ef4444" strokeWidth={1 / zoom} dash={[6 / zoom, 4 / zoom]} />}
+                <Rect x={margin} y={margin} width={PW - margin * 2} height={PH - margin * 2} stroke="#38bdf8" strokeWidth={1 / zoom} dash={[6 / zoom, 4 / zoom]} opacity={0.8} />
+              </Group>
+            )}
+            {guides.map((g, i) =>
+              g.orientation === 'v' ? (
+                <Line key={i} points={[g.pos, -2000, g.pos, PH + 2000]} stroke="#ff2d95" strokeWidth={1 / zoom} listening={false} />
+              ) : (
+                <Line key={i} points={[-2000, g.pos, PW + 2000, g.pos]} stroke="#ff2d95" strokeWidth={1 / zoom} listening={false} />
+              ),
+            )}
+            {marquee && <Rect {...{ x: marquee.x, y: marquee.y, width: marquee.w, height: marquee.h }} fill="rgba(255,90,54,0.08)" stroke="#ff5a36" strokeWidth={1 / zoom} listening={false} />}
+            {draftPanel && <Rect x={draftPanel.x} y={draftPanel.y} width={draftPanel.w} height={draftPanel.h} stroke="#111" strokeWidth={Math.max(3, PW / 200)} fill="rgba(255,255,255,0.6)" listening={false} />}
+            <Shape
+              ref={liveRef}
+              listening={false}
+              sceneFunc={(ctx) => {
+                const it = interaction.current
+                if (it?.kind !== 'stroke') return
+                const s = it.stroke.erase ? { ...it.stroke, erase: false, color: 'rgba(255,90,54,0.35)', opacity: 1 } : it.stroke
+                paintStroke(ctx._context, s)
+              }}
+            />
+            <Circle ref={cursorRef} visible={false} stroke="#ff5a36" strokeWidth={1.5 / zoom} listening={false} dash={tool === 'eraser' ? [4 / zoom, 3 / zoom] : undefined} />
+            <Transformer
+              ref={trRef}
+              keepRatio={keepRatio}
+              rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+              rotationSnapTolerance={4}
+              anchorSize={9}
+              anchorCornerRadius={2}
+              anchorStroke="#ff5a36"
+              anchorFill="#ffffff"
+              borderStroke="#ff5a36"
+              borderStrokeWidth={1.5}
+              rotateAnchorOffset={28}
+              ignoreStroke
+              flipEnabled={false}
+              boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 12 || Math.abs(newBox.height) < 12 ? oldBox : newBox)}
+              onTransformEnd={onTransformEnd}
+            />
+          </Layer>
+        </Stage>
+      )}
+      {editingText && stageRef.current && <TextEditOverlay id={editingText} stage={stageRef.current} zoom={zoom} pan={pan} />}
+    </div>
+  )
+}
+
+function GridLines({ w, h, zoom }: { w: number; h: number; zoom: number }) {
+  const step = w / 12
+  const pts: number[][] = []
+  for (let x = step; x < w; x += step) pts.push([x, 0, x, h])
+  for (let y = step; y < h; y += step) pts.push([0, y, w, y])
+  return (
+    <Group listening={false}>
+      {pts.map((p, i) => (
+        <Line key={i} points={p} stroke="#38bdf8" strokeWidth={1 / zoom} opacity={0.25} />
+      ))}
+    </Group>
+  )
+}
+
+function isTyping(e: KeyboardEvent) {
+  const t = e.target as HTMLElement
+  return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable
+}
+
+export function pickImageFor(panelId: string) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.onchange = async () => {
+    if (!input.files?.length) return
+    const [asset] = await importFiles(input.files)
+    if (asset) {
+      useEditor.getState().select([panelId])
+      placeAsset(asset)
+    }
+  }
+  input.click()
+}
+
+/** Textarea HTML encima del texto de Konva para editar en el lugar. */
+function TextEditOverlay({ id, stage, zoom, pan }: { id: string; stage: Konva.Stage; zoom: number; pan: { x: number; y: number } }) {
+  const el = findEl(id) as TextElement | BubbleElement | undefined
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const [value, setValue] = useState(el?.text ?? '')
+  useEffect(() => {
+    ref.current?.focus()
+    ref.current?.select()
+  }, [])
+  if (!el) return null
+  const box = el.type === 'bubble' ? bubbleTextBox(el) : { x: 0, y: 0, width: el.width, height: el.height }
+  const commit = () => {
+    const s = useEditor.getState()
+    if (value !== el.text) s.updateElement(id, { text: value })
+    ensureGlyphs(el.fontFamily, value)
+    s.setEditingText(null)
+  }
+  void stage
+  const rad = (el.rotation * Math.PI) / 180
+  const ox = box.x * Math.cos(rad) - box.y * Math.sin(rad)
+  const oy = box.x * Math.sin(rad) + box.y * Math.cos(rad)
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) {
+          e.preventDefault()
+          commit()
+        }
+      }}
+      spellCheck={false}
+      className="absolute resize-none overflow-hidden border-0 bg-white/5 p-0 outline-2 outline-offset-2 outline-[#ff5a36]"
+      style={{
+        left: pan.x + (el.x + ox) * zoom,
+        top: pan.y + (el.y + oy) * zoom,
+        width: box.width * zoom,
+        height: box.height * zoom,
+        transform: `rotate(${el.rotation}deg)`,
+        transformOrigin: '0 0',
+        fontFamily: el.fontFamily,
+        fontSize: el.fontSize * zoom,
+        fontWeight: el.fontStyle.includes('bold') ? 700 : 400,
+        fontStyle: el.fontStyle.includes('italic') ? 'italic' : 'normal',
+        lineHeight: el.lineHeight,
+        letterSpacing: el.letterSpacing * zoom,
+        textAlign: el.align,
+        color: el.textColor,
+        textTransform: el.uppercase ? 'uppercase' : 'none',
+        paddingTop: el.vertical ? 0 : Math.max(0, (box.height * zoom - value.split('\n').length * el.fontSize * zoom * el.lineHeight) / 2),
+        caretColor: '#ff5a36',
+        writingMode: el.vertical ? 'vertical-rl' : undefined,
+      }}
+    />
+  )
+}
+
+export type { ComicElement }
