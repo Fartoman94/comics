@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, CircleHelp, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
 import type { Project } from '../../types'
 import { deleteProject, importProjectFile, listProjects, saveProject } from '../../lib/storage'
 import { exportProject } from '../../lib/export'
@@ -11,6 +11,8 @@ import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
 import { MadeByMateLabs, Wordmark } from '../ui/Brand'
 import { confirmDialog } from '../ui/Confirm'
 import { NewProjectDialog } from './NewProjectDialog'
+import { HelpGuide, useHelp } from '../help/HelpGuide'
+import { demoCoverDataUrl } from '../../demo/demoProject'
 
 const FEATURES = [
   ['Plantillas de viñetas', 'Cuadrículas clásicas, cortes diagonales de manga, yonkoma y tiras.'],
@@ -19,6 +21,13 @@ const FEATURES = [
   ['Dibujo con presión', 'Pluma, tinta, lápiz y marcador con soporte para tableta y borrador.'],
   ['Tramas y efectos', 'Tramas de puntos, líneas de velocidad y de impacto estilo manga.'],
   ['Exportá en serio', 'PDF para imprenta, PNG por página, ZIP y tira larga de webtoon.'],
+]
+
+const HOW_TO: [string, string, string][] = [
+  ['Creá tu proyecto', 'Elegí cómic, manga o webtoon y el tamaño de página. Arranca con portada y viñetas.', 'start'],
+  ['Armá las viñetas', 'Aplicá una plantilla o dibujá tus propias viñetas con la herramienta P.', 'panels'],
+  ['Sumá imágenes y diálogos', 'Arrastrá tus fotos o dibujos a cada viñeta y agregá globos y onomatopeyas.', 'images'],
+  ['Leé y compartí', 'Pasá las páginas como en un libro y exportá en PDF o libro web.', 'read'],
 ]
 
 export function Home({ notFound }: { notFound?: boolean }) {
@@ -61,6 +70,9 @@ export function Home({ notFound }: { notFound?: boolean }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Wordmark />
           <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => useHelp.getState().openGuide('start')} className="hidden sm:inline-flex">
+              <CircleHelp size={16} /> Cómo se usa
+            </Button>
             <Button variant="ghost" onClick={() => fileRef.current?.click()} className="hidden sm:inline-flex">
               <FileUp size={16} /> Importar
             </Button>
@@ -85,11 +97,56 @@ export function Home({ notFound }: { notFound?: boolean }) {
             <Button variant="primary" onClick={() => setNewOpen(true)} className="h-11 px-5 text-base">
               <Plus size={18} /> Empezar un proyecto
             </Button>
-            <Button onClick={() => fileRef.current?.click()} className="h-11 px-5 text-base">
-              <FileUp size={18} /> Abrir archivo .vineta
-            </Button>
+            <a href="#/demo" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink-700 px-5 text-base font-medium text-ink-100 transition-colors hover:bg-ink-600">
+              <BookOpen size={18} /> Ver manga de ejemplo
+            </a>
           </div>
         </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
+        <a href="#/demo" className="group grid overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 transition-colors hover:border-accent sm:grid-cols-[220px_1fr]">
+          <div className="relative aspect-[3/4] overflow-hidden bg-white sm:aspect-auto sm:h-full">
+            <img src={demoCoverDataUrl()} alt="Portada del manga de ejemplo" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <span className="font-comic absolute right-3 bottom-3 left-3 text-center text-2xl leading-none tracking-wide text-white [text-shadow:0_2px_0_#000,2px_0_0_#000,-2px_0_0_#000,0_-2px_0_#000]">VIENTO DE SAKURA</span>
+          </div>
+          <div className="flex flex-col justify-center p-6">
+            <span className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">Mirá cómo queda</span>
+            <h2 className="font-comic mt-2 text-4xl tracking-wide text-white">
+              桜の風 <span className="text-ink-400">·</span> Viento de sakura
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-300">
+              Un manga corto de ejemplo, hecho completo con Viñeta Studio: viñetas diagonales, tramas, onomatopeyas en japonés y lectura de derecha a izquierda. Pasá las páginas como en un libro y abrilo en el editor para ver cómo está armado.
+            </p>
+            <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white group-hover:bg-accent-hover">
+              <BookOpen size={16} /> Leer el ejemplo
+            </span>
+          </div>
+        </a>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Cómo funciona</h2>
+            <p className="text-sm text-ink-400">Cuatro pasos para tu primera página.</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide('start')}>
+            <CircleHelp size={15} /> Ver la guía completa
+          </Button>
+        </div>
+        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {HOW_TO.map(([title, body, topic], i) => (
+            <li key={title}>
+              <button onClick={() => useHelp.getState().openGuide(topic)} className="group h-full w-full rounded-xl border border-ink-800 bg-ink-900 p-4 text-left transition-colors hover:border-accent">
+                <span className="font-comic text-4xl leading-none text-accent">{i + 1}</span>
+                <h3 className="mt-2 text-sm font-semibold text-white">{title}</h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{body}</p>
+                <span className="mt-2 inline-block text-xs text-ink-500 group-hover:text-accent">Ver cómo →</span>
+              </button>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -180,6 +237,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
       </footer>
 
       <NewProjectDialog open={newOpen} onClose={() => setNewOpen(false)} />
+      <HelpGuide />
     </div>
   )
 }

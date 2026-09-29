@@ -25,6 +25,11 @@ Creado por [MateLabs](https://matelabs.site/).
 - Imanes y guías de margen, sangrado y cuadrícula. Zoom con rueda o pellizco.
 - Diseño adaptado a celular: paneles como hojas inferiores, barra de acciones rápidas y zoom con dos dedos.
 
+**Ayuda y ejemplo**
+- Tour guiado la primera vez que se abre el editor (se adapta al celular) y botón **Ayuda** con una guía paso a paso de cada función.
+- Sección "Cómo funciona" en el inicio.
+- **Manga de ejemplo** "桜の風 · Viento de sakura" (`#/demo`): portada, 4 páginas y contratapa armadas con el propio editor, con ilustraciones vectoriales originales, onomatopeyas en japonés y lectura de derecha a izquierda. Se puede abrir en el editor para ver cómo está hecho.
+
 **Lectura y exportación**
 - Visor tipo libro: las páginas se dan vuelta arrastrando la esquina o deslizando con el dedo, con tapas duras y sombra en el lomo. Respeta el sentido de lectura manga. Modo scroll para webtoon.
 - Libro web `.html`: un solo archivo con ese visor, para compartir o subir a cualquier hosting.
@@ -40,6 +45,20 @@ npm run preview  # sirve dist/
 ```
 
 Stack: React 19, TypeScript, Vite, Konva (lienzo), Zustand + Immer (estado e historial), IndexedDB (idb-keyval), perfect-freehand (trazos), page-flip (visor), jsPDF y JSZip (exportación), Tailwind CSS 4.
+
+## Manga de ejemplo
+
+Las ilustraciones están dibujadas en código (`src/demo/art.ts`) y se sirven pre-renderizadas como WebP en `public/demo/` para que la demo cargue rápido en el celular. Si cambiás algún dibujo:
+
+1. Subí `ART_VERSION` en `src/demo/demoProject.ts`.
+2. Con `npm run dev` corriendo, regenerá las imágenes (necesita `playwright-core` y Google Chrome):
+
+```bash
+npm i --no-save playwright-core
+DEMO_URL=http://localhost:5173 node scripts/build-demo-art.mjs
+```
+
+Si faltan los WebP, la demo los genera igual en el navegador a partir de los SVG (más lento).
 
 ## Deploy en Vercel
 

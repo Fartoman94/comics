@@ -36,6 +36,7 @@ export function SidebarTabs({ tab, onChange }: { tab: SidebarTab; onChange: (t: 
       {SIDEBAR_TABS.map((t) => (
         <button
           key={t.id}
+          data-tour={`tab-${t.id}`}
           role="tab"
           aria-selected={tab === t.id}
           onClick={() => onChange(t.id)}

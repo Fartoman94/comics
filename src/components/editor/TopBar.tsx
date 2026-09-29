@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { BookOpenText, Check, ChevronDown, CircleAlert, Cloud, Download, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Undo2 } from 'lucide-react'
+import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Undo2 } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { navigateToProject } from '../../lib/nav'
 import { saveProject } from '../../lib/storage'
 import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
 import { AppLogo } from '../ui/Brand'
 import { ExportDialog } from './ExportDialog'
+import { useHelp } from '../help/HelpGuide'
 
 export function TopBar({ onRead, onShortcuts }: { onRead: () => void; onShortcuts: () => void }) {
   const title = useEditor((s) => s.project!.title)
@@ -76,13 +77,16 @@ export function TopBar({ onRead, onShortcuts }: { onRead: () => void; onShortcut
         </IconButton>
       </div>
 
-      <Button variant="ghost" size="sm" onClick={onRead}>
+      <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide()} data-tour="help" title="Guía de uso">
+        <CircleHelp size={15} /> <span className="hidden sm:inline">Ayuda</span>
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onRead} data-tour="read">
         <BookOpenText size={15} /> <span className="hidden sm:inline">Leer</span>
       </Button>
       <Menu
         align="right"
         trigger={(_, toggle) => (
-          <Button variant="primary" size="sm" onClick={toggle}>
+          <Button variant="primary" size="sm" onClick={toggle} data-tour="export">
             <Download size={15} /> <span className="hidden sm:inline">Exportar</span> <ChevronDown size={13} />
           </Button>
         )}

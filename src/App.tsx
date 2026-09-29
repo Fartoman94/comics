@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Home } from './components/home/Home'
 import { Editor } from './components/editor/Editor'
+import { DemoViewer } from './components/demo/DemoViewer'
 import { Toasts } from './components/ui/Toasts'
 import { ConfirmHost } from './components/ui/Confirm'
 import { loadProject } from './lib/storage'
 import { useEditor } from './store/editor'
+
+const isDemoHash = () => /^#\/demo\b/.test(location.hash)
 
 function projectIdFromHash() {
   const m = location.hash.match(/^#\/p\/([\w-]+)/)
@@ -13,11 +16,15 @@ function projectIdFromHash() {
 
 export function App() {
   const [routeId, setRouteId] = useState(projectIdFromHash)
+  const [demo, setDemo] = useState(isDemoHash)
   const project = useEditor((s) => s.project)
   const [missing, setMissing] = useState(false)
 
   useEffect(() => {
-    const onHash = () => setRouteId(projectIdFromHash())
+    const onHash = () => {
+      setRouteId(projectIdFromHash())
+      setDemo(isDemoHash())
+    }
     window.addEventListener('hashchange', onHash)
     // Pedimos almacenamiento persistente para que el navegador no borre los proyectos.
     void navigator.storage?.persist?.()
@@ -27,6 +34,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false
     const s = useEditor.getState()
+    if (demo) return
     if (!routeId) {
       if (s.project) s.closeProject()
       return
@@ -41,7 +49,7 @@ export function App() {
     return () => {
       cancelled = true
     }
-  }, [routeId])
+  }, [routeId, demo])
 
   useEffect(() => {
     document.title = project ? `${project.title} · Viñeta Studio` : 'Viñeta Studio'
@@ -49,7 +57,9 @@ export function App() {
 
   return (
     <>
-      {routeId && project?.id === routeId ? (
+      {demo ? (
+        <DemoViewer />
+      ) : routeId && project?.id === routeId ? (
         <Editor />
       ) : routeId && !missing ? (
         <div className="grid h-full place-items-center text-sm text-ink-400">Abriendo proyecto…</div>
