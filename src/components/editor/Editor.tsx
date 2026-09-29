@@ -14,6 +14,8 @@ import { Reader } from './Reader'
 import { CropBar } from './CropBar'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { MobileBar } from './MobileBar'
+import { Tour } from './Tour'
+import { HelpGuide } from '../help/HelpGuide'
 
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
 
@@ -41,6 +43,8 @@ export function Editor() {
       <MobileBar />
       {reading && <Reader onClose={() => setReading(false)} />}
       <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
+      <HelpGuide canTour />
+      <Tour />
     </div>
   )
 }

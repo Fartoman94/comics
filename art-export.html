@@ -1,0 +1,11 @@
+<!doctype html><html><body><script type="module">
+import { ARTS, rasterize } from '/src/demo/demoProject.ts'
+const out = {}
+for (const [k, f] of Object.entries(ARTS)) {
+  const r = await rasterize(f(), 'image/webp', 0.85, 1500)
+  const buf = new Uint8Array(await r.blob.arrayBuffer())
+  let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+  out[k] = { w: r.width, h: r.height, b64: btoa(bin) }
+}
+window.__out = out
+</script></body></html>

@@ -18,7 +18,7 @@ export function ToolRail() {
   const tool = useEditor((s) => s.tool)
   const setTool = useEditor((s) => s.setTool)
   return (
-    <nav className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-ink-700 bg-ink-900 py-2" aria-label="Herramientas">
+    <nav data-tour="tools" className="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-ink-700 bg-ink-900 py-2" aria-label="Herramientas">
       {TOOLS.map((t, i) => (
         <div key={t.id} className="contents">
           {(i === 2 || i === 5) && <div className="my-1 h-px w-6 bg-ink-700" />}

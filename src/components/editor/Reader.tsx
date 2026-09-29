@@ -9,11 +9,13 @@ import { MadeByMateLabs } from '../ui/Brand'
 
 type Mode = 'book' | 'scroll'
 
+const BLANK = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="14"><rect width="10" height="14" fill="#fff"/></svg>')
+
 /**
  * Visor de lectura con efecto de libro real: las páginas se doblan al arrastrarlas
  * (mouse o dedo), con tapas duras, sombra en el lomo y sentido de lectura manga.
  */
-export function Reader({ onClose }: { onClose: () => void }) {
+export function Reader({ onClose, actions }: { onClose: () => void; actions?: React.ReactNode }) {
   const project = useEditor((s) => s.project)!
   const [images, setImages] = useState<string[]>([])
   const [mode, setMode] = useState<Mode>(project.readingDirection === 'vertical' ? 'scroll' : 'book')
@@ -32,7 +34,8 @@ export function Reader({ onClose }: { onClose: () => void }) {
     ;(async () => {
       const out: string[] = []
       for (const p of project.pages) {
-        out.push(await renderPage(project, p, { pixelRatio: ratio, mime: 'image/jpeg', quality: 0.9 }))
+        // Una página que falla no debe dejar el visor colgado: se muestra en blanco.
+        out.push(await renderPage(project, p, { pixelRatio: ratio, mime: 'image/jpeg', quality: 0.9 }).catch((e) => (console.error(e), BLANK)))
         if (!alive) return
         setImages([...out])
       }
@@ -79,6 +82,7 @@ export function Reader({ onClose }: { onClose: () => void }) {
         </div>
         {project.readingDirection === 'rtl' && mode === 'book' && <span className="hidden shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] tracking-wide uppercase sm:inline">Manga · der → izq</span>}
         <div className="flex-1" />
+        {actions}
         <div className="flex rounded-lg bg-white/10 p-0.5">
           <button onClick={() => setMode('book')} title="Libro" className={cx('flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs', mode === 'book' ? 'bg-white/20' : 'text-white/60')}>
             <BookOpen size={14} /> <span className="hidden sm:inline">Libro</span>
@@ -203,6 +207,10 @@ function FlipBook({ project, images, chrome }: { project: Project; images: strin
       swipeDistance: 25,
     })
     pf.loadFromHTML(pages)
+    // page-flip no siempre respeta startPage (p. ej. con tapas duras): se fuerza la hoja inicial.
+    const startAt = Math.min(start, pages.length - 1)
+    if (pf.getCurrentPageIndex() !== startAt) pf.turnToPage(startAt)
+    setFlipIndex(startAt)
     pf.on('flip', (e) => setFlipIndex(e.data as number))
     flipRef.current = pf
     return () => {

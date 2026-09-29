@@ -28,7 +28,7 @@ import { pickImageFor } from '../CanvasStage'
 
 export function Inspector() {
   return (
-    <aside className="scroll-thin hidden w-72 shrink-0 overflow-y-auto border-l border-ink-700 bg-ink-850 xl:block">
+    <aside data-tour="inspector" className="scroll-thin hidden w-72 shrink-0 overflow-y-auto border-l border-ink-700 bg-ink-850 xl:block">
       <InspectorBody />
     </aside>
   )

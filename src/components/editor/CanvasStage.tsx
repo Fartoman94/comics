@@ -587,6 +587,7 @@ export function CanvasStage() {
   return (
     <div
       ref={wrapRef}
+      data-tour="canvas"
       className="canvas-bg relative h-full w-full touch-none overflow-hidden select-none"
       style={{ cursor }}
       onDragOver={(e) => {
