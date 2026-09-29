@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-comic: 'Bangers', 'Luckiest Guy', cursive;
+  --color-ink-950: #0b0b0e;
+  --color-ink-900: #111115;
+  --color-ink-850: #16161b;
+  --color-ink-800: #1c1c22;
+  --color-ink-700: #26262e;
+  --color-ink-600: #34343e;
+  --color-ink-500: #4a4a56;
+  --color-ink-400: #71717d;
+  --color-ink-300: #a1a1ab;
+  --color-ink-200: #d4d4d9;
+  --color-ink-100: #ececef;
+  --color-accent: #ff5a36;
+  --color-accent-hover: #ff7352;
+  --color-accent-soft: rgb(255 90 54 / 0.14);
+  --color-mate: #34d399;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-ink-100);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+
+/* Fondo del área de trabajo: cuadrícula punteada tenue. */
+.canvas-bg {
+  background-color: #0f0f13;
+  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.05) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+
+input[type='range'] {
+  accent-color: var(--color-accent);
+}
+
+input[type='color'] {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  border: none;
+  background: none;
+}
+input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type='color']::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+input[type='color']::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+.halftone {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.09) 1.2px, transparent 1.6px);
+  background-size: 9px 9px;
+}
+
+/* ---------- Visor de lectura ---------- */
+.reader-room {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgb(255 255 255 / 0.07), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgb(255 90 54 / 0.08), transparent 55%),
+    #08080a;
+}
+
+.flip-book-host {
+  filter: drop-shadow(0 30px 45px rgb(0 0 0 / 0.65));
+}
+
+.flip-page {
+  background: #fdfcf8;
+  overflow: hidden;
+  position: relative;
+}
+.flip-page img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+/* Pliegue interior: la página se oscurece suavemente hacia el lomo. */
+.flip-page .flip-gutter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.flip-page.--left .flip-gutter {
+  background: linear-gradient(to left, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.06) 4%, transparent 12%);
+}
+.flip-page.--right .flip-gutter {
+  background: linear-gradient(to right, rgb(0 0 0 / 0.22), rgb(0 0 0 / 0.06) 4%, transparent 12%);
+}
+.flip-page[data-density='hard'] {
+  background: #111;
+}

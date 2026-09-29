@@ -1,0 +1,215 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEditor } from '../../store/editor'
+import { saveProject } from '../../lib/storage'
+import { renderPage } from '../../lib/render'
+import { getThumb, setThumb, thumbIsFresh } from '../../lib/thumbs'
+import { importFiles, placeAsset } from '../../lib/placement'
+import type { Tool } from '../../types'
+import { CanvasStage } from './CanvasStage'
+import { TopBar } from './TopBar'
+import { ToolRail } from './ToolRail'
+import { Sidebar } from './sidebar/Sidebar'
+import { Inspector } from './inspector/Inspector'
+import { Reader } from './Reader'
+import { CropBar } from './CropBar'
+import { ShortcutsDialog } from './ShortcutsDialog'
+import { MobileBar } from './MobileBar'
+
+const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
+
+export function Editor() {
+  const [reading, setReading] = useState(false)
+  const [shortcuts, setShortcuts] = useState(false)
+  const openShortcuts = useCallback(() => setShortcuts(true), [])
+  useAutosave()
+  usePageThumbnails()
+  useShortcuts(openShortcuts)
+  useClipboardImages()
+
+  return (
+    <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
+      <TopBar onRead={() => setReading(true)} onShortcuts={openShortcuts} />
+      <div className="flex min-h-0 flex-1">
+        <ToolRail />
+        <Sidebar />
+        <div className="relative min-w-0 flex-1">
+          <CanvasStage />
+          <CropBar />
+        </div>
+        <Inspector />
+      </div>
+      <MobileBar />
+      {reading && <Reader onClose={() => setReading(false)} />}
+      <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
+    </div>
+  )
+}
+
+/** Guarda en IndexedDB 800 ms después del último cambio (y al cerrar la pestaña). */
+function useAutosave() {
+  const project = useEditor((s) => s.project)
+  const status = useEditor((s) => s.saveStatus)
+  const timer = useRef<number>(0)
+  useEffect(() => {
+    if (!project || status !== 'dirty') return
+    clearTimeout(timer.current)
+    timer.current = window.setTimeout(async () => {
+      const s = useEditor.getState()
+      s.setSaveStatus('saving')
+      try {
+        await saveProject(useEditor.getState().project!)
+        if (useEditor.getState().saveStatus === 'saving') s.setSaveStatus('saved')
+      } catch {
+        s.setSaveStatus('error')
+        s.toast('No se pudo guardar. ¿El navegador se quedó sin espacio?', 'error')
+      }
+    }, 800)
+    return () => clearTimeout(timer.current)
+  }, [project, status])
+
+  useEffect(() => {
+    const onUnload = (e: BeforeUnloadEvent) => {
+      const s = useEditor.getState()
+      if (s.saveStatus === 'dirty' || s.saveStatus === 'saving') {
+        if (s.project) void saveProject(s.project)
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', onUnload)
+    return () => window.removeEventListener('beforeunload', onUnload)
+  }, [])
+}
+
+function usePageThumbnails() {
+  const project = useEditor((s) => s.project)
+  useEffect(() => {
+    if (!project) return
+    const t = window.setTimeout(async () => {
+      const ratio = Math.min(0.25, 220 / project.format.width)
+      for (const page of project.pages) {
+        if (thumbIsFresh(page.id, page)) continue
+        const src = await renderPage(project, page, { pixelRatio: ratio, mime: 'image/jpeg', quality: 0.8 })
+        setThumb(page.id, src, page)
+      }
+      // Portada del proyecto para la pantalla de inicio.
+      const first = project.pages[0]
+      const cover = getThumb(first.id)
+      const current = useEditor.getState().project
+      if (cover && current && current.thumbnail !== cover && current.pages[0] === first) {
+        useEditor.getState().mutate((d) => void (d.thumbnail = cover), { history: false })
+      }
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [project])
+}
+
+function isTyping(e: Event) {
+  const t = e.target as HTMLElement | null
+  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+}
+
+function useShortcuts(openHelp: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isTyping(e)) return
+      const s = useEditor.getState()
+      const mod = e.metaKey || e.ctrlKey
+      const k = e.key.toLowerCase()
+      if (mod && k === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) s.redo()
+        else s.undo()
+      } else if (mod && k === 'y') {
+        e.preventDefault()
+        s.redo()
+      } else if (mod && k === 'd') {
+        e.preventDefault()
+        s.duplicateSelection()
+      } else if (mod && k === 'c') {
+        s.copySelection()
+      } else if (mod && k === 'x') {
+        s.copySelection()
+        s.deleteSelection()
+      } else if (mod && k === 'a') {
+        e.preventDefault()
+        const page = s.project?.pages.find((p) => p.id === s.pageId)
+        if (page) s.select(page.elements.filter((el) => !el.locked && !el.hidden).map((el) => el.id))
+      } else if (mod && (k === '=' || k === '+')) {
+        e.preventDefault()
+        s.setZoom(Math.min(8, s.zoom * 1.25))
+      } else if (mod && k === '-') {
+        e.preventDefault()
+        s.setZoom(Math.max(0.05, s.zoom / 1.25))
+      } else if (mod && k === '0') {
+        e.preventDefault()
+        s.requestFit()
+      } else if (mod && k === ']') {
+        e.preventDefault()
+        s.arrange(e.shiftKey ? 'front' : 'forward')
+      } else if (mod && k === '[') {
+        e.preventDefault()
+        s.arrange(e.shiftKey ? 'back' : 'backward')
+      } else if (k === 'delete' || k === 'backspace') {
+        if (s.selection.length) {
+          e.preventDefault()
+          s.deleteSelection()
+        }
+      } else if (k === 'escape') {
+        if (s.croppingPanelId) s.setCropping(null)
+        else if (s.tool !== 'select') s.setTool('select')
+        else s.select([])
+      } else if (k.startsWith('arrow') && s.selection.length) {
+        e.preventDefault()
+        const d = e.shiftKey ? 10 : 1
+        const dx = k === 'arrowleft' ? -d : k === 'arrowright' ? d : 0
+        const dy = k === 'arrowup' ? -d : k === 'arrowdown' ? d : 0
+        s.mutate(
+          (draft) => {
+            const page = draft.pages.find((p) => p.id === s.pageId)
+            page?.elements.forEach((el) => {
+              if (s.selection.includes(el.id) && !el.locked) {
+                el.x += dx
+                el.y += dy
+              }
+            })
+          },
+          { coalesce: 'nudge' },
+        )
+      } else if (k === 'pageup' || k === 'pagedown') {
+        const pages = s.project?.pages ?? []
+        const i = pages.findIndex((p) => p.id === s.pageId)
+        const next = pages[i + (k === 'pagedown' ? 1 : -1)]
+        if (next) s.setPage(next.id)
+      } else if (k === '?') {
+        openHelp()
+      } else if (k === '[' || k === ']') {
+        const key = s.tool === 'eraser' ? 'eraserSize' : 'size'
+        const cur = s.brush[key]
+        s.setBrush({ [key]: Math.max(1, Math.min(200, Math.round(k === ']' ? cur * 1.2 + 1 : cur / 1.2))) })
+      } else if (!mod && !e.altKey && TOOL_KEYS[k]) {
+        s.setTool(TOOL_KEYS[k])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openHelp])
+}
+
+/** Ctrl+V con una imagen en el portapapeles la agrega al proyecto. */
+function useClipboardImages() {
+  useEffect(() => {
+    const onPaste = async (e: ClipboardEvent) => {
+      if (isTyping(e)) return
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'))
+      if (files.length) {
+        e.preventDefault()
+        const assets = await importFiles(files)
+        assets.forEach((a) => placeAsset(a))
+      } else {
+        useEditor.getState().paste()
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [])
+}
