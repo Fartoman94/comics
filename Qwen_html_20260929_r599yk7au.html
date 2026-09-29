@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comic Creator Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .comic-font { font-family: 'Bangers', cursive; letter-spacing: 1px; }
+  
+  .speech-bubble {
+    background: white;
+    border: 2px solid #000;
+    border-radius: 20px;
+    padding: 10px;
+    position: relative;
+  }
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    left: 20px;
+    width: 0; height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 12px solid #000;
+  }
+  
+  .thought-bubble {
+    background: white;
+    border: 2px solid #000;
+    border-radius: 50%;
+    padding: 15px;
+  }
+  
+  .panel-item {
+    cursor: move;
+    user-select: none;
+  }
+  .panel-item.selected {
+    outline: 3px solid #6366f1;
+    outline-offset: 2px;
+  }
+  
+  .resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #6366f1;
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: se-resize;
+    bottom: -6px;
+    right: -6px;
+    z-index: 10;
+  }
+  
+  .page-canvas {
+    width: 600px;
+    height: 800px;
+    background: white;
+    border: 4px solid #000;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  
+  .draw-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 20;
+    cursor: crosshair;
+  }
+  
+  .draw-canvas.disabled {
+    pointer-events: none;
+    cursor: default;
+  }
+  
+  .comic-page-bg {
+    background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f43f5e 100%);
+  }
+  
+  .back-cover-bg {
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  }
+  
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .color-swatch.active {
+    border-color: #000;
+    transform: scale(1.15);
+    box-shadow: 0 0 0 2px white, 0 0 0 4px #000;
+  }
+  
+  .tool-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+  }
+  .tool-btn.active {
+    background: #6366f1;
+    color: white;
+    border-color: #4338ca;
+  }
+  
+  .mode-indicator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 30;
+    pointer-events: none;
+  }
+  
+  .drawing-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+</style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 min-h-screen">
+
+<!-- HEADER -->
+<header class="bg-white shadow-lg border-b-4 border-indigo-500 sticky top-0 z-50">
+  <div class="container mx-auto px-4 py-4">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+      <div class="flex items-center space-x-3">
+        <svg class="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent">
+            Comic Creator Pro
+          </h1>
+          <p class="text-xs text-gray-600">Dibuja, crea y comparte tu cómic</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3 flex-wrap gap-2">
+        <input id="comicTitle" type="text" value="Mi Cómic" 
+          class="px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none font-semibold"
+          placeholder="Título del cómic">
+        <button onclick="generatePDF()" class="btn-primary text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>Descargar PDF</span>
+        </button>
+        <button onclick="shareComic()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all flex items-center space-x-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+          <span>Compartir</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN CONTENT -->
+<div class="container mx-auto px-4 py-8">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- SIDEBAR -->
+    <aside class="lg:col-span-3">
+      <div class="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+        <h2 class="text-xl font-bold mb-4 flex items-center">
+          <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          Páginas
+        </h2>
+        
+        <div id="pagesList" class="space-y-2 mb-6"></div>
+
+        <div class="border-t pt-4">
+          <h3 class="text-sm font-semibold text-gray-600 mb-2">Agregar Página</h3>
+          <div class="space-y-2">
+            <button onclick="addPage('content')" class="w-full flex items-center justify-center space-x-2 bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>Página de Contenido</span>
+            </button>
+            <button onclick="addPage('backcover')" class="w-full flex items-center justify-center space-x-2 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span>Contraportada</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-800">
+          💡 <strong>Tip:</strong> Activa el modo dibujo para dibujar a mano alzada en cada página.
+        </div>
+      </div>
+    </aside>
+
+    <!-- EDITOR -->
+    <main class="lg:col-span-9">
+      
+      <!-- MODO DE EDICIÓN -->
+      <div class="bg-white rounded-xl shadow-lg p-4 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-gray-700">Modo:</span>
+            <button id="modeEditBtn" onclick="setMode('edit')" class="tool-btn bg-gray-100 hover:bg-gray-200 active">
+              ✏️ Editar Paneles
+            </button>
+            <button id="modeDrawBtn" onclick="setMode('draw')" class="tool-btn bg-gray-100 hover:bg-gray-200">
+              🎨 Dibujar a Mano
+            </button>
+          </div>
+          <h2 id="pageTitle" class="text-2xl font-bold">Portada</h2>
+        </div>
+      </div>
+
+      <!-- HERRAMIENTAS DE DIBUJO (solo visible en modo dibujo) -->
+      <div id="drawTools" class="bg-white rounded-xl shadow-lg p-4 mb-4 hidden">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <!-- Herramientas -->
+            <div class="flex items-center gap-2 border-r pr-3">
+              <button onclick="setTool('pen')" id="toolPen" class="tool-btn bg-gray-100 hover:bg-gray-200 active" title="Lápiz">
+                ✏️ Lápiz
+              </button>
+              <button onclick="setTool('eraser')" id="toolEraser" class="tool-btn bg-gray-100 hover:bg-gray-200" title="Borrador">
+                🧽 Borrador
+              </button>
+            </div>
+            
+            <!-- Colores -->
+            <div class="flex items-center gap-2 border-r pr-3">
+              <span class="text-xs font-semibold text-gray-600">Color:</span>
+              <div id="colorPalette" class="flex gap-1 flex-wrap"></div>
+              <input type="color" id="customColor" value="#000000" class="w-8 h-8 rounded cursor-pointer border-2 border-gray-300" onchange="setColor(this.value)" title="Color personalizado">
+            </div>
+            
+            <!-- Tamaño -->
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold text-gray-600">Tamaño:</span>
+              <input type="range" id="brushSize" min="1" max="30" value="3" class="w-24" oninput="setBrushSize(this.value)">
+              <span id="brushSizeLabel" class="text-xs font-bold w-6">3</span>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <button onclick="undoDrawing()" class="tool-btn bg-yellow-100 hover:bg-yellow-200 text-yellow-800" title="Deshacer">
+              ↶ Deshacer
+            </button>
+            <button onclick="clearDrawing()" class="tool-btn bg-red-100 hover:bg-red-200 text-red-800" title="Limpiar página">
+              🗑️ Limpiar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOLBAR DE PANELES (solo visible en modo edición) -->
+      <div id="panelTools" class="bg-white rounded-xl shadow-lg p-4 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div id="toolbar" class="flex flex-wrap gap-2"></div>
+          <div id="panelActions" class="flex gap-2"></div>
+        </div>
+      </div>
+
+      <!-- CANVAS -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div class="flex justify-center overflow-auto">
+          <div id="pageCanvas" class="page-canvas">
+            <div id="modeIndicator" class="mode-indicator">Modo: Editar</div>
+            <img id="drawingBackground" class="drawing-bg" style="display:none;">
+            <canvas id="drawCanvas" class="draw-canvas disabled" width="600" height="800"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROPIEDADES DEL PANEL -->
+      <div id="propertiesPanel" class="bg-white rounded-xl shadow-lg p-6 hidden">
+        <h3 class="font-bold text-lg mb-4">🎨 Propiedades del Elemento</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Texto</label>
+            <textarea id="panelText" class="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none" rows="3" oninput="updatePanelText()"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Tamaño (px)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs">Ancho</label>
+                <input id="panelWidth" type="number" class="w-full p-2 border-2 border-gray-200 rounded-lg" oninput="updatePanelSize()">
+              </div>
+              <div>
+                <label class="text-xs">Alto</label>
+                <input id="panelHeight" type="number" class="w-full p-2 border-2 border-gray-200 rounded-lg" oninput="updatePanelSize()">
+              </div>
+            </div>
+            <div class="mt-3 flex gap-2">
+              <label class="flex-1 cursor-pointer bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 text-center text-sm flex items-center justify-center">
+                📷 Subir imagen
+                <input id="panelImageInput" type="file" accept="image/*" class="hidden" onchange="uploadPanelImage(event)">
+              </label>
+              <button onclick="removeSelectedPanel()" class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 text-sm">🗑️ Eliminar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<footer class="bg-white border-t mt-12 py-6">
+  <div class="container mx-auto px-4 text-center text-gray-600 text-sm">
+    <p>✨ Comic Creator Pro - Dibuja, crea y comparte tu cómic</p>
+  </div>
+</footer>
+
+<script>
+// ============ ESTADO ============
+let state = {
+  pages: [
+    { id: 1, type: 'cover', title: 'Portada', panels: [], drawing: null },
+    { id: 2, type: 'credits', title: 'Créditos', panels: [], drawing: null, credits: { author: '', artist: '', thanks: '' } }
+  ],
+  selectedPageId: 1,
+  selectedPanelId: null,
+  dragging: null,
+  resizing: null,
+  mode: 'edit', // 'edit' | 'draw'
+  tool: 'pen',
+  color: '#000000',
+  brushSize: 3,
+  isDrawing: false,
+  currentPath: [],
+  history: {} // historial de dibujos por página
+};
+
+const COLORS = ['#000000', '#ffffff', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#78350f', '#6b7280'];
+
+// ============ MODO Y HERRAMIENTAS ============
+function setMode(mode) {
+  state.mode = mode;
+  const drawCanvas = document.getElementById('drawCanvas');
+  const indicator = document.getElementById('modeIndicator');
+  
+  if (mode === 'draw') {
+    drawCanvas.classList.remove('disabled');
+    document.getElementById('drawTools').classList.remove('hidden');
+    document.getElementById('panelTools').classList.add('hidden');
+    document.getElementById('propertiesPanel').classList.add('hidden');
+    indicator.textContent = '🎨 Modo: Dibujar';
+    indicator.style.background = 'rgba(139, 92, 246, 0.9)';
+    document.getElementById('modeDrawBtn').classList.add('active');
+    document.getElementById('modeEditBtn').classList.remove('active');
+  } else {
+    drawCanvas.classList.add('disabled');
+    document.getElementById('drawTools').classList.add('hidden');
+    document.getElementById('panelTools').classList.remove('hidden');
+    indicator.textContent = '✏️ Modo: Editar';
+    indicator.style.background = 'rgba(0,0,0,0.7)';
+    document.getElementById('modeEditBtn').classList.add('active');
+    document.getElementById('modeDrawBtn').classList.remove('active');
+  }
+  render();
+}
+
+function setTool(tool) {
+  state.tool = tool;
+  document.getElementById('toolPen').classList.toggle('active', tool === 'pen');
+  document.getElementById('toolEraser').classList.toggle('active', tool === 'eraser');
+  
+  const drawCanvas = document.getElementById('drawCanvas');
+  drawCanvas.style.cursor = tool === 'eraser' ? 'cell' : 'crosshair';
+}
+
+function setColor(color) {
+  state.color = color;
+  document.getElementById('customColor').value = color;
+  document.querySelectorAll('.color-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === color);
+  });
+}
+
+function setBrushSize(size) {
+  state.brushSize = parseInt(size);
+  document.getElementById('brushSizeLabel').textContent = size;
+}
+
+function initColorPalette() {
+  const palette = document.getElementById('colorPalette');
+  palette.innerHTML = COLORS.map(c => 
+    `<div class="color-swatch ${c === state.color ? 'active' : ''}" 
+      style="background:${c}; ${c === '#ffffff' ? 'border: 2px solid #ccc;' : ''}"
+      data-color="${c}"
+      onclick="setColor('${c}')"></div>`
+  ).join('');
+}
+
+// ============ DIBUJO ============
+function initDrawing() {
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
+  
+  function startDraw(e) {
+    if (state.mode !== 'draw') return;
+    e.preventDefault();
+    state.isDrawing = true;
+    const pos = getPos(e);
+    state.currentPath = [{ ...pos, color: state.color, size: state.brushSize, tool: state.tool }];
+    
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(pos.x + 0.1, pos.y + 0.1);
+    ctx.strokeStyle = state.tool === 'eraser' ? '#ffffff' : state.color;
+    ctx.lineWidth = state.brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalCompositeOperation = state.tool === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.stroke();
+  }
+  
+  function draw(e) {
+    if (!state.isDrawing || state.mode !== 'draw') return;
+    e.preventDefault();
+    const pos = getPos(e);
+    state.currentPath.push({ ...pos });
+    
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
+  
+  function endDraw(e) {
+    if (!state.isDrawing) return;
+    state.isDrawing = false;
+    ctx.closePath();
+    ctx.globalCompositeOperation = 'source-over';
+    
+    if (state.currentPath.length > 0) {
+      const page = getCurrentPage();
+      if (page) {
+        if (!state.history[page.id]) state.history[page.id] = [];
+        state.history[page.id].push(state.currentPath);
+        saveDrawing();
+      }
+    }
+    state.currentPath = [];
+  }
+  
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  
+  canvas.addEventListener('touchstart', startDraw, { passive: false });
+  canvas.addEventListener('touchmove', draw, { passive: false });
+  canvas.addEventListener('touchend', endDraw);
+}
+
+function saveDrawing() {
+  const page = getCurrentPage();
+  const canvas = document.getElementById('drawCanvas');
+  if (page) {
+    page.drawing = canvas.toDataURL('image/png');
+  }
+}
+
+function loadDrawing() {
+  const page = getCurrentPage();
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  if (page && page.drawing) {
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = page.drawing;
+  }
+}
+
+function redrawHistory() {
+  const page = getCurrentPage();
+  const canvas = document.getElementById('drawCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  if (!page || !state.history[page.id]) return;
+  
+  state.history[page.id].forEach(path => {
+    if (path.length === 0) return;
+    ctx.beginPath();
+    const first = path[0];
+    ctx.moveTo(first.x, first.y);
+    ctx.strokeStyle = first.tool === 'eraser' ? '#ffffff' : first.color;
+    ctx.lineWidth = first.size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalCompositeOperation = first.tool === 'eraser' ? 'destination-out' : 'source-over';
+    
+    for (let i = 1; i < path.length; i++) {
+      ctx.lineTo(path[i].x, path[i].y);
+    }
+    ctx.stroke();
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  saveDrawing();
+}
+
+function undoDrawing() {
+  const page = getCurrentPage();
+  if (!page || !state.history[page.id] || state.history[page.id].length === 0) return;
+  state.history[page.id].pop();
+  redrawHistory();
+}
+
+function clearDrawing() {
+  if (!confirm('¿Limpiar todo el dibujo de esta página?')) return;
+  const page = getCurrentPage();
+  if (page) {
+    state.history[page.id] = [];
+    page.drawing = null;
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ============ PÁGINAS ============
+function addPage(type) {
+  const id = Date.now();
+  const title = type === 'content' ? `Página ${state.pages.length + 1}` : 'Contraportada';
+  state.pages.push({ 
+    id, type, title, panels: [], drawing: null,
+    credits: type === 'backcover' ? { synopsis: '', price: '', isbn: '' } : {}
+  });
+  state.selectedPageId = id;
+  render();
+}
+
+function removePage(id) {
+  if (state.pages.length <= 2) {
+    alert('Debe haber al menos 2 páginas (Portada y Créditos)');
+    return;
+  }
+  if (!confirm('¿Eliminar esta página?')) return;
+  state.pages = state.pages.filter(p => p.id !== id);
+  delete state.history[id];
+  if (state.selectedPageId === id) state.selectedPageId = state.pages[0].id;
+  render();
+}
+
+function selectPage(id) {
+  state.selectedPageId = id;
+  state.selectedPanelId = null;
+  render();
+}
+
+function getCurrentPage() {
+  return state.pages.find(p => p.id === state.selectedPageId);
+}
+
+// ============ PANELES ============
+function addPanel(type) {
+  const page = getCurrentPage();
+  if (!page) return;
+  const panel = {
+    id: Date.now(),
+    type,
+    x: 50 + Math.random() * 100,
+    y: 50 + Math.random() * 100,
+    width: type === 'panel' ? 200 : 150,
+    height: type === 'panel' ? 200 : 100,
+    text: type !== 'panel' ? 'Texto aquí' : '',
+    image: null
+  };
+  page.panels.push(panel);
+  state.selectedPanelId = panel.id;
+  render();
+}
+
+function selectPanel(id, e) {
+  if (e) e.stopPropagation();
+  if (state.mode !== 'edit') return;
+  state.selectedPanelId = id;
+  render();
+}
+
+function removeSelectedPanel() {
+  const page = getCurrentPage();
+  if (!page || !state.selectedPanelId) return;
+  page.panels = page.panels.filter(p => p.id !== state.selectedPanelId);
+  state.selectedPanelId = null;
+  render();
+}
+
+function updatePanelText() {
+  const page = getCurrentPage();
+  const panel = page.panels.find(p => p.id === state.selectedPanelId);
+  if (panel) panel.text = document.getElementById('panelText').value;
+}
+
+function updatePanelSize() {
+  const page = getCurrentPage();
+  const panel = page.panels.find(p => p.id === state.selectedPanelId);
+  if (panel) {
+    panel.width = parseInt(document.getElementById('panelWidth').value) || 100;
+    panel.height = parseInt(document.getElementById('panelHeight').value) || 100;
+    renderCanvas();
+  }
+}
+
+function uploadPanelImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const page = getCurrentPage();
+    const panel = page.panels.find(p => p.id === state.selectedPanelId);
+    if (panel) {
+      panel.image = ev.target.result;
+      renderCanvas();
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ============ DRAG & RESIZE ============
+function startDrag(e, panelId) {
+  if (state.mode !== 'edit') return;
+  if (e.target.classList.contains('resize-handle')) return;
+  e.preventDefault();
+  const page = getCurrentPage();
+  const panel = page.panels.find(p => p.id === panelId);
+  
+  state.dragging = {
+    panelId,
+    startX: e.clientX,
+    startY: e.clientY,
+    origX: panel.x,
+    origY: panel.y
+  };
+  state.selectedPanelId = panelId;
+  render();
+}
+
+function startResize(e, panelId) {
+  if (state.mode !== 'edit') return;
+  e.preventDefault();
+  e.stopPropagation();
+  const page = getCurrentPage();
+  const panel = page.panels.find(p => p.id === panelId);
+  
+  state.resizing = {
+    panelId,
+    startX: e.clientX,
+    startY: e.clientY,
+    origW: panel.width,
+    origH: panel.height
+  };
+}
+
+document.addEventListener('mousemove', (e) => {
+  if (state.dragging && state.mode === 'edit') {
+    const page = getCurrentPage();
+    const panel = page.panels.find(p => p.id === state.dragging.panelId);
+    if (panel) {
+      panel.x = state.dragging.origX + (e.clientX - state.dragging.startX);
+      panel.y = state.dragging.origY + (e.clientY - state.dragging.startY);
+      renderCanvas();
+    }
+  }
+  if (state.resizing && state.mode === 'edit') {
+    const page = getCurrentPage();
+    const panel = page.panels.find(p => p.id === state.resizing.panelId);
+    if (panel) {
+      panel.width = Math.max(50, state.resizing.origW + (e.clientX - state.resizing.startX));
+      panel.height = Math.max(50, state.resizing.origH + (e.clientY - state.resizing.startY));
+      renderCanvas();
+    }
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  state.dragging = null;
+  state.resizing = null;
+});
+
+// ============ RENDER ============
+function render() {
+  renderPagesList();
+  renderToolbar();
+  renderCanvas();
+  renderProperties();
+  loadDrawing();
+}
+
+function renderPagesList() {
+  const list = document.getElementById('pagesList');
+  list.innerHTML = state.pages.map(page => {
+    const hasDrawing = page.drawing ? '🎨' : '';
+    const hasPanels = page.panels.length > 0 ? `📋 ${page.panels.length}` : '';
+    return `
+    <div onclick="selectPage(${page.id})" 
+      class="p-3 rounded-lg cursor-pointer transition-all ${
+        state.selectedPageId === page.id 
+          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md' 
+          : 'bg-gray-50 hover:bg-gray-100'
+      }">
+      <div class="flex items-center justify-between">
+        <span class="font-medium">${page.title}</span>
+        <div class="flex items-center gap-1 text-xs">
+          ${hasDrawing} ${hasPanels}
+          ${page.id > 2 ? `<button onclick="event.stopPropagation(); removePage(${page.id})" class="${state.selectedPageId === page.id ? 'text-white' : 'text-red-500'} hover:opacity-70 ml-1">✕</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `}).join('');
+}
+
+function renderToolbar() {
+  const page = getCurrentPage();
+  const toolbar = document.getElementById('toolbar');
+  const actions = document.getElementById('panelActions');
+  document.getElementById('pageTitle').textContent = page ? page.title : '';
+  
+  if (state.mode !== 'edit') {
+    toolbar.innerHTML = '';
+    actions.innerHTML = '';
+    return;
+  }
+  
+  if (!page || page.type === 'cover' || page.type === 'credits' || page.type === 'backcover') {
+    toolbar.innerHTML = '<span class="text-sm text-gray-500">Cambia al modo "Dibujar" para dibujar en esta página</span>';
+    actions.innerHTML = '';
+    return;
+  }
+  
+  toolbar.innerHTML = `
+    <button onclick="addPanel('panel')" class="flex items-center space-x-2 bg-indigo-500 text-white px-3 py-2 rounded-lg hover:bg-indigo-600 text-sm">
+      🖼️ Panel
+    </button>
+    <button onclick="addPanel('speech')" class="flex items-center space-x-2 bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 text-sm">
+      💬 Diálogo
+    </button>
+    <button onclick="addPanel('thought')" class="flex items-center space-x-2 bg-pink-500 text-white px-3 py-2 rounded-lg hover:bg-pink-600 text-sm">
+      💭 Pensamiento
+    </button>
+  `;
+  
+  if (state.selectedPanelId) {
+    actions.innerHTML = `
+      <label class="cursor-pointer bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 text-sm flex items-center gap-1">
+        📷 Imagen
+        <input type="file" accept="image/*" class="hidden" onchange="uploadPanelImage(event)">
+      </label>
+      <button onclick="removeSelectedPanel()" class="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 text-sm">🗑️</button>
+    `;
+  } else {
+    actions.innerHTML = '';
+  }
+}
+
+function renderCanvas() {
+  const page = getCurrentPage();
+  const canvas = document.getElementById('pageCanvas');
+  const title = document.getElementById('comicTitle').value;
+  
+  if (!page) return;
+  
+  // Preservar el canvas de dibujo y el indicador
+  const drawCanvas = document.getElementById('drawCanvas');
+  const modeIndicator = document.getElementById('modeIndicator');
+  const drawingBg = document.getElementById('drawingBackground');
+  
+  let content = '';
+  
+  if (page.type === 'cover') {
+    canvas.className = 'page-canvas comic-page-bg';
+    content = `
+      <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-8" style="z-index: 2;">
+        <h1 class="comic-font text-6xl md:text-7xl font-bold mb-4 drop-shadow-lg text-center" style="text-shadow: 4px 4px 0 #000;">
+          ${title}
+        </h1>
+        <p class="text-2xl drop-shadow-md">Edición #1</p>
+        <div class="mt-8 text-sm opacity-80">★ ★ ★</div>
+      </div>
+      ${renderPanels(page)}
+    `;
+  } else if (page.type === 'credits') {
+    canvas.className = 'page-canvas';
+    content = `
+      <div class="p-12 h-full flex flex-col justify-center relative" style="z-index: 2;">
+        <h2 class="comic-font text-5xl font-bold mb-8 text-center">Créditos</h2>
+        <div class="space-y-6 text-lg">
+          <div class="border-b-2 border-gray-200 pb-4">
+            <h3 class="font-bold text-xl mb-2 text-indigo-600">✍️ Escrito por:</h3>
+            <input type="text" value="${page.credits.author || ''}" 
+              oninput="updateCredits('author', this.value)"
+              class="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none"
+              placeholder="Nombre del autor">
+          </div>
+          <div class="border-b-2 border-gray-200 pb-4">
+            <h3 class="font-bold text-xl mb-2 text-purple-600">🎨 Ilustrado por:</h3>
+            <input type="text" value="${page.credits.artist || ''}"
+              oninput="updateCredits('artist', this.value)"
+              class="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none"
+              placeholder="Nombre del artista">
+          </div>
+          <div>
+            <h3 class="font-bold text-xl mb-2 text-pink-600">🙏 Agradecimientos:</h3>
+            <textarea oninput="updateCredits('thanks', this.value)"
+              class="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:outline-none"
+              rows="4" placeholder="Agradecimientos especiales">${page.credits.thanks || ''}</textarea>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (page.type === 'backcover') {
+    canvas.className = 'page-canvas back-cover-bg';
+    content = `
+      <div class="absolute inset-0 flex flex-col items-center justify-center text-white p-12" style="z-index: 2;">
+        <h2 class="comic-font text-5xl font-bold mb-6" style="text-shadow: 3px 3px 0 #000;">${title}</h2>
+        <div class="text-center max-w-md space-y-4">
+          <textarea oninput="updateBackCover('synopsis', this.value)"
+            class="w-full p-3 bg-white/10 border-2 border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:border-white"
+            rows="5" placeholder="Sinopsis de la historieta...">${page.credits.synopsis || ''}</textarea>
+          <div class="border-t-2 border-white/30 pt-4 space-y-2">
+            <input type="text" value="${page.credits.price || ''}"
+              oninput="updateBackCover('price', this.value)"
+              class="w-full p-2 bg-white/10 border-2 border-white/30 rounded-lg text-white placeholder-white/60 text-center focus:outline-none"
+              placeholder="Precio: $X.XX">
+            <input type="text" value="${page.credits.isbn || ''}"
+              oninput="updateBackCover('isbn', this.value)"
+              class="w-full p-2 bg-white/10 border-2 border-white/30 rounded-lg text-white placeholder-white/60 text-center text-sm focus:outline-none"
+              placeholder="ISBN: XXX-X-XXXX-XXXX-X">
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    canvas.className = 'page-canvas';
+    content = `
+      <div class="absolute top-2 right-2 bg-gray-100 px-3 py-1 rounded-full text-xs font-semibold text-gray-600" style="z-index: 2;">
+        ${page.title}
+      </div>
+      ${renderPanels(page)}
+    `;
+  }
+  
+  // Mantener canvas e indicador
+  canvas.innerHTML = content;
+  canvas.appendChild(modeIndicator);
+  canvas.appendChild(drawingBg);
+  canvas.appendChild(drawCanvas);
+}
+
+function renderPanels(page) {
+  return page.panels.map(panel => {
+    const selected = state.selectedPanelId === panel.id;
+    let content = '';
+    
+    if (panel.type === 'panel') {
+      content = panel.image 
+        ? `<img src="${panel.image}" class="w-full h-full object-cover">`
+        : `<div class="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50">
+            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+           </div>`;
+    } else if (panel.type === 'speech') {
+      content = `<div class="speech-bubble w-full h-full flex items-center justify-center p-3">
+        <p class="text-center text-sm font-semibold">${panel.text}</p>
+      </div>`;
+    } else if (panel.type === 'thought') {
+      content = `<div class="thought-bubble w-full h-full flex items-center justify-center p-3">
+        <p class="text-center text-sm italic">${panel.text}</p>
+      </div>`;
+    }
+    
+    return `
+      <div class="panel-item absolute ${selected ? 'selected' : ''}" 
+        style="left:${panel.x}px; top:${panel.y}px; width:${panel.width}px; height:${panel.height}px; z-index: 5;"
+        onclick="selectPanel(${panel.id}, event)"
+        onmousedown="startDrag(event, ${panel.id})">
+        <div class="w-full h-full border-4 border-black bg-white overflow-hidden relative">
+          ${content}
+          ${selected && state.mode === 'edit' ? `<div class="resize-handle" onmousedown="startResize(event, ${panel.id})"></div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderProperties() {
+  const panel = document.getElementById('propertiesPanel');
+  const page = getCurrentPage();
+  if (!page || !state.selectedPanelId || state.mode !== 'edit') {
+    panel.classList.add('hidden');
+    return;
+  }
+  const selected = page.panels.find(p => p.id === state.selectedPanelId);
+  if (!selected) {
+    panel.classList.add('hidden');
+    return;
+  }
+  
+  panel.classList.remove('hidden');
+  document.getElementById('panelText').value = selected.text || '';
+  document.getElementById('panelWidth').value = selected.width;
+  document.getElementById('panelHeight').value = selected.height;
+}
+
+function updateCredits(field, value) {
+  const page = getCurrentPage();
+  if (page && page.credits) page.credits[field] = value;
+}
+
+function updateBackCover(field, value) {
+  const page = getCurrentPage();
+  if (page && page.credits) page.credits[field] = value;
+}
+
+// ============ PDF ============
+async function generatePDF() {
+  if (!confirm('Se generará un PDF con todas las páginas. ¿Continuar?')) return;
+  
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const originalPageId = state.selectedPageId;
+  const originalMode = state.mode;
+  
+  setMode('edit');
+  state.selectedPanelId = null;
+  
+  try {
+    for (let i = 0; i < state.pages.length; i++) {
+      state.selectedPageId = state.pages[i].id;
+      renderCanvas();
+      loadDrawing();
+      
+      await new Promise(r => setTimeout(r, 200));
+      
+      const canvasEl = document.getElementById('pageCanvas');
+      const imgCanvas = await html2canvas(canvasEl, { 
+        scale: 2, 
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = imgCanvas.toDataURL('image/png');
+      
+      if (i > 0) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+    }
+    
+    const title = document.getElementById('comicTitle').value || 'comic';
+    pdf.save(`${title}.pdf`);
+    alert('✅ ¡PDF generado y descargado correctamente!');
+  } catch (err) {
+    console.error(err);
+    alert('❌ Error al generar el PDF: ' + err.message);
+  } finally {
+    state.selectedPageId = originalPageId;
+    setMode(originalMode);
+    render();
+  }
+}
+
+async function shareComic() {
+  const title = document.getElementById('comicTitle').value;
+  
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: title,
+        text: `¡Mira mi cómic: ${title}!`,
+        url: window.location.href
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  } else {
+    navigator.clipboard.writeText(window.location.href);
+    alert('🔗 Enlace copiado al portapapeles. ¡Compártelo con tus amigos!');
+  }
+}
+
+// ============ INIT ============
+document.getElementById('comicTitle').addEventListener('input', renderCanvas);
+initColorPalette();
+initDrawing();
+render();
+</script>
+
+</body>
+</html>
