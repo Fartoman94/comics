@@ -128,6 +128,12 @@ export function CanvasStage() {
     }
   }, [])
 
+  // La parte visible de la página: sirve para insertar cosas donde se ven.
+  useEffect(() => {
+    if (!size.w || !zoom) return
+    useEditor.setState({ visibleRect: { x: -pan.x / zoom, y: -pan.y / zoom, width: size.w / zoom, height: size.h / zoom } })
+  }, [pan.x, pan.y, zoom, size.w, size.h])
+
   // ---------- Dedos apoyados (para no confundir un pellizco con un toque) ----------
   const touches = useRef(new Set<number>())
   const pinched = useRef(false)

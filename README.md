@@ -46,6 +46,21 @@ npm run preview  # sirve dist/
 
 Stack: React 19, TypeScript, Vite, Konva (lienzo), Zustand + Immer (estado e historial), IndexedDB (idb-keyval), perfect-freehand (trazos), page-flip (visor), jsPDF y JSZip (exportación), Tailwind CSS 4.
 
+## Formato de proyecto (.vineta) y compatibilidad
+
+- Un `.vineta` es JSON: `{ app: "vineta-studio", version: 1, project, blobs }`. Las imágenes van como `data:image/...;base64` (PNG, JPEG, WebP o GIF) y se verifican al importar. Nunca se pide nada a la red.
+- Todo lo que entra (archivos importados y proyectos guardados) pasa por `src/lib/projectSchema.ts`: tipos, ids únicos, referencias a imágenes, límites y versión. Un proyecto dañado no deja la app en blanco: se lista como "no se puede abrir", con opción de descargarlo o borrarlo.
+- **Guion (desde la etapa 05):** `project.script` es **opcional** y aditivo, por eso la versión del archivo sigue en 1. Los `.vineta` anteriores no lo tienen y se abren igual. Estructura: `script.pages[idDePágina].panels[] = { id, panelId | null, blocks[] }`, con bloques `{ id, kind: description | dialogue | thought | caption | sfx, text, character?, placedElementId? }`. La asociación es por id: reordenar páginas o viñetas no la rompe.
+- **Plantillas propias** se guardan aparte (IndexedDB `vineta-plantillas`) con copia propia de sus imágenes. El borrado de imágenes tiene en cuenta proyectos y plantillas.
+
+## Tests
+
+```bash
+npm test            # unitarios (Vitest + fake-indexeddb)
+npm run test:e2e    # Playwright: escritorio, celular 390×844 y tablet 820×1180 táctiles
+# con Chrome del sistema: PW_CHROME=/usr/bin/google-chrome npm run test:e2e
+```
+
 ## Manga de ejemplo
 
 Las ilustraciones están dibujadas en código (`src/demo/art.ts`) y se sirven pre-renderizadas como WebP en `public/demo/` para que la demo cargue rápido en el celular. Si cambiás algún dibujo:

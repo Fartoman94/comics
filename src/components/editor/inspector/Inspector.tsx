@@ -360,6 +360,11 @@ function PanelProps({ el }: { el: PanelElement }) {
   const setFilters = (f: Partial<ImageFilters>) => s.updateElement(el.id, (d) => void (d.type === 'panel' && d.image && Object.assign(d.image.filters, f)), 'panel-filter')
   return (
     <>
+      <Section title="Escena">
+        <Button size="sm" className="w-full" onClick={() => s.duplicatePanelWithContent(el.id)}>
+          Duplicar viñeta con su contenido
+        </Button>
+      </Section>
       <Section title="Imagen de la viñeta">
         {el.image ? (
           <>

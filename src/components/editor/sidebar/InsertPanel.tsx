@@ -1,6 +1,6 @@
 import { Brush, Layers } from 'lucide-react'
 import type { BubbleShape, EffectKind, TextElement } from '../../../types'
-import { currentPage, useEditor } from '../../../store/editor'
+import { currentPage, placementFor, useEditor } from '../../../store/editor'
 import { createBubble, createDrawing, createEffect, createText, TEXT_PRESETS } from '../../../lib/factories'
 import { detectScript, ensureGlyphs } from '../../../lib/fonts'
 import { Section } from '../../ui/controls'
@@ -85,7 +85,6 @@ const SFX: { lang: string; font: string; items: [string, string][] }[] = [
   },
 ]
 
-let cascade = 0
 
 export type InsertSection = 'bubbles' | 'texts' | 'sfx' | 'effects' | 'drawing'
 
@@ -98,12 +97,8 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
   const format = useEditor((s) => s.project!.format)
   const scale = format.width / 900
   const add = useEditor((s) => s.addElements)
-  // Cada inserción se corre un poco para que no queden apiladas en el mismo punto.
-  const center = (w: number, h: number) => {
-    const k = (cascade = (cascade + 1) % 6) - 2.5
-    const d = format.width * 0.05
-    return { x: Math.round(format.width / 2 - w / 2 + k * d), y: Math.round(format.height / 2 - h / 2 + k * d) }
-  }
+  // Cada inserción busca un lugar libre y visible (en la viñeta seleccionada, si hay una).
+  const center = (w: number, h: number) => placementFor(w, h)
 
   const addBubble = (shape: BubbleShape) => {
     const b = createBubble(shape, 0, 0, scale)

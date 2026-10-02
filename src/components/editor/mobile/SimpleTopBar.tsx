@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpenText, Check, CircleAlert, CircleHelp, Cloud, Download, Eye, Grid2x2, Home, Loader2, MonitorCog, MoreVertical, Redo2, Undo2 } from 'lucide-react'
+import { BookOpenText, Check, FileText, CircleAlert, CircleHelp, Cloud, Download, Eye, Grid2x2, Home, Loader2, MonitorCog, MoreVertical, Redo2, Undo2 } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
 import { useUi } from '../../../store/ui'
 import { navigateToProject } from '../../../lib/nav'
@@ -78,6 +78,7 @@ export function SimpleTopBar({ nav }: { nav: EditorNav }) {
             <MenuItem label="Leer" onClick={() => (close(), nav.read())} icon={<BookOpenText size={15} />} />
             <MenuItem label="Previsualizar" onClick={() => (close(), nav.preview())} icon={<Eye size={15} />} />
             <MenuItem label="Vista general" onClick={() => (close(), nav.overview())} icon={<Grid2x2 size={15} />} />
+            <MenuItem label="Guion" hint="Diálogos por viñeta" onClick={() => (close(), useUi.getState().requestSheet('script'))} icon={<FileText size={15} />} />
             <MenuItem label="Exportar…" hint="PDF, PNG, ZIP, libro web" onClick={() => (close(), nav.exportOpen())} icon={<Download size={15} />} />
             <MenuItem label="Ayuda" onClick={() => (close(), useHelp.getState().openGuide())} icon={<CircleHelp size={15} />} />
             <MenuItem label="Modo estudio" hint="Todas las herramientas a la vista" onClick={() => (close(), useUi.getState().setMode('studio'))} icon={<MonitorCog size={15} />} />

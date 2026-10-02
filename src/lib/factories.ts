@@ -193,12 +193,17 @@ export function createPage(name: string, format: PageFormat, templateId?: string
   }
 }
 
-export function createProject(opts: { title: string; author: string; kind: Project['kind']; formatId?: string; pages?: number }): Project {
+/**
+ * `templateId`: plantilla para las páginas de contenido. `null` = páginas en blanco;
+ * sin indicar = la recomendada para el tipo de obra.
+ */
+export function createProject(opts: { title: string; author: string; kind: Project['kind']; formatId?: string; pages?: number; templateId?: string | null; readingDirection?: Project['readingDirection'] }): Project {
   const kindDef = PROJECT_KINDS.find((k) => k.id === opts.kind) ?? PROJECT_KINDS[0]
   const format = getFormat(opts.formatId ?? kindDef.format)
   const now = Date.now()
   const count = Math.max(1, opts.pages ?? (opts.kind === 'webtoon' ? 3 : 4))
-  const defaultTpl = opts.kind === 'manga' ? 'manga-dynamic' : opts.kind === 'webtoon' ? 'webtoon-stack' : opts.kind === 'libre' ? 'grid-2x2' : 'classic-6'
+  const recommended = opts.kind === 'manga' ? 'manga-dynamic' : opts.kind === 'webtoon' ? 'webtoon-stack' : opts.kind === 'libre' ? 'grid-2x2' : 'classic-6'
+  const defaultTpl = opts.templateId === null ? undefined : (opts.templateId ?? recommended)
   const pages: Page[] = []
   for (let i = 0; i < count; i++) {
     if (i === 0 && opts.kind !== 'webtoon') {
@@ -240,7 +245,7 @@ export function createProject(opts: { title: string; author: string; kind: Proje
     synopsis: '',
     kind: opts.kind,
     format,
-    readingDirection: kindDef.direction,
+    readingDirection: opts.readingDirection ?? kindDef.direction,
     pages,
     assets: [],
     thumbnail: null,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, GripVertical, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Page } from '../../types'
 import { useEditor } from '../../store/editor'
 import { getThumb, setThumb, subscribeThumbs, thumbIsFresh } from '../../lib/thumbs'
@@ -106,6 +106,7 @@ export function Overview({ onClose }: { onClose: () => void }) {
             onMove={(to) => move(i, to)}
             onDuplicate={() => s.duplicatePage(p.id)}
             onCopy={() => s.copyPages([p.id])}
+            onStructure={() => s.duplicatePageStructure(p.id)}
             onRename={() => setRenaming(p.id)}
             onRenamed={(name) => rename(p.id, name)}
             onCancelRename={() => setRenaming(null)}
@@ -143,6 +144,7 @@ function OverviewCard(props: {
   onMove: (to: number) => void
   onDuplicate: () => void
   onCopy: () => void
+  onStructure: () => void
   onRename: () => void
   onRenamed: (name: string) => void
   onCancelRename: () => void
@@ -214,6 +216,9 @@ function OverviewCard(props: {
         </IconButton>
         <IconButton label="Duplicar página" className="size-7 pointer-coarse:size-11" onClick={props.onDuplicate}>
           <Copy size={14} />
+        </IconButton>
+        <IconButton label="Duplicar estructura sin contenido" className="size-7 pointer-coarse:size-11" onClick={props.onStructure}>
+          <LayoutTemplate size={14} />
         </IconButton>
         <IconButton label="Copiar página" className="size-7 pointer-coarse:size-11" onClick={props.onCopy}>
           <ClipboardCopy size={14} />
