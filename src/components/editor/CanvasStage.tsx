@@ -84,6 +84,16 @@ export function CanvasStage() {
   }, [size.w, size.h, PW, PH])
 
   const fittedFor = useRef(-1)
+  // Girar el teléfono o cambiar el tamaño de la ventana no cambia la escala ni la selección:
+  // se mantiene centrado lo que se estaba viendo.
+  const prevSize = useRef(size)
+  useLayoutEffect(() => {
+    const p = prevSize.current
+    prevSize.current = size
+    if (!p.w || !size.w || (p.w === size.w && p.h === size.h) || fittedFor.current < 0) return
+    setPan((pan) => ({ x: pan.x + (size.w - p.w) / 2, y: pan.y + (size.h - p.h) / 2 }))
+  }, [size])
+
   useEffect(() => {
     if (size.w && fittedFor.current !== fitRequest) {
       fittedFor.current = fitRequest
@@ -118,6 +128,27 @@ export function CanvasStage() {
     }
   }, [])
 
+  // ---------- Dedos apoyados (para no confundir un pellizco con un toque) ----------
+  const touches = useRef(new Set<number>())
+  const pinched = useRef(false)
+  useEffect(() => {
+    const down = (e: PointerEvent) => e.pointerType === 'touch' && touches.current.add(e.pointerId)
+    const up = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return
+      touches.current.delete(e.pointerId)
+      // Hasta levantar todos los dedos, lo que queda del pellizco no selecciona ni mueve nada.
+      if (touches.current.size === 0) pinched.current = false
+    }
+    window.addEventListener('pointerdown', down, true)
+    window.addEventListener('pointerup', up, true)
+    window.addEventListener('pointercancel', up, true)
+    return () => {
+      window.removeEventListener('pointerdown', down, true)
+      window.removeEventListener('pointerup', up, true)
+      window.removeEventListener('pointercancel', up, true)
+    }
+  }, [])
+
   // ---------- Pellizco con dos dedos (móvil / tablet) ----------
   const viewRef = useRef({ pan, zoom })
   viewRef.current = { pan, zoom }
@@ -133,6 +164,7 @@ export function CanvasStage() {
     const start = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         // El segundo dedo cancela cualquier trazo o arrastre en curso.
+        pinched.current = true
         interaction.current = null
         liveRef.current?.getLayer()?.batchDraw()
         const stage = stageRef.current
@@ -208,6 +240,7 @@ export function CanvasStage() {
   const onPointerDown = (e: KonvaEventObject<PointerEvent>) => {
     const s = useEditor.getState()
     const evt = e.evt
+    if (evt.pointerType === 'touch' && (pinched.current || touches.current.size > 1)) return
     const stage = stageRef.current!
     const pos = stage.getPointerPosition()!
     if (evt.button === 1 || tool === 'hand' || spaceDown) {
@@ -550,7 +583,7 @@ export function CanvasStage() {
 
   // ---------- Doble clic ----------
   const onDblClick = (e: KonvaEventObject<MouseEvent>) => {
-    if (tool !== 'select') return
+    if (tool !== 'select' || pinched.current) return
     const id = elementIdFrom(e.target)
     const el = id ? findEl(id) : undefined
     const s = useEditor.getState()

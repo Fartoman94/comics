@@ -1,9 +1,10 @@
 import { useState, useSyncExternalStore } from 'react'
-import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
 import { cx, IconButton } from '../../ui/controls'
 import { confirmDialog } from '../../ui/Confirm'
 import { getThumb, subscribeThumbs } from '../../../lib/thumbs'
+import { usePointerReorder } from '../usePointerReorder'
 
 export function PagesPanel() {
   const project = useEditor((s) => s.project)!
@@ -14,6 +15,8 @@ export function PagesPanel() {
   const [dragOver, setDragOver] = useState<number | null>(null)
   const { width, height } = project.format
   const rtl = project.readingDirection === 'rtl'
+  // Manija para reordenar con el dedo, el lápiz, el mouse o el teclado (el arrastre HTML5 no anda con touch).
+  const { drag, handleProps } = usePointerReorder((from, to) => s.movePage(from, to))
 
   const remove = async (id: string, name: string) => {
     if (await confirmDialog('Eliminar página', `Se eliminará "${name}". Podés deshacerlo con Ctrl+Z.`, { confirmLabel: 'Eliminar', danger: true })) s.deletePage(id)
@@ -38,6 +41,8 @@ export function PagesPanel() {
               key={p.id}
               draggable
               onDragStart={(e) => {
+                // Si se agarró la manija, manda el arrastre con Pointer Events.
+                if (drag) return e.preventDefault()
                 setDragFrom(i)
                 e.dataTransfer.effectAllowed = 'move'
                 e.dataTransfer.setData('text/plain', String(i))
@@ -58,7 +63,8 @@ export function PagesPanel() {
                 setDragFrom(null)
                 setDragOver(null)
               }}
-              className={cx('group relative', dragOver === i && dragFrom !== i && 'before:absolute before:-inset-1.5 before:rounded-lg before:ring-2 before:ring-accent/60')}
+              data-reorder-index={i}
+              className={cx('group relative', ((dragOver === i && dragFrom !== i) || (drag && drag.over === i && drag.from !== i)) && 'before:absolute before:-inset-1.5 before:rounded-lg before:ring-2 before:ring-accent/60', drag?.from === i && 'opacity-50')}
             >
               <button onClick={() => s.setPage(p.id)} className="block w-full text-left">
                 <div
@@ -72,17 +78,20 @@ export function PagesPanel() {
                   <span className="truncate text-ink-300">{p.name}</span>
                 </div>
               </button>
-              <div className="absolute top-1 right-1 flex flex-col gap-0.5 rounded-md bg-black/75 opacity-0 transition-opacity group-hover:opacity-100">
-                <IconButton label="Mover antes" className="size-6 text-white" disabled={i === 0} onClick={() => s.movePage(i, i - 1)}>
+              <div className="absolute top-1 right-1 flex flex-col gap-0.5 rounded-md bg-black/75 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">
+                <button aria-label={`Mover página ${i + 1} (arrastrá o usá las flechas)`} title="Arrastrá para mover" className="flex size-6 cursor-grab items-center justify-center rounded-md text-white hover:bg-ink-700 pointer-coarse:size-10" {...handleProps(i, project.pages.length)}>
+                  <GripVertical size={12} />
+                </button>
+                <IconButton label="Mover antes" className="size-6 text-white pointer-coarse:size-10" disabled={i === 0} onClick={() => s.movePage(i, i - 1)}>
                   <ArrowUp size={12} />
                 </IconButton>
-                <IconButton label="Mover después" className="size-6 text-white" disabled={i === project.pages.length - 1} onClick={() => s.movePage(i, i + 1)}>
+                <IconButton label="Mover después" className="size-6 text-white pointer-coarse:size-10" disabled={i === project.pages.length - 1} onClick={() => s.movePage(i, i + 1)}>
                   <ArrowDown size={12} />
                 </IconButton>
-                <IconButton label="Duplicar página" className="size-6 text-white" onClick={() => s.duplicatePage(p.id)}>
+                <IconButton label="Duplicar página" className="size-6 text-white pointer-coarse:size-10" onClick={() => s.duplicatePage(p.id)}>
                   <Copy size={12} />
                 </IconButton>
-                <IconButton label="Eliminar página" className="size-6 text-red-300" onClick={() => void remove(p.id, p.name)}>
+                <IconButton label="Eliminar página" className="size-6 text-red-300 pointer-coarse:size-10" onClick={() => void remove(p.id, p.name)}>
                   <Trash2 size={12} />
                 </IconButton>
               </div>

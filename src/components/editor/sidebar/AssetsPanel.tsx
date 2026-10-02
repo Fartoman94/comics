@@ -97,7 +97,7 @@ function AssetTile({ asset, used, onRemove }: { asset: Asset; used: number; onRe
         {url && <img src={url} alt={asset.name} className="h-full w-full object-contain" draggable={false} />}
       </button>
       {used > 0 && <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 text-[9px] text-white">×{used}</span>}
-      <IconButton label="Eliminar imagen" onClick={onRemove} className="no-autoclose absolute top-0.5 right-0.5 size-6 bg-black/70 text-red-300 opacity-0 group-hover:opacity-100">
+      <IconButton label="Eliminar imagen" onClick={onRemove} className="no-autoclose absolute top-0.5 right-0.5 size-6 bg-black/70 text-red-300 pointer-coarse:size-10 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100">
         <Trash2 size={12} />
       </IconButton>
     </div>

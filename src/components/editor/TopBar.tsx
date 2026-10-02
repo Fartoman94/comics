@@ -1,13 +1,21 @@
-import { useState } from 'react'
-import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Eye, Grid2x2, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Undo2 } from 'lucide-react'
+import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Eye, Grid2x2, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Smartphone, Undo2 } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { navigateToProject } from '../../lib/nav'
 import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
 import { AppLogo } from '../ui/Brand'
-import { ExportDialog } from './ExportDialog'
+import { useUi } from '../../store/ui'
 import { useHelp } from '../help/HelpGuide'
 
-export function TopBar({ onRead, onPreview, onOverview, onShortcuts }: { onRead: () => void; onPreview: () => void; onOverview: () => void; onShortcuts: () => void }) {
+export interface EditorNav {
+  read(): void
+  preview(): void
+  overview(): void
+  exportOpen(): void
+  shortcuts(): void
+}
+
+export function TopBar({ nav }: { nav: EditorNav }) {
+  const { read: onRead, preview: onPreview, overview: onOverview, shortcuts: onShortcuts } = nav
   const title = useEditor((s) => s.project!.title)
   const status = useEditor((s) => s.saveStatus)
   const canUndo = useEditor((s) => s.past.length > 0)
@@ -15,7 +23,6 @@ export function TopBar({ onRead, onPreview, onOverview, onShortcuts }: { onRead:
   const zoom = useEditor((s) => s.zoom)
   const view = useEditor((s) => s.view)
   const s = useEditor.getState()
-  const [exportOpen, setExportOpen] = useState(false)
 
   const goHome = async () => {
     // Si no se pudo guardar se queda en el editor: el aviso ofrece "Reintentar".
@@ -97,14 +104,14 @@ export function TopBar({ onRead, onPreview, onOverview, onShortcuts }: { onRead:
       >
         {(close) => (
           <>
-            <MenuItem label="Exportar…" hint="PDF, PNG, ZIP" onClick={() => (close(), setExportOpen(true))} icon={<Download size={14} />} />
+            <MenuItem label="Exportar…" hint="PDF, PNG, ZIP" onClick={() => (close(), nav.exportOpen())} icon={<Download size={14} />} />
             <MenuItem label="Ver lectura" onClick={() => (close(), onRead())} icon={<BookOpenText size={14} />} />
             <MenuItem label="Previsualizar" onClick={() => (close(), onPreview())} icon={<Eye size={14} />} />
             <MenuItem label="Vista general" onClick={() => (close(), onOverview())} icon={<Grid2x2 size={14} />} />
+            <MenuItem label="Modo simple" hint="Menos botones, lienzo más grande" onClick={() => (close(), useUi.getState().setMode('simple'))} icon={<Smartphone size={14} />} />
           </>
         )}
       </Menu>
-      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
     </header>
   )
 }

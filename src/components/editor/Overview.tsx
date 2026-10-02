@@ -194,7 +194,7 @@ function OverviewCard(props: {
           data-handle-id={page.id}
           aria-label={`Mover página ${index + 1} (arrastrá o usá las flechas)`}
           title="Arrastrá o usá las flechas para mover"
-          className="flex size-7 cursor-grab touch-none items-center justify-center rounded-md text-ink-300 hover:bg-ink-700 active:cursor-grabbing"
+          className="flex size-7 pointer-coarse:size-11 cursor-grab touch-none items-center justify-center rounded-md text-ink-300 hover:bg-ink-700 active:cursor-grabbing"
           onPointerDown={props.onHandleDown}
           onPointerMove={props.onHandleMove}
           onPointerUp={props.onHandleUp}
@@ -206,22 +206,22 @@ function OverviewCard(props: {
         >
           <GripVertical size={14} />
         </button>
-        <IconButton label="Mover antes" className="size-7" disabled={index === 0} onClick={() => props.onMove(index - 1)}>
+        <IconButton label="Mover antes" className="size-7 pointer-coarse:size-11" disabled={index === 0} onClick={() => props.onMove(index - 1)}>
           <ChevronLeft size={14} />
         </IconButton>
-        <IconButton label="Mover después" className="size-7" disabled={index === total - 1} onClick={() => props.onMove(index + 1)}>
+        <IconButton label="Mover después" className="size-7 pointer-coarse:size-11" disabled={index === total - 1} onClick={() => props.onMove(index + 1)}>
           <ChevronRight size={14} />
         </IconButton>
-        <IconButton label="Duplicar página" className="size-7" onClick={props.onDuplicate}>
+        <IconButton label="Duplicar página" className="size-7 pointer-coarse:size-11" onClick={props.onDuplicate}>
           <Copy size={14} />
         </IconButton>
-        <IconButton label="Copiar página" className="size-7" onClick={props.onCopy}>
+        <IconButton label="Copiar página" className="size-7 pointer-coarse:size-11" onClick={props.onCopy}>
           <ClipboardCopy size={14} />
         </IconButton>
-        <IconButton label="Renombrar página" className="size-7" onClick={props.onRename}>
+        <IconButton label="Renombrar página" className="size-7 pointer-coarse:size-11" onClick={props.onRename}>
           <Pencil size={14} />
         </IconButton>
-        <IconButton label="Eliminar página" className="size-7 text-red-300" onClick={props.onDelete}>
+        <IconButton label="Eliminar página" className="size-7 text-red-300 pointer-coarse:size-11" onClick={props.onDelete}>
           <Trash2 size={14} />
         </IconButton>
       </div>

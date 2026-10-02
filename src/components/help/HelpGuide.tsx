@@ -1,5 +1,6 @@
 import { Lightbulb, PlayCircle } from 'lucide-react'
 import { create } from 'zustand'
+import { useUi } from '../../store/ui'
 import { Button, cx, Modal } from '../ui/controls'
 import { GUIDE } from './guideContent'
 
@@ -24,6 +25,7 @@ export const useHelp = create<HelpState>((set, get) => ({
 
 export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
   const { open, topic, close, startTour } = useHelp()
+  const mode = useUi((s) => s.mode)
   const current = GUIDE.find((t) => t.id === topic) ?? GUIDE[0]
   const setTopic = (id: string) => useHelp.setState({ topic: id })
 
@@ -41,11 +43,20 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
               {t.title}
             </button>
           ))}
-          {canTour && (
+          {canTour && mode === 'studio' && (
             <button onClick={startTour} className="mt-1 flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-accent hover:bg-accent-soft sm:mt-auto">
               <PlayCircle size={15} /> Ver el tour guiado
             </button>
           )}
+          <button
+            onClick={() => {
+              useUi.getState().resetTips()
+              close()
+            }}
+            className={cx('flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-white', !(canTour && mode === 'studio') && 'sm:mt-auto')}
+          >
+            <Lightbulb size={15} /> Volver a mostrar las ayudas
+          </button>
         </nav>
 
         <article className="min-w-0 flex-1 p-5">

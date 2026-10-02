@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { createProjectInDb, FIXTURES, gotoHome, inApp, openProject, skipTour } from './helpers'
+import { createProjectInDb, FIXTURES, gotoHome, inApp, openProject, openView, skipTour } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await skipTour(page)
@@ -15,7 +15,7 @@ async function openReader(page: Page, { pages = 8, dir = 'ltr' }: { pages?: numb
   await gotoHome(page)
   const id = await createProjectInDb(page, `Lector ${dir}`, dir === 'rtl' ? 'manga' : 'comic', pages)
   await openProject(page, id)
-  await page.locator('[data-tour=read]').click()
+  await openView(page, 'Leer')
   await expect(page.getByRole('slider', { name: 'Ir a página' })).toBeVisible({ timeout: 30_000 })
   await page.waitForTimeout(300)
   return id
@@ -147,13 +147,11 @@ test('@movil sin scroll horizontal en lector, previsualización y vista general'
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(await overflow()).toBeLessThanOrEqual(0)
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Previsualizar' }).click()
+  await openView(page, 'Previsualizar')
   await expect(page.getByTestId('previsualizacion')).toBeVisible()
   expect(await overflow()).toBeLessThanOrEqual(0)
   await page.getByRole('button', { name: 'Volver al editor' }).click()
-  await inApp(page, `document.dispatchEvent(new Event('noop'))`)
-  await page.getByRole('button', { name: 'Exportar' }).click()
-  await page.getByRole('button', { name: 'Vista general', exact: true }).last().click()
+  await openView(page, 'Vista general')
   await expect(page.getByTestId('vista-general')).toBeVisible()
   expect(await overflow()).toBeLessThanOrEqual(0)
 })
@@ -163,7 +161,7 @@ test('previsualizar: sin UI de edición, pliego, zoom y Esc vuelve', async ({ pa
   const id = await createProjectInDb(page, 'Previa', 'comic', 4)
   await openProject(page, id)
   await inApp(page, 's.select([s.project.pages[0].elements[0].id])')
-  await page.getByRole('button', { name: 'Previsualizar' }).click()
+  await openView(page, 'Previsualizar')
   const pv = page.getByTestId('previsualizacion')
   await expect(pv.locator('img')).toHaveCount(1)
   await expect(page.locator('.konvajs-content').first()).toBeHidden({ timeout: 1000 }).catch(() => undefined)
@@ -186,8 +184,7 @@ test.describe('vista general', () => {
     await openProject(page, id)
     const names = () => inApp<string[]>(page, 'return s.project.pages.map(p => p.name)')
     const start = await names()
-    await page.getByRole('button', { name: 'Exportar' }).click()
-    await page.getByRole('button', { name: 'Vista general', exact: true }).last().click()
+    await openView(page, 'Vista general')
     const grid = page.getByTestId('vista-general')
     await expect(grid).toBeVisible()
     // Teclado: la primera página va un lugar a la derecha.
@@ -195,11 +192,12 @@ test.describe('vista general', () => {
     await page.keyboard.press('ArrowRight')
     expect(await names()).toEqual([start[1], start[0], start[2], start[3]])
     await expect(grid.getByRole('button', { name: /^Mover página 2/ })).toBeFocused()
-    // Arrastrar la manija de la página 4 sobre la página 1.
-    const h = (await grid.getByRole('button', { name: /^Mover página 4/ }).boundingBox())!
+    // Arrastrar la manija de la página 2 sobre la página 1 (misma fila, visible en cualquier pantalla).
+    await grid.locator('li').nth(0).scrollIntoViewIfNeeded()
+    const h = (await grid.getByRole('button', { name: /^Mover página 2/ }).boundingBox())!
     const t = (await grid.locator('li').nth(0).boundingBox())!
     await drag(page, { x: h.x + h.width / 2, y: h.y + h.height / 2 }, { x: t.x + t.width / 2, y: t.y + t.height / 3 })
-    expect((await names())[0]).toBe(start[3])
+    expect((await names())[0]).toBe(start[0])
     // Renombrar, duplicar y eliminar con confirmación (acciones visibles, sin hover).
     await grid.getByRole('button', { name: 'Renombrar página' }).first().click()
     await page.getByRole('textbox', { name: 'Nombre de la página' }).fill('Apertura')
@@ -223,13 +221,13 @@ test.describe('vista general', () => {
     await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + 'foto-a.png')
     await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
     await inApp(page, `const pan = s.project.pages[0].elements.find(e => e.type === 'panel'); m.placement.fillPanel(pan.id, s.project.assets[0])`)
-    await page.getByRole('button', { name: 'Vista general' }).click()
+    await openView(page, 'Vista general')
     await page.getByRole('button', { name: 'Copiar página' }).first().click()
     await page.getByRole('button', { name: 'Volver al editor' }).click()
     await page.getByTitle('Volver a mis proyectos').click()
     const b = await createProjectInDb(page, 'Destino página', 'libre', 1)
     await openProject(page, b)
-    await page.getByRole('button', { name: 'Vista general' }).click()
+    await openView(page, 'Vista general')
     await page.getByRole('button', { name: 'Pegar página' }).click()
     await expect.poll(() => inApp<number>(page, 'return s.project.pages.length')).toBe(2)
     const r = await inApp<{ pages: number; ok: boolean; blob: boolean }>(
