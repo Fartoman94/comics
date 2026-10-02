@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { PenLine } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { buildDemoProject } from '../../demo/demoProject'
-import { saveProject } from '../../lib/storage'
-import { uid } from '../../lib/id'
+import { duplicateProject } from '../../lib/storage'
 import { navigateToProject } from '../../lib/nav'
 import { Reader } from '../editor/Reader'
 import { Wordmark } from '../ui/Brand'
@@ -31,10 +30,14 @@ export function DemoViewer() {
   const openInEditor = async () => {
     const p = useEditor.getState().project
     if (!p) return
-    // Se guarda una copia propia para que cada uno pueda editarla sin romper la demo.
-    const copy = { ...structuredClone(p), id: uid('pr_'), title: 'Viento de sakura (mi copia)', createdAt: Date.now(), updatedAt: Date.now() }
-    await saveProject(copy)
-    navigateToProject(copy.id)
+    // Copia propia (con sus propias imágenes) para editarla sin romper la demo.
+    try {
+      const copy = await duplicateProject(p, { title: 'Viento de sakura (mi copia)' })
+      navigateToProject(copy.id)
+    } catch (e) {
+      console.error(e)
+      useEditor.getState().toast('No se pudo crear la copia. ¿El navegador se quedó sin espacio?', 'error')
+    }
   }
 
   if (error)

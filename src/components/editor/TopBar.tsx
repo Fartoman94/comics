@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Undo2 } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { navigateToProject } from '../../lib/nav'
-import { saveProject } from '../../lib/storage'
 import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
 import { AppLogo } from '../ui/Brand'
 import { ExportDialog } from './ExportDialog'
@@ -19,9 +18,8 @@ export function TopBar({ onRead, onShortcuts }: { onRead: () => void; onShortcut
   const [exportOpen, setExportOpen] = useState(false)
 
   const goHome = async () => {
-    const p = useEditor.getState().project
-    if (p) await saveProject(p)
-    navigateToProject(null)
+    // Si no se pudo guardar se queda en el editor: el aviso ofrece "Reintentar".
+    if (await useEditor.getState().saveNow()) navigateToProject(null)
   }
 
   return (

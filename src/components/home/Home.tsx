@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, CircleHelp, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, BookOpen, CircleHelp, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
 import type { Project } from '../../types'
-import { deleteProject, importProjectFile, listProjects, saveProject } from '../../lib/storage'
+import { deleteDamagedProject, deleteProject, downloadBlob, duplicateProject, exportRawProjectFile, importProjectFile, listAllProjects, type DamagedProject } from '../../lib/storage'
+import { ProjectFileError } from '../../lib/projectSchema'
 import { exportProject } from '../../lib/export'
 import { navigateToProject } from '../../lib/nav'
-import { uid } from '../../lib/id'
 import { PROJECT_KINDS } from '../../lib/formats'
 import { useEditor } from '../../store/editor'
 import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
@@ -32,11 +32,22 @@ const HOW_TO: [string, string, string][] = [
 
 export function Home({ notFound }: { notFound?: boolean }) {
   const [projects, setProjects] = useState<Project[] | null>(null)
+  const [damaged, setDamaged] = useState<DamagedProject[]>([])
   const [newOpen, setNewOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const toast = useEditor((s) => s.toast)
 
-  const refresh = () => void listProjects().then(setProjects)
+  const refresh = () =>
+    void listAllProjects()
+      .then(({ projects, damaged }) => {
+        setProjects(projects)
+        setDamaged(damaged)
+      })
+      .catch((e) => {
+        console.error(e)
+        setProjects([])
+        toast('No se pudieron leer los proyectos guardados en este navegador.', 'error')
+      })
   useEffect(refresh, [])
   useEffect(() => {
     if (notFound) toast('Ese proyecto no existe en este navegador', 'error')
@@ -49,12 +60,34 @@ export function Home({ notFound }: { notFound?: boolean }) {
       toast(`"${p.title}" importado`, 'success')
       refresh()
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'No se pudo importar el archivo', 'error')
+      console.error(e)
+      toast(e instanceof ProjectFileError ? e.message : 'No se pudo importar el archivo.', 'error')
+    } finally {
+      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
   const duplicate = async (p: Project) => {
-    await saveProject({ ...structuredClone(p), id: uid('pr_'), title: `${p.title} (copia)`, updatedAt: Date.now(), createdAt: Date.now() })
+    try {
+      await duplicateProject(p, { title: `${p.title} (copia)` })
+      toast(`"${p.title}" duplicado`, 'success')
+    } catch (e) {
+      console.error(e)
+      toast('No se pudo duplicar el proyecto. ¿El navegador se quedó sin espacio?', 'error')
+    }
+    refresh()
+  }
+  const exportDamaged = async (d: DamagedProject) => {
+    try {
+      downloadBlob(await exportRawProjectFile(d.key), `proyecto-dañado-${d.key}.vineta`)
+    } catch (e) {
+      console.error(e)
+      toast('No se pudo descargar la copia.', 'error')
+    }
+  }
+  const removeDamaged = async (d: DamagedProject) => {
+    if (!(await confirmDialog('Eliminar proyecto dañado', `"${d.title}" no se puede abrir. Se borrará de este navegador junto con sus imágenes. No se puede deshacer.`, { confirmLabel: 'Eliminar', danger: true }))) return
+    await deleteDamagedProject(d.key)
     refresh()
   }
 
@@ -219,6 +252,28 @@ export function Home({ notFound }: { notFound?: boolean }) {
           </div>
         )}
 
+        {damaged.length > 0 && (
+          <section className="mt-8 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4" aria-labelledby="damaged-title">
+            <h3 id="damaged-title" className="flex items-center gap-2 text-sm font-semibold text-amber-200">
+              <AlertTriangle size={16} /> Proyectos que no se pueden abrir
+            </h3>
+            <p className="mt-1 text-xs text-ink-300">Tienen datos dañados. Podés descargar una copia para revisarla o eliminarlos. El resto de tus proyectos no se ve afectado.</p>
+            <ul className="mt-3 space-y-2">
+              {damaged.map((d) => (
+                <li key={d.key} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-900 px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-ink-100">{d.title}</span>
+                  <span className="hidden text-[11px] text-ink-400 sm:inline">{d.reason}</span>
+                  <Button size="sm" variant="ghost" onClick={() => void exportDamaged(d)}>
+                    <Download size={14} /> Descargar copia
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => void removeDamaged(d)}>
+                    <Trash2 size={14} /> Eliminar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <section className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-ink-800 bg-ink-800 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
             <div key={t} className="bg-ink-950 p-5">

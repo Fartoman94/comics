@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useEditor } from '../../store/editor'
-import { saveProject } from '../../lib/storage'
 import { renderPage } from '../../lib/render'
 import { getThumb, setThumb, thumbIsFresh } from '../../lib/thumbs'
 import { importFiles, placeAsset } from '../../lib/placement'
@@ -49,7 +48,11 @@ export function Editor() {
   )
 }
 
-/** Guarda en IndexedDB 800 ms después del último cambio (y al cerrar la pestaña). */
+/**
+ * Guarda en IndexedDB 800 ms después del último cambio. Además guarda enseguida cuando la pestaña
+ * se oculta o se cierra y cuando el editor se desmonta (Atrás, cambio de proyecto): nunca se pierde
+ * el último cambio por el debounce.
+ */
 function useAutosave() {
   const project = useEditor((s) => s.project)
   const status = useEditor((s) => s.saveStatus)
@@ -57,30 +60,30 @@ function useAutosave() {
   useEffect(() => {
     if (!project || status !== 'dirty') return
     clearTimeout(timer.current)
-    timer.current = window.setTimeout(async () => {
-      const s = useEditor.getState()
-      s.setSaveStatus('saving')
-      try {
-        await saveProject(useEditor.getState().project!)
-        if (useEditor.getState().saveStatus === 'saving') s.setSaveStatus('saved')
-      } catch {
-        s.setSaveStatus('error')
-        s.toast('No se pudo guardar. ¿El navegador se quedó sin espacio?', 'error')
-      }
-    }, 800)
+    timer.current = window.setTimeout(() => void useEditor.getState().saveNow(), 800)
     return () => clearTimeout(timer.current)
   }, [project, status])
 
   useEffect(() => {
+    const flush = () => void useEditor.getState().saveNow()
+    const onHidden = () => document.visibilityState === 'hidden' && flush()
     const onUnload = (e: BeforeUnloadEvent) => {
       const s = useEditor.getState()
-      if (s.saveStatus === 'dirty' || s.saveStatus === 'saving') {
-        if (s.project) void saveProject(s.project)
+      if (s.saveStatus === 'dirty' || s.saveStatus === 'saving' || s.saveStatus === 'error') {
+        flush()
         e.preventDefault()
       }
     }
+    document.addEventListener('visibilitychange', onHidden)
+    window.addEventListener('pagehide', flush)
     window.addEventListener('beforeunload', onUnload)
-    return () => window.removeEventListener('beforeunload', onUnload)
+    return () => {
+      document.removeEventListener('visibilitychange', onHidden)
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', onUnload)
+      // El editor se va (Atrás, otro proyecto): lo pendiente se guarda ya.
+      flush()
+    }
   }, [])
 }
 
@@ -117,6 +120,8 @@ function useShortcuts(openHelp: () => void) {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return
       const s = useEditor.getState()
+      // Con el lector abierto las teclas son del lector: el documento no se toca.
+      if (s.readerOpen) return
       const mod = e.metaKey || e.ctrlKey
       const k = e.key.toLowerCase()
       if (mod && k === 'z') {
@@ -203,7 +208,7 @@ function useShortcuts(openHelp: () => void) {
 function useClipboardImages() {
   useEffect(() => {
     const onPaste = async (e: ClipboardEvent) => {
-      if (isTyping(e)) return
+      if (isTyping(e) || useEditor.getState().readerOpen) return
       const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'))
       if (files.length) {
         e.preventDefault()
