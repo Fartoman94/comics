@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { canvasPoint, createProjectInDb, FIXTURES, gotoHome, inApp, openProject, skipTour } from './helpers'
+import { canvasPoint, createProjectInDb, FIXTURES, gotoHome, inApp, openProject, skipTour, exportPreset } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await skipTour(page)
@@ -26,9 +26,7 @@ async function uploadAndInsert(page: Page, file: string) {
 }
 
 async function exportVineta(page: Page) {
-  await page.getByRole('button', { name: /Exportar/ }).first().click()
-  await page.getByText('Exportar…').click()
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Proyecto editable/ }).click()])
+  const dl = await exportPreset(page, /Archivo editable/)
   return JSON.parse(readFileSync((await dl.path())!, 'utf8'))
 }
 

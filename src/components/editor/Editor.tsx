@@ -12,6 +12,7 @@ import { Inspector } from './inspector/Inspector'
 import { Reader } from './Reader'
 import { Preview } from './Preview'
 import { Overview } from './Overview'
+import { PhoneFrameBar } from './PhoneFrameBar'
 import { CropBar } from './CropBar'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { MobileBar } from './MobileBar'
@@ -61,6 +62,7 @@ export function Editor() {
         <div className="relative min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'}>
           <CanvasStage />
           <CropBar />
+          <PhoneFrameBar onPreview={() => setView('preview')} />
         </div>
         {!simple && <Inspector />}
       </div>

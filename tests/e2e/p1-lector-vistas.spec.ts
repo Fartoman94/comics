@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { createProjectInDb, FIXTURES, gotoHome, inApp, openProject, openView, skipTour } from './helpers'
+import { createProjectInDb, FIXTURES, gotoHome, inApp, openProject, openView, skipTour, exportPreset } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await skipTour(page)
@@ -248,9 +248,7 @@ test('libro web exportado: funciona sin internet, con idioma, dirección y sin d
   await expect(page.locator('[data-tour=read]')).toBeVisible()
   // Obra mayormente en japonés: el libro exportado debe declarar lang="ja".
   await inApp(page, `for (const pg of s.project.pages) for (const el of pg.elements) if (el.type === 'text' || el.type === 'bubble') s.updateElement(el.id, { text: '桜の風がふいている' })`)
-  await page.getByRole('button', { name: 'Exportar' }).click()
-  await page.getByText('Exportar…').click()
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Libro web/ }).click()])
+  const dl = await exportPreset(page, /Libro web/)
   const path = info.outputPath('libro.html')
   await dl.saveAs(path)
   const html = readFileSync(path, 'utf8')

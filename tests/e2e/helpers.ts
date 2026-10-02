@@ -103,3 +103,18 @@ export function canvasPoint(page: Page, target: string | { x: number; y: number 
     return { x: box.left + p.x, y: box.top + p.y }
   }, target)
 }
+
+/** Abre Exportar (en cualquier modo), elige un preset y devuelve la descarga. */
+export async function exportPreset(page: Page, preset: RegExp) {
+  const simple = (await page.locator('[data-ui-mode]').getAttribute('data-ui-mode')) === 'simple'
+  if (simple) {
+    await page.getByRole('button', { name: 'Más opciones del proyecto' }).click()
+    await page.getByRole('button', { name: /^Exportar/ }).click()
+  } else {
+    await page.getByRole('button', { name: /Exportar/ }).first().click()
+    await page.getByText('Exportar…').click()
+  }
+  await page.getByRole('radio', { name: preset }).click()
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90_000 }), page.getByRole('dialog', { name: 'Exportar' }).getByRole('button', { name: 'Exportar', exact: true }).click()])
+  return dl
+}

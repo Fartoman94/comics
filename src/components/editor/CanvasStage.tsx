@@ -11,6 +11,7 @@ import { PageContent } from './nodes/PageContent'
 import type { NodeProps } from './nodes/ElementNode'
 import { paintStroke } from './nodes/strokes'
 import { bubbleTextBox } from './nodes/bubblePath'
+import { PHONES, useUi } from '../../store/ui'
 
 Konva.dragDistance = 3
 
@@ -705,6 +706,7 @@ export function CanvasStage() {
           </Layer>
           <Layer name="overlay">
             {view.grid && <GridLines w={PW} h={PH} zoom={zoom} />}
+            <PhoneFrameOverlay pw={PW} ph={PH} zoom={zoom} />
             {view.guides && (
               <Group listening={false}>
                 {bleed > 0 && <Rect x={-bleed} y={-bleed} width={PW + bleed * 2} height={PH + bleed * 2} stroke="#ef4444" strokeWidth={1 / zoom} dash={[6 / zoom, 4 / zoom]} />}
@@ -853,3 +855,39 @@ function TextEditOverlay({ id, stage, zoom, pan }: { id: string; stage: Konva.St
 }
 
 export type { ComicElement }
+
+/**
+ * Webtoon: marco de "lo que se ve en un teléfono" sobre la página. Atenúa lo de afuera y se arrastra
+ * desde su manija. Es sólo guía: la exportación dibuja la página sin esta capa.
+ */
+function PhoneFrameOverlay({ pw, ph, zoom }: { pw: number; ph: number; zoom: number }) {
+  const frame = useUi((s) => s.phoneFrame)
+  const vertical = useEditor((s) => s.project?.kind === 'webtoon' || s.project?.readingDirection === 'vertical')
+  if (!frame.on || !vertical) return null
+  const dev = PHONES.find((d) => d.id === frame.device) ?? PHONES[1]
+  const fh = Math.min(ph, (pw * dev.h) / dev.w)
+  const y = Math.max(0, Math.min(ph - fh, frame.y))
+  const dim = 'rgba(8,8,10,0.55)'
+  return (
+    <Group name="phone-frame">
+      <Rect x={0} y={0} width={pw} height={y} fill={dim} listening={false} />
+      <Rect x={0} y={y + fh} width={pw} height={Math.max(0, ph - y - fh)} fill={dim} listening={false} />
+      <Rect x={0} y={y} width={pw} height={fh} stroke="#ff5a36" strokeWidth={3 / zoom} dash={[10 / zoom, 6 / zoom]} listening={false} />
+      <Rect
+        name="phone-frame-handle"
+        x={pw / 2 - 60 / zoom}
+        y={y - 14 / zoom}
+        width={120 / zoom}
+        height={28 / zoom}
+        cornerRadius={14 / zoom}
+        fill="#ff5a36"
+        draggable
+        dragBoundFunc={function (this: Konva.Node, pos) {
+          return { x: this.absolutePosition().x, y: pos.y }
+        }}
+        onDragMove={(e) => useUi.getState().setPhoneFrame({ y: Math.max(0, Math.min(ph - fh, e.target.y() + 14 / zoom)) })}
+        onDragEnd={(e) => e.target.y(Math.max(0, Math.min(ph - fh, e.target.y() + 14 / zoom)) - 14 / zoom)}
+      />
+    </Group>
+  )
+}

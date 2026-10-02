@@ -30,7 +30,17 @@ export function defaultMode(): UiMode {
   return typeof matchMedia === 'function' && matchMedia('(max-width: 767px)').matches ? 'simple' : 'studio'
 }
 
+export const PHONES = [
+  { id: '360x800', w: 360, h: 800, label: '360×800 (Android chico)' },
+  { id: '390x844', w: 390, h: 844, label: '390×844 (iPhone)' },
+  { id: '430x932', w: 430, h: 932, label: '430×932 (pantalla grande)' },
+] as const
+export type PhoneId = (typeof PHONES)[number]['id']
+
 interface UiState {
+  /** Marco de "pantalla del teléfono" sobre el lienzo (webtoon): sólo guía visual, no se exporta. */
+  phoneFrame: { on: boolean; device: PhoneId; y: number }
+  setPhoneFrame(p: Partial<UiState['phoneFrame']>): void
   mode: UiMode
   setMode(m: UiMode): void
   /** Microayudas contextuales ya vistas (por id). */
@@ -67,6 +77,8 @@ export const useUi = create<UiState>()((set, get) => ({
     write(TIPS_OFF_KEY, '1')
     set({ tipsOff: true })
   },
+  phoneFrame: { on: false, device: '390x844', y: 0 },
+  setPhoneFrame: (p) => set({ phoneFrame: { ...get().phoneFrame, ...p } }),
   sheetRequest: null,
   requestSheet: (id) => set({ sheetRequest: { id, n: (get().sheetRequest?.n ?? 0) + 1 } }),
   resetTips: () => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronLeft, ChevronRight, Columns2, FileText, Maximize2, Minimize2, ScrollText, Smartphone } from 'lucide-react'
 import { useEditor } from '../../store/editor'
+import { PHONES, useUi, type PhoneId } from '../../store/ui'
 import { keyStep, pageLabel, spreadOf } from '../../lib/readerNav'
 import { cx } from '../ui/controls'
 import { usePageImages, useReadingOverlay } from './Reader'
@@ -33,6 +34,9 @@ export function Preview({ onClose }: { onClose: () => void }) {
   const [zoom, setZoom] = useState<Zoom>('fit')
   const [index, setIndex] = useState(() => Math.max(0, project.pages.findIndex((p) => p.id === useEditor.getState().pageId)))
   const [fullscreen, setFullscreen] = useState(false)
+  // Teléfono: el mismo tamaño elegido en el marco del editor (360, 390 o 430 de ancho).
+  const device = useUi((s) => s.phoneFrame.device)
+  const phone = PHONES.find((p) => p.id === device) ?? PHONES[1]
   const rootRef = useRef<HTMLDivElement>(null)
   // Resolución nativa de la página (×2 en pantallas retina) para que "100 %" sea real.
   const target = useMemo(() => Math.min(3600, project.format.height * Math.min(2, window.devicePixelRatio || 1)), [project.format.height])
@@ -96,6 +100,15 @@ export function Preview({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+        {view === 'phone' && (
+          <select value={device} onChange={(e) => useUi.getState().setPhoneFrame({ device: e.target.value as PhoneId })} aria-label="Tamaño de teléfono" className="h-8 rounded-lg bg-white/10 px-2 text-xs text-white">
+            {PHONES.map((p) => (
+              <option key={p.id} value={p.id} className="text-black">
+                {p.label}
+              </option>
+            ))}
+          </select>
+        )}
         {view !== 'phone' && (
           <div className="flex rounded-lg bg-white/10 p-0.5" role="group" aria-label="Zoom">
             {ZOOMS.map((z) => (
@@ -116,7 +129,11 @@ export function Preview({ onClose }: { onClose: () => void }) {
         </div>
       ) : view === 'scroll' || view === 'phone' ? (
         <div className="scroll-thin flex-1 overflow-auto" data-testid="previsualizacion">
-          <div className={cx('mx-auto py-4', view === 'phone' ? 'my-4 w-[390px] max-w-full overflow-hidden rounded-[28px] border-8 border-black shadow-2xl' : zoom === 'actual' ? 'w-max' : 'max-w-[900px] px-4')}>
+          <div
+            className={cx('mx-auto', view === 'phone' ? 'scroll-thin my-4 max-w-full overflow-y-auto rounded-[28px] border-8 border-black shadow-2xl' : zoom === 'actual' ? 'w-max py-4' : 'max-w-[900px] px-4 py-4')}
+            style={view === 'phone' ? { width: phone.w + 16, height: `min(${phone.h + 16}px, calc(100dvh - 120px))` } : undefined}
+            data-testid={view === 'phone' ? 'pantalla-telefono' : undefined}
+          >
             {project.pages.map((p, i) =>
               images[i] ? (
                 <img key={p.id} src={images[i]} alt={p.name || `Página ${i + 1}`} className="block w-full" style={view !== 'phone' && zoom === 'actual' ? { width: W } : undefined} />

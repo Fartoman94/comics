@@ -53,12 +53,26 @@ interface RenderOpts {
 
 /** Renderiza una página fuera de pantalla (sin UI del editor) y devuelve un dataURL. */
 export function renderPage(project: Project, page: Page, opts: RenderOpts = {}): Promise<string> {
-  const job = queue.then(() => withTimeout(doRender(project, page, opts), 30000, `renderizar "${page.name}"`))
+  return enqueue(project, page, (stage) => stage.toDataURL({ pixelRatio: opts.pixelRatio ?? 1, mimeType: opts.mime ?? 'image/png', quality: opts.quality ?? 0.92 }))
+}
+
+/**
+ * Igual, pero devuelve un canvas (para exportar sin pasar por dataURL). Quien lo pide lo libera
+ * (canvas.width = 0) cuando termina.
+ */
+export function renderPageCanvas(project: Project, page: Page, pixelRatio = 1): Promise<HTMLCanvasElement> {
+  return enqueue(project, page, (stage) => stage.toCanvas({ pixelRatio }))
+}
+
+function enqueue<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T): Promise<T> {
+  const job = queue.then(() => withTimeout(doRender(project, page, out), 30000, `renderizar "${page.name}"`))
   queue = job.catch(() => undefined)
   return job
 }
 
-async function doRender(project: Project, page: Page, { pixelRatio = 1, mime = 'image/png', quality = 0.92 }: RenderOpts) {
+async function doRender<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T): Promise<T> {
+  // Sólo en desarrollo: permite a los tests simular una página que no se puede dibujar.
+  if (import.meta.env.DEV && (window as unknown as { __vinetaFallarPagina?: string }).__vinetaFallarPagina === page.id) throw new Error('fallo simulado')
   await withTimeout(loadFonts(), 8000, 'fuentes').catch(() => undefined)
   await withTimeout(
     Promise.all(page.elements.flatMap((el) => (el.type === 'text' || el.type === 'bubble' ? [loadGlyphs(el.fontFamily, el.text, false), loadGlyphs(el.fontFamily, el.text, true)] : []))),
@@ -87,7 +101,7 @@ async function doRender(project: Project, page: Page, { pixelRatio = 1, mime = '
     // Los filtros de imagen se cachean en efectos: dejamos pasar un par de frames.
     await frames(3)
     stage.draw()
-    return stage.toDataURL({ pixelRatio, mimeType: mime, quality })
+    return out(stage)
   } finally {
     root.unmount()
     host.remove()
