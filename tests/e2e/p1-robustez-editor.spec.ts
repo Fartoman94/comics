@@ -107,6 +107,8 @@ test('A16 · doble clic y Enter repetido crean un solo proyecto aunque IndexedDB
   await gotoHome(page)
   const cdp = await page.context().newCDPSession(page)
   await page.getByRole('button', { name: 'Nuevo proyecto' }).first().click()
+  await page.getByRole('button', { name: 'Siguiente' }).click()
+  await page.getByRole('button', { name: 'Siguiente' }).click()
   await page.getByRole('textbox', { name: 'Título' }).fill('Una sola vez')
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 20 })
   const create = page.getByRole('button', { name: 'Crear proyecto' })
@@ -117,6 +119,13 @@ test('A16 · doble clic y Enter repetido crean un solo proyecto aunque IndexedDB
   await expect(page.locator('[data-tour=read]')).toBeVisible()
   const n = await inApp<number>(page, `return (await m.storage.listProjects()).filter(p => p.title === 'Una sola vez').length`)
   expect(n).toBe(1)
+  // "Crear rápido" con doble clic también crea uno solo.
+  await page.getByTitle('Volver a mis proyectos').first().click()
+  const before = await inApp<number>(page, 'return (await m.storage.listProjects()).length')
+  await page.getByRole('button', { name: 'Nuevo proyecto' }).first().click()
+  await page.getByRole('button', { name: 'Crear rápido' }).dblclick()
+  await expect(page.locator('[data-ui-mode]')).toBeVisible()
+  expect(await inApp<number>(page, 'return (await m.storage.listProjects()).length')).toBe(before + 1)
 })
 
 test.describe('B3 · texto e IME', () => {
