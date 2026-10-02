@@ -5,7 +5,10 @@ import { DemoViewer } from './components/demo/DemoViewer'
 import { Toasts } from './components/ui/Toasts'
 import { ConfirmHost } from './components/ui/Confirm'
 import { loadProject } from './lib/storage'
+import { ProjectFileError } from './lib/projectSchema'
+import { navigateToProject } from './lib/nav'
 import { useEditor } from './store/editor'
+import { CrashScreen } from './components/ui/ErrorBoundary'
 
 const isDemoHash = () => /^#\/demo\b/.test(location.hash)
 
@@ -19,6 +22,8 @@ export function App() {
   const [demo, setDemo] = useState(isDemoHash)
   const project = useEditor((s) => s.project)
   const [missing, setMissing] = useState(false)
+  // Proyecto que existe pero no se puede abrir (dañado o error de lectura).
+  const [broken, setBroken] = useState<{ id: string; message: string } | null>(null)
 
   useEffect(() => {
     const onHash = () => {
@@ -41,11 +46,18 @@ export function App() {
     }
     if (s.project?.id === routeId) return
     setMissing(false)
-    void loadProject(routeId).then((p) => {
-      if (cancelled) return
-      if (p) useEditor.getState().openProject(p)
-      else setMissing(true)
-    })
+    setBroken(null)
+    loadProject(routeId)
+      .then((p) => {
+        if (cancelled) return
+        if (p) useEditor.getState().openProject(p)
+        else setMissing(true)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        console.error(e)
+        setBroken({ id: routeId, message: e instanceof ProjectFileError ? e.message : 'No se pudo leer el proyecto guardado en este navegador.' })
+      })
     return () => {
       cancelled = true
     }
@@ -59,6 +71,8 @@ export function App() {
     <>
       {demo ? (
         <DemoViewer />
+      ) : routeId && broken?.id === routeId ? (
+        <CrashScreen projectId={broken.id} message={broken.message} onHome={() => navigateToProject(null)} />
       ) : routeId && project?.id === routeId ? (
         <Editor />
       ) : routeId && !missing ? (

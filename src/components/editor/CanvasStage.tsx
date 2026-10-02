@@ -104,7 +104,7 @@ export function CanvasStage() {
   // ---------- Barra espaciadora = mano temporal ----------
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isTyping(e)) {
+      if (e.code === 'Space' && !isTyping(e) && !useEditor.getState().readerOpen) {
         e.preventDefault()
         setSpaceDown(true)
       }

@@ -16,7 +16,8 @@ const BLANK = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xml
  * (mouse o dedo), con tapas duras, sombra en el lomo y sentido de lectura manga.
  */
 export function Reader({ onClose, actions }: { onClose: () => void; actions?: React.ReactNode }) {
-  const project = useEditor((s) => s.project)!
+  // Foto fija del proyecto: lo que pase en el editor (miniaturas, guardado) no reinicia la lectura.
+  const [project] = useState(() => useEditor.getState().project!)
   const [images, setImages] = useState<string[]>([])
   const [mode, setMode] = useState<Mode>(project.readingDirection === 'vertical' ? 'scroll' : 'book')
   const [chrome, setChrome] = useState(true)
@@ -55,6 +56,16 @@ export function Reader({ onClose, actions }: { onClose: () => void; actions?: Re
     poke()
     return () => clearTimeout(hideTimer.current)
   }, [poke])
+
+  // Mientras se lee, el editor no recibe atajos; al cerrar el foco vuelve a quien abrió el lector.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    useEditor.getState().setReaderOpen(true)
+    return () => {
+      useEditor.getState().setReaderOpen(false)
+      if (opener?.isConnected) opener.focus()
+    }
+  }, [])
 
   useEffect(() => {
     const onFs = () => setFullscreen(!!document.fullscreenElement)

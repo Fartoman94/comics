@@ -4,6 +4,7 @@ import type { Asset, BrushSettings, ComicElement, Page, Project, Tool } from '..
 import { clonePage, cloneElement, createPage } from '../lib/factories'
 import { buildTemplatePanels, TEMPLATES } from '../lib/templates'
 import { measureTextHeight } from '../lib/textFit'
+import { enqueueSave } from '../lib/persistence'
 
 const HISTORY_LIMIT = 120
 const TEXT_KEYS = ['text', 'fontSize', 'fontFamily', 'fontStyle', 'lineHeight', 'letterSpacing', 'width', 'uppercase']
@@ -17,6 +18,7 @@ export interface Toast {
   id: number
   message: string
   tone: 'info' | 'success' | 'error'
+  action?: { label: string; run: () => void }
 }
 
 interface ViewOptions {
@@ -38,6 +40,10 @@ interface EditorState {
   editingTextId: string | null
   clipboard: ComicElement[]
   saveStatus: SaveStatus
+  /** Sube con cada cambio del documento; sirve para no marcar "Guardado" con datos viejos. */
+  revision: number
+  /** Con el lector abierto el editor no recibe atajos. */
+  readerOpen: boolean
   past: Snapshot[]
   future: Snapshot[]
   lastCoalesce: { key: string; at: number } | null
@@ -62,6 +68,9 @@ interface EditorState {
   setCropping(id: string | null): void
   setEditingText(id: string | null): void
   setSaveStatus(s: SaveStatus): void
+  /** Guarda ya el estado actual si tiene cambios. Devuelve false si falló. */
+  saveNow(): Promise<boolean>
+  setReaderOpen(open: boolean): void
 
   updateElement(id: string, patch: Partial<ComicElement> | ((el: Draft<ComicElement>) => void), coalesce?: string): void
   addElements(els: ComicElement[], opts?: { select?: boolean; index?: number }): void
@@ -81,7 +90,7 @@ interface EditorState {
   addAsset(a: Asset): void
   removeAsset(id: string): void
 
-  toast(message: string, tone?: Toast['tone']): void
+  toast(message: string, tone?: Toast['tone'], action?: Toast['action']): void
   dismissToast(id: number): void
 }
 
@@ -104,13 +113,16 @@ export const useEditor = create<EditorState>()((set, get) => ({
   editingTextId: null,
   clipboard: [],
   saveStatus: 'saved',
+  revision: 0,
+  readerOpen: false,
   past: [],
   future: [],
   lastCoalesce: null,
   toasts: [],
   fitRequest: 0,
 
-  openProject: (p) =>
+  openProject: (p) => {
+    flushOnLeave()
     set({
       project: p,
       pageId: p.pages[0]?.id ?? '',
@@ -122,8 +134,13 @@ export const useEditor = create<EditorState>()((set, get) => ({
       croppingPanelId: null,
       editingTextId: null,
       fitRequest: get().fitRequest + 1,
-    }),
-  closeProject: () => set({ project: null, pageId: '', selection: [], past: [], future: [] }),
+      readerOpen: false,
+    })
+  },
+  closeProject: () => {
+    flushOnLeave()
+    set({ project: null, pageId: '', selection: [], past: [], future: [], saveStatus: 'saved', readerOpen: false })
+  },
 
   setPage: (id) => set({ pageId: id, selection: [], croppingPanelId: null, editingTextId: null, fitRequest: get().fitRequest + 1 }),
 
@@ -141,6 +158,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set({
       project: next,
       saveStatus: 'dirty',
+      revision: get().revision + 1,
       past: record && !coalesced ? [...past, snapshotOf(project)].slice(-HISTORY_LIMIT) : past,
       future: record ? [] : get().future,
       lastCoalesce: opts.coalesce ? { key: opts.coalesce, at: now } : null,
@@ -156,6 +174,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       past: past.slice(0, -1),
       future: [snapshotOf(project), ...future],
       saveStatus: 'dirty',
+      revision: get().revision + 1,
       lastCoalesce: null,
       croppingPanelId: null,
       editingTextId: null,
@@ -171,6 +190,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       past: [...past, snapshotOf(project)],
       future: future.slice(1),
       saveStatus: 'dirty',
+      revision: get().revision + 1,
       lastCoalesce: null,
     })
     fixupAfterHistory()
@@ -189,6 +209,27 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setCropping: (id) => set({ croppingPanelId: id, selection: id ? [id] : get().selection }),
   setEditingText: (id) => set({ editingTextId: id }),
   setSaveStatus: (s) => set({ saveStatus: s }),
+  saveNow: async () => {
+    const { project, revision, saveStatus } = get()
+    if (!project || saveStatus === 'saved') return true
+    set({ saveStatus: 'saving' })
+    try {
+      await enqueueSave(project, revision)
+      const now = get()
+      if (now.project?.id === project.id && now.revision === revision) set({ saveStatus: 'saved' })
+      return true
+    } catch (e) {
+      console.error(e)
+      const now = get()
+      if (now.project?.id === project.id) {
+        // Queda marcado como no guardado: el próximo cambio o "Reintentar" lo vuelve a intentar.
+        set({ saveStatus: 'error' })
+        get().toast('No se pudo guardar. ¿El navegador se quedó sin espacio?', 'error', { label: 'Reintentar', run: () => void get().saveNow() })
+      }
+      return false
+    }
+  },
+  setReaderOpen: (open) => set({ readerOpen: open }),
 
   updateElement: (id, patch, coalesce) =>
     get().mutate(
@@ -355,13 +396,23 @@ export const useEditor = create<EditorState>()((set, get) => ({
   addAsset: (a) => get().mutate((d) => void d.assets.push(a), { history: false }),
   removeAsset: (id) => get().mutate((d) => void (d.assets = d.assets.filter((a) => a.id !== id)), { history: false }),
 
-  toast: (message, tone = 'info') => {
+  toast: (message, tone = 'info', action) => {
     const id = ++toastSeq
-    set({ toasts: [...get().toasts, { id, message, tone }] })
-    setTimeout(() => get().dismissToast(id), 3200)
+    set({ toasts: [...get().toasts, { id, message, tone, action }] })
+    setTimeout(() => get().dismissToast(id), action ? 10000 : 3200)
   },
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
 }))
+
+/** Al cambiar o cerrar el proyecto, lo que quedó sin guardar se escribe enseguida (sin esperar el debounce). */
+function flushOnLeave() {
+  const { project, saveStatus, revision } = useEditor.getState()
+  if (!project || saveStatus === 'saved') return
+  enqueueSave(project, revision).catch((e) => {
+    console.error(e)
+    useEditor.getState().toast(`No se pudieron guardar los últimos cambios de "${project.title}".`, 'error')
+  })
+}
 
 function fixupAfterHistory() {
   const s = useEditor.getState()
