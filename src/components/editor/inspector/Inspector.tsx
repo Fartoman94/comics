@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import type { Page, BlendMode, BubbleElement, BubbleShape, ComicElement, DrawingElement, EffectElement, ImageElement, ImageFilters, PanelElement, TextElement, TextStyle } from '../../../types'
 import { DEFAULT_FILTERS } from '../../../types'
-import { useCurrentPage, useEditor, useSelectedElements } from '../../../store/editor'
+import { notifyLocked, useCurrentPage, useEditor, useSelectedElements } from '../../../store/editor'
 import { FONTS, ensureGlyphs } from '../../../lib/fonts'
 import { Button, ColorInput, Field, IconButton, NumberInput, Section, Segmented, Select, Slider, TextArea, TextInput, Toggle } from '../../ui/controls'
 import { MadeByMateLabs } from '../../ui/Brand'
@@ -201,11 +201,13 @@ function MultiPanel({ els }: { els: ComicElement[] }) {
 
 function alignSelection(ids: string[], mode: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom') {
   const s = useEditor.getState()
+  const locked = s.project?.pages.find((p) => p.id === s.pageId)?.elements.filter((e) => ids.includes(e.id) && e.locked).length ?? 0
+  if (locked) notifyLocked(locked)
   const { width: W, height: H } = s.project!.format
   s.mutate((d) => {
     const page = d.pages.find((p) => p.id === s.pageId)
     if (!page) return
-    const els = page.elements.filter((e) => ids.includes(e.id) && !e.locked)
+    const els = page.elements.filter((e) => ids.includes(e.id) && !e.locked && !e.hidden)
     // Con un elemento se alinea a la página; con varios, entre ellos.
     const box =
       els.length === 1

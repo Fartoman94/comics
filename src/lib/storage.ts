@@ -63,6 +63,18 @@ export async function deleteProject(p: Pick<Project, 'id'> & { assets?: Asset[] 
   await del(p.id, projectStore)
 }
 
+/**
+ * Borra los blobs indicados salvo los que algún proyecto guardado todavía lista entre sus recursos.
+ * Devuelve los ids efectivamente borrados.
+ */
+export async function deleteBlobsIfUnused(ids: string[]): Promise<string[]> {
+  if (!ids.length) return []
+  const used = await assetUsage()
+  const gone = ids.filter((i) => !used.has(i))
+  await Promise.all(gone.map((i) => del(i, blobStore)))
+  return gone
+}
+
 /** Borra un registro dañado sin necesidad de entenderlo. */
 export async function deleteDamagedProject(key: string) {
   const raw = await get<unknown>(key, projectStore)

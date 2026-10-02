@@ -4,7 +4,11 @@ import type { Asset, BrushSettings, ComicElement, Page, Project, Tool } from '..
 import { clonePage, cloneElement, createPage } from '../lib/factories'
 import { buildTemplatePanels, TEMPLATES } from '../lib/templates'
 import { measureTextHeight } from '../lib/textFit'
-import { enqueueSave } from '../lib/persistence'
+import { enqueueSave, enqueueTask } from '../lib/persistence'
+import { deleteBlobsIfUnused, getAssetBlob, putAssetBlob } from '../lib/storage'
+import { forgetAsset } from '../lib/assetCache'
+import { referencedAssetIds } from '../lib/projectSchema'
+import { uid } from '../lib/id'
 
 const HISTORY_LIMIT = 120
 const TEXT_KEYS = ['text', 'fontSize', 'fontFamily', 'fontStyle', 'lineHeight', 'letterSpacing', 'width', 'uppercase']
@@ -19,6 +23,13 @@ export interface Toast {
   message: string
   tone: 'info' | 'success' | 'error'
   action?: { label: string; run: () => void }
+}
+
+/** Lo copiado: los elementos y la información de las imágenes que usan, para poder pegarlos en otro proyecto. */
+export interface ClipboardData {
+  projectId: string
+  elements: ComicElement[]
+  assets: Asset[]
 }
 
 interface ViewOptions {
@@ -38,7 +49,12 @@ interface EditorState {
   /** Viñeta en modo "encuadrar imagen". */
   croppingPanelId: string | null
   editingTextId: string | null
-  clipboard: ComicElement[]
+  clipboard: ClipboardData | null
+  /**
+   * Recursos quitados del proyecto en esta sesión. Su imagen no se borra enseguida: deshacer puede
+   * volver a necesitarla. Se recolectan al salir del proyecto (ver collectRetiredAssets).
+   */
+  retiredAssets: Asset[]
   saveStatus: SaveStatus
   /** Sube con cada cambio del documento; sirve para no marcar "Guardado" con datos viejos. */
   revision: number
@@ -77,7 +93,7 @@ interface EditorState {
   deleteSelection(): void
   duplicateSelection(): void
   copySelection(): void
-  paste(): void
+  paste(): Promise<void>
   arrange(dir: 'front' | 'back' | 'forward' | 'backward'): void
   reorderElement(id: string, toIndex: number): void
 
@@ -111,7 +127,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   zoom: 1,
   croppingPanelId: null,
   editingTextId: null,
-  clipboard: [],
+  clipboard: null,
+  retiredAssets: [],
   saveStatus: 'saved',
   revision: 0,
   readerOpen: false,
@@ -124,6 +141,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   openProject: (p) => {
     flushOnLeave()
     set({
+      retiredAssets: [],
       project: p,
       pageId: p.pages[0]?.id ?? '',
       selection: [],
@@ -139,7 +157,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   },
   closeProject: () => {
     flushOnLeave()
-    set({ project: null, pageId: '', selection: [], past: [], future: [], saveStatus: 'saved', readerOpen: false })
+    set({ project: null, pageId: '', selection: [], past: [], future: [], saveStatus: 'saved', readerOpen: false, retiredAssets: [] })
   },
 
   setPage: (id) => set({ pageId: id, selection: [], croppingPanelId: null, editingTextId: null, fitRequest: get().fitRequest + 1 }),
@@ -147,11 +165,11 @@ export const useEditor = create<EditorState>()((set, get) => ({
   mutate: (recipe, opts = {}) => {
     const { project, past, lastCoalesce } = get()
     if (!project) return
-    const next = produce(project, (d) => {
-      recipe(d)
-      d.updatedAt = Date.now()
-    })
-    if (next === project) return
+    // Primero se ve si el documento cambió de verdad; recién después se sella la hora.
+    // Una acción sin efecto no entra al historial, no borra "Rehacer" ni marca cambios.
+    const changed = produce(project, recipe)
+    if (changed === project) return
+    const next = { ...changed, updatedAt: Date.now() }
     const now = Date.now()
     const record = opts.history !== false
     const coalesced = record && opts.coalesce && lastCoalesce?.key === opts.coalesce && now - lastCoalesce.at < COALESCE_MS
@@ -180,6 +198,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       editingTextId: null,
     })
     fixupAfterHistory()
+    restoreRetiredAssets()
   },
   redo: () => {
     const { project, past, future } = get()
@@ -194,6 +213,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       lastCoalesce: null,
     })
     fixupAfterHistory()
+    restoreRetiredAssets()
   },
 
   select: (ids) => set({ selection: ids, croppingPanelId: get().croppingPanelId && ids.includes(get().croppingPanelId!) ? get().croppingPanelId : null }),
@@ -265,11 +285,15 @@ export const useEditor = create<EditorState>()((set, get) => ({
   deleteSelection: () => {
     const { selection, pageId } = get()
     if (!selection.length) return
+    const sel = currentPage()?.elements.filter((e) => selection.includes(e.id)) ?? []
+    const locked = sel.filter((e) => e.locked)
+    if (locked.length) notifyLocked(locked.length)
+    if (locked.length === sel.length) return
     get().mutate((d) => {
       const page = d.pages.find((p) => p.id === pageId)
       if (page) page.elements = page.elements.filter((e) => !selection.includes(e.id) || e.locked)
     })
-    set({ selection: [], croppingPanelId: null })
+    set({ selection: locked.map((e) => e.id), croppingPanelId: null })
   },
 
   duplicateSelection: () => {
@@ -282,38 +306,84 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   copySelection: () => {
     const page = currentPage()
-    const { selection } = get()
-    if (!page || !selection.length) return
-    set({ clipboard: page.elements.filter((e) => selection.includes(e.id)).map((e) => structuredClone(e)) })
-    get().toast(`${selection.length} elemento(s) copiado(s)`)
+    const { selection, project } = get()
+    if (!page || !project || !selection.length) return
+    const elements = page.elements.filter((e) => selection.includes(e.id)).map((e) => structuredClone(e))
+    const refs = referencedAssetIds([{ ...page, elements }])
+    set({ clipboard: { projectId: project.id, elements, assets: project.assets.filter((a) => refs.has(a.id)).map((a) => ({ ...a })) } })
+    get().toast(`${elements.length} elemento(s) copiado(s)`)
   },
 
-  paste: () => {
-    const { clipboard } = get()
-    if (!clipboard.length) return
-    get().addElements(clipboard.map((e) => cloneElement(e)))
+  paste: async () => {
+    const { clipboard, project } = get()
+    if (!clipboard?.elements.length || !project) return
+    const elements = clipboard.elements.map((e) => cloneElement(e))
+    // Las imágenes que el proyecto no tiene (copiadas de otro proyecto) se copian con id propio:
+    // un elemento pegado nunca apunta a un recurso ausente y el .vineta queda autocontenido.
+    const have = new Set(project.assets.map((a) => a.id))
+    const missing = clipboard.assets.filter((a) => !have.has(a.id))
+    const map = new Map<string, string>()
+    const added: Asset[] = []
+    const written: string[] = []
+    const lost = new Set<string>()
+    try {
+      for (const a of missing) {
+        const blob = await getAssetBlob(a.id)
+        if (!blob) {
+          lost.add(a.id)
+          continue
+        }
+        const nid = uid('as_')
+        await putAssetBlob(nid, blob)
+        written.push(nid)
+        map.set(a.id, nid)
+        added.push({ ...a, id: nid, createdAt: Date.now() })
+      }
+    } catch (e) {
+      console.error(e)
+      void deleteBlobsIfUnused(written)
+      get().toast('No se pudieron copiar las imágenes. ¿El navegador se quedó sin espacio?', 'error')
+      return
+    }
+    if (get().project?.id !== project.id) return
+    const usable = elements.filter((el) => !(el.type === 'image' && lost.has(el.assetId)))
+    for (const el of usable) {
+      if (el.type === 'image') el.assetId = map.get(el.assetId) ?? el.assetId
+      if (el.type === 'panel' && el.image) el.image = lost.has(el.image.assetId) ? null : { ...el.image, assetId: map.get(el.image.assetId) ?? el.image.assetId }
+    }
+    if (lost.size) get().toast('Algunas imágenes copiadas ya no existen y no se pegaron.', 'error')
+    if (added.length) get().mutate((d) => void d.assets.push(...added), { history: false })
+    if (usable.length) get().addElements(usable)
   },
 
   arrange: (dir) => {
     const { selection, pageId } = get()
-    if (!selection.length) return
+    const pg = currentPage()
+    if (!selection.length || !pg) return
+    // Los bloqueados no cambian de lugar en la pila.
+    const locked = pg.elements.filter((e) => selection.includes(e.id) && e.locked)
+    if (locked.length) notifyLocked(locked.length)
+    const movable = new Set(pg.elements.filter((e) => selection.includes(e.id) && !e.locked).map((e) => e.id))
+    if (!movable.size) return
+    const els = [...pg.elements]
+    let order: ComicElement[]
+    if (dir === 'front') order = [...els.filter((e) => !movable.has(e.id)), ...els.filter((e) => movable.has(e.id))]
+    else if (dir === 'back') order = [...els.filter((e) => movable.has(e.id)), ...els.filter((e) => !movable.has(e.id))]
+    else {
+      order = els
+      const idx = dir === 'forward' ? [...els.keys()].reverse() : [...els.keys()]
+      for (const i of idx) {
+        if (!movable.has(order[i].id)) continue
+        const j = dir === 'forward' ? i + 1 : i - 1
+        if (j < 0 || j >= order.length || movable.has(order[j].id)) continue
+        ;[order[i], order[j]] = [order[j], order[i]]
+      }
+    }
+    if (order.every((e, i) => e === pg.elements[i])) return
+    const ids = order.map((e) => e.id)
     get().mutate((d) => {
       const page = d.pages.find((p) => p.id === pageId)
-      if (!page) return
-      const els = page.elements
-      const picked = els.filter((e) => selection.includes(e.id))
-      const rest = els.filter((e) => !selection.includes(e.id))
-      if (dir === 'front') page.elements = [...rest, ...picked]
-      else if (dir === 'back') page.elements = [...picked, ...rest]
-      else {
-        const order = dir === 'forward' ? [...els.keys()].reverse() : [...els.keys()]
-        for (const i of order) {
-          if (!selection.includes(els[i].id)) continue
-          const j = dir === 'forward' ? i + 1 : i - 1
-          if (j < 0 || j >= els.length || selection.includes(els[j].id)) continue
-          ;[els[i], els[j]] = [els[j], els[i]]
-        }
-      }
+      if (page) page.elements = ids.map((id) => page.elements.find((e) => e.id === id)!)
     })
   },
 
@@ -322,7 +392,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
       const page = d.pages.find((p) => p.id === get().pageId)
       if (!page) return
       const from = page.elements.findIndex((e) => e.id === id)
-      if (from < 0) return
+      const to = Math.max(0, Math.min(toIndex, page.elements.length - 1))
+      if (from < 0 || from === to) return
       const [el] = page.elements.splice(from, 1)
       page.elements.splice(Math.max(0, Math.min(toIndex, page.elements.length)), 0, el)
     }),
@@ -364,7 +435,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   movePage: (from, to) =>
     get().mutate((d) => {
-      if (to < 0 || to >= d.pages.length) return
+      if (from === to || to < 0 || to >= d.pages.length) return
       const [p] = d.pages.splice(from, 1)
       d.pages.splice(to, 0, p)
     }),
@@ -394,7 +465,12 @@ export const useEditor = create<EditorState>()((set, get) => ({
   },
 
   addAsset: (a) => get().mutate((d) => void d.assets.push(a), { history: false }),
-  removeAsset: (id) => get().mutate((d) => void (d.assets = d.assets.filter((a) => a.id !== id)), { history: false }),
+  removeAsset: (id) => {
+    const asset = get().project?.assets.find((a) => a.id === id)
+    if (!asset) return
+    set({ retiredAssets: [...get().retiredAssets.filter((a) => a.id !== id), asset] })
+    get().mutate((d) => void (d.assets = d.assets.filter((a) => a.id !== id)), { history: false })
+  },
 
   toast: (message, tone = 'info', action) => {
     const id = ++toastSeq
@@ -407,11 +483,48 @@ export const useEditor = create<EditorState>()((set, get) => ({
 /** Al cambiar o cerrar el proyecto, lo que quedó sin guardar se escribe enseguida (sin esperar el debounce). */
 function flushOnLeave() {
   const { project, saveStatus, revision } = useEditor.getState()
-  if (!project || saveStatus === 'saved') return
-  enqueueSave(project, revision).catch((e) => {
-    console.error(e)
-    useEditor.getState().toast(`No se pudieron guardar los últimos cambios de "${project.title}".`, 'error')
-  })
+  if (!project) return
+  if (saveStatus !== 'saved')
+    enqueueSave(project, revision).catch((e) => {
+      console.error(e)
+      useEditor.getState().toast(`No se pudieron guardar los últimos cambios de "${project.title}".`, 'error')
+    })
+  collectRetiredAssets(project)
+}
+
+/**
+ * Recolección de imágenes retiradas al salir del proyecto: el historial se descarta, así que sólo
+ * quedan vivas las que usa el documento o el portapapeles. Corre después del guardado (misma cola)
+ * y nunca borra un blob que otro proyecto guardado todavía lista.
+ */
+function collectRetiredAssets(project: Project) {
+  const { retiredAssets, clipboard } = useEditor.getState()
+  if (!retiredAssets.length) return
+  const alive = referencedAssetIds(project.pages)
+  for (const a of project.assets) alive.add(a.id)
+  for (const a of clipboard?.assets ?? []) alive.add(a.id)
+  const candidates = retiredAssets.map((a) => a.id).filter((id) => !alive.has(id))
+  void enqueueTask(async () => {
+    const gone = await deleteBlobsIfUnused(candidates)
+    gone.forEach(forgetAsset)
+  }).catch((e) => console.error('[recolección de imágenes]', e))
+}
+
+/** Si deshacer/rehacer vuelve a usar una imagen retirada, el recurso vuelve al proyecto. */
+function restoreRetiredAssets() {
+  const { project, retiredAssets } = useEditor.getState()
+  if (!project || !retiredAssets.length) return
+  const have = new Set(project.assets.map((a) => a.id))
+  const refs = referencedAssetIds(project.pages)
+  const back = retiredAssets.filter((a) => refs.has(a.id) && !have.has(a.id))
+  if (!back.length) return
+  useEditor.setState({ retiredAssets: retiredAssets.filter((a) => !back.includes(a)) })
+  useEditor.getState().mutate((d) => void d.assets.push(...back), { history: false })
+}
+
+/** Aviso corto cuando una operación deja afuera elementos bloqueados. */
+export function notifyLocked(n: number) {
+  useEditor.getState().toast(n === 1 ? 'Se omitió 1 elemento bloqueado' : `Se omitieron ${n} elementos bloqueados`)
 }
 
 function fixupAfterHistory() {

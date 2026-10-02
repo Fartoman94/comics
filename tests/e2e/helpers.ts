@@ -73,3 +73,19 @@ export function idbRaw<T>(page: Page, op: { db: 'vineta-projects' | 'vineta-asse
     op,
   )
 }
+
+/** Centro en pantalla de un elemento del lienzo (o de un punto de la página si se pasan coordenadas). */
+export function canvasPoint(page: Page, target: string | { x: number; y: number }) {
+  return page.evaluate(async (target) => {
+    const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => /\/konva\.js/.test(n))!
+    const Konva = (await import(/* @vite-ignore */ url)).default
+    const stage = Konva.stages[Konva.stages.length - 1]
+    const box = stage.container().getBoundingClientRect()
+    if (typeof target === 'string') {
+      const r = stage.findOne('#' + target).getClientRect()
+      return { x: box.left + r.x + r.width / 2, y: box.top + r.y + r.height / 2 }
+    }
+    const p = stage.getAbsoluteTransform().point(target)
+    return { x: box.left + p.x, y: box.top + p.y }
+  }, target)
+}
