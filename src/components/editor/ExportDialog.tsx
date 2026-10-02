@@ -3,7 +3,6 @@ import { BookOpen, FileArchive, FileImage, FileText, Package, ScrollText } from 
 import { useEditor, currentPage } from '../../store/editor'
 import { exportPagePNG, exportPDF, exportProject, exportWebtoonStrip, exportZIP } from '../../lib/export'
 import { cx, Modal } from '../ui/controls'
-import { exportWebBook } from '../../lib/webbook'
 
 type Job = 'webbook' | 'pdf-print' | 'pdf-web' | 'png' | 'zip' | 'strip' | 'project'
 
@@ -20,7 +19,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     const onP = (d: number, t: number) => setProgress([d, t])
     const p = useEditor.getState().project!
     try {
-      if (job === 'webbook') await exportWebBook(p, onP)
+      // El libro web incrusta el visor completo: se carga recién cuando se pide.
+      if (job === 'webbook') await (await import('../../lib/webbook')).exportWebBook(p, onP)
       if (job === 'pdf-print') await exportPDF(p, onP, 'print')
       if (job === 'pdf-web') await exportPDF(p, onP, 'web')
       if (job === 'png') await exportPagePNG(p, currentPage()!, 2)

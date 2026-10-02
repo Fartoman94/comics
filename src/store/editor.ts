@@ -29,6 +29,8 @@ export interface Toast {
 export interface ClipboardData {
   projectId: string
   elements: ComicElement[]
+  /** Páginas completas copiadas (Vista general). */
+  pages?: Page[]
   assets: Asset[]
 }
 
@@ -94,6 +96,8 @@ interface EditorState {
   duplicateSelection(): void
   copySelection(): void
   paste(): Promise<void>
+  copyPages(ids: string[]): void
+  pastePages(afterId?: string): Promise<void>
   arrange(dir: 'front' | 'back' | 'forward' | 'backward'): void
   reorderElement(id: string, toIndex: number): void
 
@@ -316,44 +320,46 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
   paste: async () => {
     const { clipboard, project } = get()
-    if (!clipboard?.elements.length || !project) return
-    const elements = clipboard.elements.map((e) => cloneElement(e))
-    // Las imágenes que el proyecto no tiene (copiadas de otro proyecto) se copian con id propio:
-    // un elemento pegado nunca apunta a un recurso ausente y el .vineta queda autocontenido.
-    const have = new Set(project.assets.map((a) => a.id))
-    const missing = clipboard.assets.filter((a) => !have.has(a.id))
-    const map = new Map<string, string>()
-    const added: Asset[] = []
-    const written: string[] = []
-    const lost = new Set<string>()
-    try {
-      for (const a of missing) {
-        const blob = await getAssetBlob(a.id)
-        if (!blob) {
-          lost.add(a.id)
-          continue
-        }
-        const nid = uid('as_')
-        await putAssetBlob(nid, blob)
-        written.push(nid)
-        map.set(a.id, nid)
-        added.push({ ...a, id: nid, createdAt: Date.now() })
-      }
-    } catch (e) {
-      console.error(e)
-      void deleteBlobsIfUnused(written)
-      get().toast('No se pudieron copiar las imágenes. ¿El navegador se quedó sin espacio?', 'error')
-      return
-    }
-    if (get().project?.id !== project.id) return
-    const usable = elements.filter((el) => !(el.type === 'image' && lost.has(el.assetId)))
-    for (const el of usable) {
-      if (el.type === 'image') el.assetId = map.get(el.assetId) ?? el.assetId
-      if (el.type === 'panel' && el.image) el.image = lost.has(el.image.assetId) ? null : { ...el.image, assetId: map.get(el.image.assetId) ?? el.image.assetId }
-    }
-    if (lost.size) get().toast('Algunas imágenes copiadas ya no existen y no se pegaron.', 'error')
-    if (added.length) get().mutate((d) => void d.assets.push(...added), { history: false })
+    if (!project || !clipboard) return
+    if (!clipboard.elements.length && clipboard.pages?.length) return get().pastePages(get().pageId)
+    if (!clipboard.elements.length) return
+    const adopted = await adoptClipboardAssets(clipboard, project.id)
+    if (!adopted) return
+    const usable = clipboard.elements
+      .map((e) => cloneElement(e))
+      .filter((el) => !(el.type === 'image' && adopted.lost.has(el.assetId)))
+      .map((el) => adopted.remap(el))
     if (usable.length) get().addElements(usable)
+  },
+
+  copyPages: (ids) => {
+    const { project } = get()
+    if (!project) return
+    const pages = project.pages.filter((p) => ids.includes(p.id)).map((p) => structuredClone(p))
+    if (!pages.length) return
+    const refs = referencedAssetIds(pages)
+    set({ clipboard: { projectId: project.id, elements: [], pages, assets: project.assets.filter((a) => refs.has(a.id)).map((a) => ({ ...a })) } })
+    get().toast(pages.length === 1 ? 'Página copiada' : `${pages.length} páginas copiadas`)
+  },
+
+  pastePages: async (afterId) => {
+    const { clipboard, project } = get()
+    if (!project || !clipboard?.pages?.length) return
+    const adopted = await adoptClipboardAssets(clipboard, project.id)
+    if (!adopted) return
+    // Copia completa con ids nuevos: elementos, capas y referencias a imágenes válidas en este proyecto.
+    const pages = clipboard.pages.map((pg) => {
+      const copy = clonePage(pg)
+      copy.name = pg.name
+      copy.elements = copy.elements.filter((el) => !(el.type === 'image' && adopted.lost.has(el.assetId))).map((el) => adopted.remap(el))
+      return copy
+    })
+    get().mutate((d) => {
+      const idx = afterId ? d.pages.findIndex((p) => p.id === afterId) : -1
+      d.pages.splice(idx >= 0 ? idx + 1 : d.pages.length, 0, ...(pages as Draft<Page>[]))
+    })
+    get().setPage(pages[0].id)
+    get().toast(pages.length === 1 ? 'Página pegada' : `${pages.length} páginas pegadas`, 'success')
   },
 
   arrange: (dir) => {
@@ -520,6 +526,52 @@ function restoreRetiredAssets() {
   if (!back.length) return
   useEditor.setState({ retiredAssets: retiredAssets.filter((a) => !back.includes(a)) })
   useEditor.getState().mutate((d) => void d.assets.push(...back), { history: false })
+}
+
+/**
+ * Trae al proyecto actual las imágenes que usa lo copiado y que el proyecto no tiene (copiadas de otro
+ * proyecto): se duplica cada blob con id propio. Así nada pegado apunta a un recurso ausente y el
+ * .vineta queda autocontenido. Las imágenes que ya no existen se informan en `lost`.
+ */
+async function adoptClipboardAssets(clipboard: ClipboardData, projectId: string) {
+  const s = useEditor.getState()
+  const have = new Set(s.project?.assets.map((a) => a.id))
+  const missing = clipboard.assets.filter((a) => !have.has(a.id))
+  const map = new Map<string, string>()
+  const added: Asset[] = []
+  const written: string[] = []
+  const lost = new Set<string>()
+  try {
+    for (const a of missing) {
+      const blob = await getAssetBlob(a.id)
+      if (!blob) {
+        lost.add(a.id)
+        continue
+      }
+      const nid = uid('as_')
+      await putAssetBlob(nid, blob)
+      written.push(nid)
+      map.set(a.id, nid)
+      added.push({ ...a, id: nid, createdAt: Date.now() })
+    }
+  } catch (e) {
+    console.error(e)
+    void deleteBlobsIfUnused(written)
+    s.toast('No se pudieron copiar las imágenes. ¿El navegador se quedó sin espacio?', 'error')
+    return null
+  }
+  if (useEditor.getState().project?.id !== projectId) {
+    void deleteBlobsIfUnused(written)
+    return null
+  }
+  if (lost.size) s.toast('Algunas imágenes copiadas ya no existen y no se pegaron.', 'error')
+  if (added.length) useEditor.getState().mutate((d) => void d.assets.push(...added), { history: false })
+  const remap = <T extends ComicElement>(el: T): T => {
+    if (el.type === 'image') return { ...el, assetId: map.get(el.assetId) ?? el.assetId }
+    if (el.type === 'panel' && el.image) return { ...el, image: lost.has(el.image.assetId) ? null : { ...el.image, assetId: map.get(el.image.assetId) ?? el.image.assetId } }
+    return el
+  }
+  return { lost, remap }
 }
 
 /** Aviso corto cuando una operación deja afuera elementos bloqueados. */

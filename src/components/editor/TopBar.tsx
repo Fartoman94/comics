@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Undo2 } from 'lucide-react'
+import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Eye, Grid2x2, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Undo2 } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { navigateToProject } from '../../lib/nav'
 import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
@@ -7,7 +7,7 @@ import { AppLogo } from '../ui/Brand'
 import { ExportDialog } from './ExportDialog'
 import { useHelp } from '../help/HelpGuide'
 
-export function TopBar({ onRead, onShortcuts }: { onRead: () => void; onShortcuts: () => void }) {
+export function TopBar({ onRead, onPreview, onOverview, onShortcuts }: { onRead: () => void; onPreview: () => void; onOverview: () => void; onShortcuts: () => void }) {
   const title = useEditor((s) => s.project!.title)
   const status = useEditor((s) => s.saveStatus)
   const canUndo = useEditor((s) => s.past.length > 0)
@@ -75,16 +75,22 @@ export function TopBar({ onRead, onShortcuts }: { onRead: () => void; onShortcut
         </IconButton>
       </div>
 
-      <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide()} data-tour="help" title="Guía de uso">
+      <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide()} data-tour="help" title="Guía de uso" aria-label="Ayuda">
         <CircleHelp size={15} /> <span className="hidden sm:inline">Ayuda</span>
       </Button>
-      <Button variant="ghost" size="sm" onClick={onRead} data-tour="read">
+      <Button variant="ghost" size="sm" onClick={onOverview} title="Vista general de páginas" aria-label="Vista general" className="hidden md:inline-flex">
+        <Grid2x2 size={15} /> <span className="hidden xl:inline">Vista general</span>
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onPreview} title="Previsualizar sin guías ni selección" aria-label="Previsualizar">
+        <Eye size={15} /> <span className="hidden lg:inline">Previsualizar</span>
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onRead} data-tour="read" title="Leer como libro" aria-label="Leer">
         <BookOpenText size={15} /> <span className="hidden sm:inline">Leer</span>
       </Button>
       <Menu
         align="right"
         trigger={(_, toggle) => (
-          <Button variant="primary" size="sm" onClick={toggle} data-tour="export">
+          <Button variant="primary" size="sm" onClick={toggle} data-tour="export" aria-label="Exportar">
             <Download size={15} /> <span className="hidden sm:inline">Exportar</span> <ChevronDown size={13} />
           </Button>
         )}
@@ -93,6 +99,8 @@ export function TopBar({ onRead, onShortcuts }: { onRead: () => void; onShortcut
           <>
             <MenuItem label="Exportar…" hint="PDF, PNG, ZIP" onClick={() => (close(), setExportOpen(true))} icon={<Download size={14} />} />
             <MenuItem label="Ver lectura" onClick={() => (close(), onRead())} icon={<BookOpenText size={14} />} />
+            <MenuItem label="Previsualizar" onClick={() => (close(), onPreview())} icon={<Eye size={14} />} />
+            <MenuItem label="Vista general" onClick={() => (close(), onOverview())} icon={<Grid2x2 size={14} />} />
           </>
         )}
       </Menu>

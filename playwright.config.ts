@@ -20,7 +20,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     launchOptions: { executablePath },
   },
-  projects: [{ name: 'escritorio', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
+  // Todo corre en escritorio; los tests marcados @movil también en celular y tablet táctiles.
+  projects: [
+    { name: 'escritorio', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
+    { name: 'celular', grep: /@movil/, use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } },
+    { name: 'tablet', grep: /@movil/, use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, isMobile: true, hasTouch: true } },
+  ],
   webServer: {
     command: `npx vite --port ${PORT} --strictPort --host 127.0.0.1`,
     url: `http://127.0.0.1:${PORT}`,
