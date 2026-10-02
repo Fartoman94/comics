@@ -2,7 +2,7 @@ import type { Asset, ComicElement, PanelElement } from '../types'
 import { DEFAULT_FILTERS } from '../types'
 import { createImage } from './factories'
 import { pointInPolygon, rotatePoint, type Pt } from './geometry'
-import { importImageFile } from './storage'
+import { addLibraryImage, findLibraryImageByHash, getAssetBlob, hashBlob, importImageFile, updateLibraryItem } from './storage'
 import { currentPage, useEditor } from '../store/editor'
 
 /** Encaje "cover": la imagen llena la viñeta sin deformarse. */
@@ -74,22 +74,47 @@ export function placeAsset(asset: Asset, at?: Pt, opts: { intoPanel?: boolean } 
   s.addElements([img])
 }
 
+/**
+ * Suma imágenes al proyecto. Si la misma imagen (misma huella) ya está en el proyecto o en la
+ * biblioteca, se reutiliza en vez de duplicarla. Las nuevas también quedan en la biblioteca.
+ */
 export async function importFiles(files: File[] | FileList): Promise<Asset[]> {
   const s = useEditor.getState()
   const out: Asset[] = []
+  let reused = 0
   for (const f of Array.from(files)) {
     if (!f.type.startsWith('image/')) {
       s.toast(`"${f.name}" no es una imagen`, 'error')
       continue
     }
     try {
-      const asset = await importImageFile(f, f.name)
+      const hash = await hashBlob(f).catch(() => undefined)
+      const project = useEditor.getState().project
+      const inProject = hash ? project?.assets.find((a) => a.hash === hash) : undefined
+      if (inProject) {
+        reused++
+        out.push(inProject)
+        continue
+      }
+      const inLibrary = hash ? await findLibraryImageByHash(hash) : undefined
+      if (inLibrary && (await getAssetBlob(inLibrary.asset.id))) {
+        const asset = { ...inLibrary.asset }
+        s.addAsset(asset)
+        void updateLibraryItem(inLibrary.id, { lastUsedAt: Date.now() })
+        reused++
+        out.push(asset)
+        continue
+      }
+      const asset = await importImageFile(f, f.name, hash)
       s.addAsset(asset)
+      if (project) void addLibraryImage(asset, { id: project.id, title: project.title }).catch(() => undefined)
       out.push(asset)
-    } catch {
+    } catch (e) {
+      console.error(e)
       s.toast(`No se pudo leer "${f.name}"`, 'error')
     }
   }
-  if (out.length) s.toast(out.length === 1 ? 'Imagen agregada a Recursos' : `${out.length} imágenes agregadas a Recursos`, 'success')
+  if (reused) s.toast(reused === 1 ? 'Esa imagen ya estaba: se reutilizó sin duplicarla' : `${reused} imágenes ya estaban: se reutilizaron`, 'info')
+  else if (out.length) s.toast(out.length === 1 ? 'Imagen agregada a Recursos' : `${out.length} imágenes agregadas a Recursos`, 'success')
   return out
 }

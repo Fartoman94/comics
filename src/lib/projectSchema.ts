@@ -319,6 +319,7 @@ function asset(v: unknown, p: string): Asset {
     height: num(o.height, `${p}.height`, 1, LIMITS.assetSide),
     mime: str(o.mime, `${p}.mime`, 80, 'image/png'),
     createdAt: num(o.createdAt, `${p}.createdAt`, 0, 1e15, 0),
+    ...(typeof o.hash === 'string' && /^[0-9a-f]{64}$/.test(o.hash) ? { hash: o.hash } : {}),
   }
 }
 

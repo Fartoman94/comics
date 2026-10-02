@@ -22,6 +22,8 @@ import type { EditorNav } from './TopBar'
 import { SimpleTopBar } from './mobile/SimpleTopBar'
 import { SimpleBottomBar } from './mobile/SimpleBottomBar'
 import { useUi } from '../../store/ui'
+import { joinProject } from '../../lib/tabs'
+import { loadProject, takeSnapshot } from '../../lib/storage'
 import { HelpGuide } from '../help/HelpGuide'
 
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
@@ -49,6 +51,7 @@ export function Editor() {
     return () => void document.documentElement.style.removeProperty('--toast-offset')
   }, [simple])
   useAutosave()
+  const tabs = useTabGuard()
   usePageThumbnails()
   useShortcuts(openShortcuts)
   useClipboardImages()
@@ -56,6 +59,7 @@ export function Editor() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
       {simple ? <SimpleTopBar nav={nav} /> : <TopBar nav={nav} />}
+      {tabs.banner}
       <div className="flex min-h-0 flex-1">
         {!simple && <ToolRail />}
         {!simple && <Sidebar />}
@@ -115,6 +119,59 @@ function useAutosave() {
       flush()
     }
   }, [])
+}
+
+/**
+ * Una pestaña por proyecto: si ya está abierto en otra, se elige entre solo lectura o editar acá
+ * (la otra pasa a solo lectura). Nunca gana en silencio el último guardado.
+ */
+function useTabGuard() {
+  const projectId = useEditor((s) => s.project!.id)
+  const readOnly = useEditor((s) => s.readOnly)
+  const [ask, setAsk] = useState(false)
+  const [taken, setTaken] = useState(false)
+  const handle = useRef<ReturnType<typeof joinProject> | null>(null)
+  useEffect(() => {
+    const h = joinProject(
+      projectId,
+      () => !useEditor.getState().readOnly,
+      () => {
+        // Otra pestaña tomó el control: lo pendiente se guarda y esta queda en solo lectura.
+        void useEditor.getState().saveNow().then(() => useEditor.getState().setReadOnly(true))
+        setTaken(true)
+      },
+    )
+    handle.current = h
+    void h.check().then((busy) => {
+      if (busy) {
+        useEditor.getState().setReadOnly(true)
+        setAsk(true)
+      }
+    })
+    // Instantánea al abrir (si la última tiene más de 5 minutos).
+    const p = useEditor.getState().project
+    if (p) void takeSnapshot(p).catch(() => undefined)
+    return () => h.leave()
+  }, [projectId])
+  const editHere = () => {
+    handle.current?.takeOver()
+    setAsk(false)
+    setTaken(false)
+    // Se recarga lo último que guardó la otra pestaña antes de editar.
+    void loadProject(projectId).then((p) => {
+      if (p) useEditor.getState().openProject(p)
+      useEditor.getState().setReadOnly(false)
+    })
+  }
+  const banner = readOnly ? (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-amber-500/40 bg-amber-950/60 px-3 py-2 text-xs text-amber-100" role="status" data-testid="solo-lectura">
+      <span className="flex-1">{taken ? 'Seguiste editando este proyecto en otra pestaña: esta quedó en solo lectura.' : ask ? 'Este proyecto ya está abierto en otra pestaña. Para no pisar cambios, se abrió en solo lectura.' : 'Solo lectura.'}</span>
+      <button onClick={editHere} className="rounded-md bg-amber-500/90 px-3 py-1.5 font-medium text-black hover:bg-amber-400">
+        Editar en esta pestaña
+      </button>
+    </div>
+  ) : null
+  return { banner }
 }
 
 function usePageThumbnails() {

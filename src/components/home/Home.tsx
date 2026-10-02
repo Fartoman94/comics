@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, BookOpen, CircleHelp, Copy, Download, FileUp, MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, BookOpen, CircleHelp, Copy, Download, FileUp, LifeBuoy, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import type { Project } from '../../types'
-import { deleteDamagedProject, deleteProject, downloadBlob, duplicateProject, exportRawProjectFile, importProjectFile, listAllProjects, type DamagedProject } from '../../lib/storage'
+import { deleteDamagedProject, deleteForever, downloadBlob, duplicateProject, exportRawProjectFile, importProjectFile, listProjectSummaries, listTrash, loadProject, pruneSnapshots, purgeTrash, restoreProject, saveProject, storageUsage, trashProject, TRASH_DAYS, type ProjectSummary, type TrashEntry } from '../../lib/storage'
+import { RecoveryCenter, RenameDialog, StorageMeter } from './RecoveryCenter'
+import { useUi } from '../../store/ui'
 import { ProjectFileError } from '../../lib/projectSchema'
 import { settleSaves } from '../../lib/persistence'
 import { downloadProject } from '../../lib/export'
@@ -31,30 +33,66 @@ const HOW_TO: [string, string, string][] = [
   ['Leé y compartí', 'Pasá las páginas como en un libro y exportá en PDF o libro web.', 'read'],
 ]
 
+type DateFilter = 'all' | '7' | '30'
+type SortBy = 'recent' | 'name'
+
 export function Home({ notFound }: { notFound?: boolean }) {
-  const [projects, setProjects] = useState<Project[] | null>(null)
-  const [damaged, setDamaged] = useState<DamagedProject[]>([])
+  const [summaries, setSummaries] = useState<ProjectSummary[] | null>(null)
+  const [trash, setTrash] = useState<TrashEntry[]>([])
+  const [usage, setUsage] = useState<{ usage: number; quota: number; persisted: boolean } | null>(null)
   const [newOpen, setNewOpen] = useState(false)
+  const [recoveryOpen, setRecoveryOpen] = useState(false)
+  const [renaming, setRenaming] = useState<ProjectSummary | null>(null)
+  const [query, setQuery] = useState('')
+  const [kindFilter, setKindFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
+  const [sort, setSort] = useState<SortBy>('recent')
   const fileRef = useRef<HTMLInputElement>(null)
   const toast = useEditor((s) => s.toast)
+  // "Centro de recuperación" pedido desde Ayuda.
+  const request = useUi((s) => s.sheetRequest)
+  useEffect(() => {
+    if (request?.id === 'recuperacion') {
+      setRecoveryOpen(true)
+      useUi.setState({ sheetRequest: null })
+    }
+  }, [request])
 
   // Espera los guardados pendientes (p. ej. al volver con Atrás) para no listar datos viejos.
+  // Se usa el índice liviano: no carga cada proyecto completo.
   const refresh = () =>
     void settleSaves()
-      .then(listAllProjects)
-      .then(({ projects, damaged }) => {
-        setProjects(projects)
-        setDamaged(damaged)
+      .then(() => Promise.all([listProjectSummaries(), listTrash(), storageUsage().catch(() => null)]))
+      .then(([list, t, u]) => {
+        setSummaries(list)
+        setTrash(t)
+        setUsage(u)
       })
       .catch((e) => {
         console.error(e)
-        setProjects([])
+        setSummaries([])
         toast('No se pudieron leer los proyectos guardados en este navegador.', 'error')
       })
-  useEffect(refresh, [])
+  useEffect(() => {
+    // Limpieza programada: papelera vencida e instantáneas viejas.
+    void Promise.allSettled([purgeTrash(), pruneSnapshots()]).then(refresh)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (notFound) toast('Ese proyecto no existe en este navegador', 'error')
   }, [notFound, toast])
+  // Aviso antes de quedarse sin espacio.
+  useEffect(() => {
+    if (usage && usage.quota > 0 && usage.usage / usage.quota > 0.8) toast('Te queda poco espacio de almacenamiento en este navegador. Descargá copias (.vineta) y borrá lo que no uses.', 'error')
+  }, [usage, toast])
+
+  const healthy = useMemo(() => (summaries ?? []).filter((p) => !p.damaged), [summaries])
+  const damaged = useMemo(() => (summaries ?? []).filter((p) => p.damaged), [summaries])
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    const since = dateFilter === 'all' ? 0 : Date.now() - Number(dateFilter) * 24 * 3600_000
+    const out = healthy.filter((p) => (kindFilter === 'all' || p.kind === kindFilter) && p.updatedAt >= since && (!q || p.title.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').includes(q)))
+    return sort === 'name' ? [...out].sort((a, b) => a.title.localeCompare(b.title, 'es')) : out
+  }, [healthy, query, kindFilter, dateFilter, sort])
 
   const onImport = async (f: File | undefined) => {
     if (!f) return
@@ -70,33 +108,58 @@ export function Home({ notFound }: { notFound?: boolean }) {
     }
   }
 
-  const duplicate = async (p: Project) => {
-    try {
-      await duplicateProject(p, { title: `${p.title} (copia)` })
-      toast(`"${p.title}" duplicado`, 'success')
-    } catch (e) {
-      console.error(e)
-      toast('No se pudo duplicar el proyecto. ¿El navegador se quedó sin espacio?', 'error')
-    }
-    refresh()
+  const withProject = async (s: ProjectSummary, fn: (p: Project) => Promise<unknown>) => {
+    const p = await loadProject(s.id).catch(() => null)
+    if (!p) return toast('No se pudo abrir el proyecto.', 'error')
+    await fn(p)
   }
-  const exportDamaged = async (d: DamagedProject) => {
+  const duplicate = (s: ProjectSummary) =>
+    withProject(s, async (p) => {
+      try {
+        await duplicateProject(p, { title: `${p.title} (copia)` })
+        toast(`"${p.title}" duplicado`, 'success')
+      } catch (e) {
+        console.error(e)
+        toast('No se pudo duplicar el proyecto. ¿El navegador se quedó sin espacio?', 'error')
+      }
+      refresh()
+    })
+  const download = (s: ProjectSummary) => withProject(s, downloadProject)
+  const exportDamaged = async (id: string) => {
     try {
-      downloadBlob(await exportRawProjectFile(d.key), `proyecto-dañado-${d.key}.vineta`)
+      downloadBlob(await exportRawProjectFile(id), `proyecto-dañado-${id}.vineta`)
     } catch (e) {
       console.error(e)
       toast('No se pudo descargar la copia.', 'error')
     }
   }
-  const removeDamaged = async (d: DamagedProject) => {
+  const removeDamaged = async (d: ProjectSummary) => {
     if (!(await confirmDialog('Eliminar proyecto dañado', `"${d.title}" no se puede abrir. Se borrará de este navegador junto con sus imágenes. No se puede deshacer.`, { confirmLabel: 'Eliminar', danger: true }))) return
-    await deleteDamagedProject(d.key)
+    await deleteDamagedProject(d.id)
     refresh()
   }
 
-  const remove = async (p: Project) => {
-    if (!(await confirmDialog('Eliminar proyecto', `"${p.title}" y todas sus imágenes se borrarán de este navegador. No se puede deshacer.`, { confirmLabel: 'Eliminar', danger: true }))) return
-    await deleteProject(p)
+  // Eliminar manda a la papelera: se puede deshacer enseguida o restaurar durante 30 días.
+  const remove = async (p: ProjectSummary) => {
+    if (!(await confirmDialog('Eliminar proyecto', `"${p.title}" va a la papelera. Podés restaurarlo durante ${TRASH_DAYS} días.`, { confirmLabel: 'Eliminar', danger: true }))) return
+    await trashProject(p.id)
+    refresh()
+    toast(`"${p.title}" se movió a la papelera`, 'info', { label: 'Deshacer', run: () => void restore(p.id) })
+  }
+  const restore = async (id: string) => {
+    await restoreProject(id)
+    refresh()
+  }
+  const destroy = async (t: TrashEntry) => {
+    if (!(await confirmDialog('Borrar para siempre', `"${t.project.title}" y sus imágenes se borrarán definitivamente. No se puede deshacer.`, { confirmLabel: 'Borrar', danger: true }))) return
+    await deleteForever(t.id)
+    refresh()
+  }
+  const rename = async (s: ProjectSummary, title: string) => {
+    setRenaming(null)
+    const clean = title.trim()
+    if (!clean || clean === s.title) return
+    await withProject(s, (p) => saveProject({ ...p, title: clean, updatedAt: Date.now() }))
     refresh()
   }
 
@@ -186,20 +249,51 @@ export function Home({ notFound }: { notFound?: boolean }) {
       </section>
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="mb-5 flex items-end justify-between">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Tus proyectos</h2>
             <p className="text-sm text-ink-400">Guardados en este navegador.</p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {usage && <StorageMeter usage={usage} />}
+            <Button variant="ghost" size="sm" onClick={() => setRecoveryOpen(true)}>
+              <LifeBuoy size={15} /> Centro de recuperación
+            </Button>
+          </div>
         </div>
+        {summaries && summaries.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <label className="flex min-w-48 flex-1 items-center gap-2 rounded-lg bg-ink-900 px-2.5 ring-1 ring-ink-700 focus-within:ring-accent">
+              <Search size={14} className="text-ink-400" aria-hidden="true" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar proyecto" aria-label="Buscar proyecto" className="h-9 min-w-0 flex-1 bg-transparent text-sm text-white outline-none" />
+            </label>
+            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Tipo de obra" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-white">
+              <option value="all">Todos los tipos</option>
+              {PROJECT_KINDS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                </option>
+              ))}
+            </select>
+            <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilter)} aria-label="Fecha" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-white">
+              <option value="all">Cualquier fecha</option>
+              <option value="7">Últimos 7 días</option>
+              <option value="30">Últimos 30 días</option>
+            </select>
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortBy)} aria-label="Ordenar" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-white">
+              <option value="recent">Recientes primero</option>
+              <option value="name">Por nombre</option>
+            </select>
+          </div>
+        )}
 
-        {projects === null ? (
+        {summaries === null ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-ink-850" />
             ))}
           </div>
-        ) : projects.length === 0 ? (
+        ) : healthy.length === 0 && !query && kindFilter === 'all' && dateFilter === 'all' ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {PROJECT_KINDS.map((k) => (
               <button key={k.id} onClick={() => setNewOpen(true)} className="rounded-xl border border-dashed border-ink-600 p-5 text-left transition-colors hover:border-accent hover:bg-ink-850">
@@ -209,26 +303,22 @@ export function Home({ notFound }: { notFound?: boolean }) {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" data-testid="lista-proyectos">
             <button onClick={() => setNewOpen(true)} className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-ink-600 text-ink-300 transition-colors hover:border-accent hover:text-white">
               <Plus size={28} />
               <span className="text-sm font-medium">Nuevo proyecto</span>
             </button>
-            {projects.map((p) => (
-              <article key={p.id} className="group relative">
-                <button onClick={() => navigateToProject(p.id)} className="block w-full text-left">
+            {visible.map((p) => (
+              <article key={p.id} className="group relative [contain-intrinsic-size:auto_300px] [content-visibility:auto]">
+                <button onClick={() => navigateToProject(p.id)} className="block w-full text-left" aria-label={`Abrir ${p.title}`}>
                   <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden rounded-xl bg-ink-850 ring-1 ring-ink-700 transition-all group-hover:ring-accent">
-                    {p.thumbnail ? (
-                      <img src={p.thumbnail} alt="" className="h-full w-full object-contain" />
-                    ) : (
-                      <BookOpen className="text-ink-600" size={40} />
-                    )}
+                    {p.thumbnail ? <img src={p.thumbnail} alt="" loading="lazy" className="h-full w-full object-contain" /> : <BookOpen className="text-ink-600" size={40} />}
                     <span className="absolute top-2 left-2 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase">{p.kind}</span>
                   </div>
                   <div className="mt-2 px-0.5">
                     <div className="truncate text-sm font-medium text-ink-100">{p.title}</div>
                     <div className="text-xs text-ink-400">
-                      {p.pages.length} pág. · {new Date(p.updatedAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                      {p.pages} pág. · {new Date(p.updatedAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })} · <span className="text-emerald-400/80">Guardado</span>
                     </div>
                   </div>
                 </button>
@@ -243,8 +333,10 @@ export function Home({ notFound }: { notFound?: boolean }) {
                   >
                     {(close) => (
                       <>
+                        <MenuItem icon={<BookOpen size={14} />} label="Abrir" onClick={() => (close(), navigateToProject(p.id))} />
+                        <MenuItem icon={<Pencil size={14} />} label="Renombrar" onClick={() => (close(), setRenaming(p))} />
                         <MenuItem icon={<Copy size={14} />} label="Duplicar" onClick={() => (close(), void duplicate(p))} />
-                        <MenuItem icon={<Download size={14} />} label="Descargar .vineta" onClick={() => (close(), void downloadProject(p))} />
+                        <MenuItem icon={<Download size={14} />} label="Descargar .vineta" onClick={() => (close(), void download(p))} />
                         <MenuItem icon={<Trash2 size={14} />} label="Eliminar" danger onClick={() => (close(), void remove(p))} />
                       </>
                     )}
@@ -254,6 +346,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
             ))}
           </div>
         )}
+        {summaries && healthy.length > 0 && visible.length === 0 && <p className="mt-3 text-sm text-ink-400">Ningún proyecto coincide con la búsqueda.</p>}
 
         {damaged.length > 0 && (
           <section className="mt-8 rounded-xl border border-amber-500/30 bg-amber-950/20 p-4" aria-labelledby="damaged-title">
@@ -263,10 +356,10 @@ export function Home({ notFound }: { notFound?: boolean }) {
             <p className="mt-1 text-xs text-ink-300">Tienen datos dañados. Podés descargar una copia para revisarla o eliminarlos. El resto de tus proyectos no se ve afectado.</p>
             <ul className="mt-3 space-y-2">
               {damaged.map((d) => (
-                <li key={d.key} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-900 px-3 py-2">
+                <li key={d.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-900 px-3 py-2">
                   <span className="min-w-0 flex-1 truncate text-sm text-ink-100">{d.title}</span>
-                  <span className="hidden text-[11px] text-ink-400 sm:inline">{d.reason}</span>
-                  <Button size="sm" variant="ghost" onClick={() => void exportDamaged(d)}>
+                  <span className="hidden text-[11px] text-ink-400 sm:inline">{d.damaged}</span>
+                  <Button size="sm" variant="ghost" onClick={() => void exportDamaged(d.id)}>
                     <Download size={14} /> Descargar copia
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => void removeDamaged(d)}>
@@ -277,6 +370,29 @@ export function Home({ notFound }: { notFound?: boolean }) {
             </ul>
           </section>
         )}
+
+        {trash.length > 0 && (
+          <details className="mt-8 rounded-xl border border-ink-800 bg-ink-900/50 p-4" data-testid="papelera">
+            <summary className="cursor-pointer text-sm font-semibold text-ink-200">
+              Papelera ({trash.length}) <span className="font-normal text-ink-500">· se vacía sola a los {TRASH_DAYS} días</span>
+            </summary>
+            <ul className="mt-3 space-y-2">
+              {trash.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-ink-900 px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-ink-100">{t.project.title}</span>
+                  <span className="text-[11px] text-ink-500">borrado el {new Date(t.deletedAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                  <Button size="sm" variant="ghost" onClick={() => void restore(t.id)}>
+                    <RotateCcw size={14} /> Restaurar
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => void destroy(t)}>
+                    <Trash2 size={14} /> Borrar para siempre
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
         <section className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-ink-800 bg-ink-800 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
             <div key={t} className="bg-ink-950 p-5">
@@ -295,6 +411,8 @@ export function Home({ notFound }: { notFound?: boolean }) {
       </footer>
 
       <NewProjectDialog open={newOpen} onClose={() => setNewOpen(false)} />
+      <RenameDialog project={renaming} onClose={() => setRenaming(null)} onSave={(t) => renaming && void rename(renaming, t)} />
+      <RecoveryCenter open={recoveryOpen} onClose={() => (setRecoveryOpen(false), refresh())} />
       <HelpGuide />
     </div>
   )
