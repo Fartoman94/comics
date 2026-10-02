@@ -1,4 +1,4 @@
-import { Lightbulb, PlayCircle } from 'lucide-react'
+import { LifeBuoy, Lightbulb, PlayCircle } from 'lucide-react'
 import { create } from 'zustand'
 import { useUi } from '../../store/ui'
 import { Button, cx, Modal } from '../ui/controls'
@@ -56,6 +56,16 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
             className={cx('flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-white', !(canTour && mode === 'studio') && 'sm:mt-auto')}
           >
             <Lightbulb size={15} /> Volver a mostrar las ayudas
+          </button>
+          <button
+            onClick={() => {
+              close()
+              useUi.getState().requestSheet('recuperacion')
+              if (!/^#\/?$/.test(location.hash)) location.hash = '/'
+            }}
+            className="flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-white"
+          >
+            <LifeBuoy size={15} /> Centro de recuperación
           </button>
         </nav>
 

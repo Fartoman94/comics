@@ -53,6 +53,27 @@ Stack: React 19, TypeScript, Vite, Konva (lienzo), Zustand + Immer (estado e his
 - **Guion (desde la etapa 05):** `project.script` es **opcional** y aditivo, por eso la versión del archivo sigue en 1. Los `.vineta` anteriores no lo tienen y se abren igual. Estructura: `script.pages[idDePágina].panels[] = { id, panelId | null, blocks[] }`, con bloques `{ id, kind: description | dialogue | thought | caption | sfx, text, character?, placedElementId? }`. La asociación es por id: reordenar páginas o viñetas no la rompe.
 - **Plantillas propias** se guardan aparte (IndexedDB `vineta-plantillas`) con copia propia de sus imágenes. El borrado de imágenes tiene en cuenta proyectos y plantillas.
 
+## Almacenamiento local: bases, migración y limpieza
+
+Todo vive en IndexedDB del navegador (nada se sube a un servidor):
+
+| Base | Qué guarda |
+|---|---|
+| `vineta-projects` | Proyectos completos (JSON validado). |
+| `vineta-assets` | Imágenes (blobs), compartidas por referencia. |
+| `vineta-indice` | Resumen liviano de cada proyecto para el inicio: título, tipo, páginas, miniatura y fecha. |
+| `vineta-papelera` | Proyectos borrados. |
+| `vineta-biblioteca` | Imágenes y elementos reutilizables del usuario. |
+| `vineta-plantillas` | Páginas guardadas como plantilla. |
+| `vineta-instantaneas` | Versiones anteriores de cada proyecto. |
+
+- **Migración del índice:** los proyectos guardados antes de que existiera el índice se leen una sola vez, se validan y se indexan. Los dañados quedan marcados y no se abren. Las entradas del índice sin proyecto se borran.
+- **Imágenes:** una imagen nunca se borra mientras la use un proyecto (también uno dañado), la papelera, una plantilla, la biblioteca o una instantánea. Al importar se calcula una huella SHA-256 (`asset.hash`, opcional) para reutilizar la misma imagen en vez de duplicarla.
+- **Papelera:** eliminar manda el proyecto a la papelera; se puede "Deshacer" enseguida o "Restaurar" después. Se vacía sola a los 30 días.
+- **Instantáneas:** como mucho una cada 5 minutos por proyecto (al abrirlo y al guardar), se guardan las 3 últimas y se borran a los 7 días o cuando el proyecto ya no existe. Restaurar crea una copia validada.
+- **Dos pestañas:** si un proyecto ya está abierto en otra pestaña (BroadcastChannel), la nueva abre en solo lectura y ofrece "Editar en esta pestaña"; la otra pasa a solo lectura. Nunca gana en silencio el último guardado.
+- **Centro de recuperación** (inicio o Ayuda): uso de almacenamiento, almacenamiento persistente, proyectos sanos y dañados, guardados fallidos, instantáneas, copia de seguridad completa (.zip) y restauración validada.
+
 ## Tests
 
 ```bash

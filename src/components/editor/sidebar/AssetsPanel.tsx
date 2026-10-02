@@ -4,10 +4,31 @@ import { useEditor } from '../../../store/editor'
 import { getAssetUrl, useAssetImage } from '../../../lib/assetCache'
 import { importFiles, placeAsset } from '../../../lib/placement'
 import type { Asset } from '../../../types'
-import { cx, IconButton } from '../../ui/controls'
+import { cx, IconButton, Segmented } from '../../ui/controls'
+import { LibraryPanel } from './LibraryPanel'
 import { confirmDialog } from '../../ui/Confirm'
 
+/** Imágenes: las de este proyecto y la biblioteca (compartida entre proyectos). */
 export function AssetsPanel() {
+  const [tab, setTab] = useState<'project' | 'library'>('project')
+  return (
+    <div>
+      <div className="no-autoclose px-3 pt-3">
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'project', label: 'Este proyecto' },
+            { value: 'library', label: 'Biblioteca' },
+          ]}
+        />
+      </div>
+      {tab === 'project' ? <ProjectAssets /> : <LibraryPanel />}
+    </div>
+  )
+}
+
+function ProjectAssets() {
   const assets = useEditor((s) => s.project!.assets)
   const pages = useEditor((s) => s.project!.pages)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -55,7 +76,7 @@ export function AssetsPanel() {
       >
         <Upload size={20} className="text-accent" />
         <span className="text-xs font-medium text-white">{busy ? 'Subiendo…' : 'Subir imágenes o fotos'}</span>
-        <span className="text-[11px] text-ink-400">PNG, JPG, WebP, GIF · o arrastralas acá / al lienzo · Ctrl+V pega</span>
+        <span className="text-[11px] text-ink-400">PNG, JPG, WebP o GIF · hasta 4096 px por lado (las más grandes se reducen) · arrastralas acá o al lienzo · Ctrl+V pega</span>
       </button>
       <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && void upload(e.target.files)} />
 

@@ -6,6 +6,8 @@ import type { BubbleElement, ComicElement, DrawingElement, Stroke, TextElement }
 import { currentPage, findEl, notifyLocked, useCurrentPage, useEditor } from '../../store/editor'
 import { createBubble, createDrawing, createPanel, createText, TEXT_PRESETS } from '../../lib/factories'
 import { importFiles, placeAsset } from '../../lib/placement'
+import { listLibrary } from '../../lib/storage'
+import { insertLibraryItem } from '../../lib/library'
 import { ensureGlyphs, loadFonts } from '../../lib/fonts'
 import { PageContent } from './nodes/PageContent'
 import type { NodeProps } from './nodes/ElementNode'
@@ -611,6 +613,12 @@ export function CanvasStage() {
     stage.setPointersPositions(e.nativeEvent)
     const p = pagePointer()
     if (!p) return
+    const libraryId = e.dataTransfer.getData('application/x-vineta-library')
+    if (libraryId) {
+      const item = (await listLibrary()).find((i) => i.id === libraryId)
+      if (item) insertLibraryItem(item, p)
+      return
+    }
     const assetId = e.dataTransfer.getData('application/x-vineta-asset')
     const s = useEditor.getState()
     if (assetId) {

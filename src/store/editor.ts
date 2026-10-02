@@ -5,7 +5,8 @@ import { clonePage, cloneElement, createBubble, createPage, createText, TEXT_PRE
 import { buildTemplatePanels, TEMPLATES } from '../lib/templates'
 import { measureTextHeight } from '../lib/textFit'
 import { enqueueSave, enqueueTask } from '../lib/persistence'
-import { deleteBlobsIfUnused, getAssetBlob, putAssetBlob } from '../lib/storage'
+import { deleteBlobsIfUnused, getAssetBlob, putAssetBlob, takeSnapshot } from '../lib/storage'
+import { clearSaveFailed, markSaveFailed } from '../lib/saveMarks'
 import { forgetAsset } from '../lib/assetCache'
 import { referencedAssetIds } from '../lib/projectSchema'
 import { uid } from '../lib/id'
@@ -63,6 +64,9 @@ interface EditorState {
   revision: number
   /** Con el lector abierto el editor no recibe atajos. */
   readerOpen: boolean
+  /** Solo lectura: el proyecto se está editando en otra pestaña. No se modifica ni se guarda. */
+  readOnly: boolean
+  setReadOnly(v: boolean): void
   past: Snapshot[]
   future: Snapshot[]
   lastCoalesce: { key: string; at: number } | null
@@ -155,6 +159,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   saveStatus: 'saved',
   revision: 0,
   readerOpen: false,
+  readOnly: false,
+  setReadOnly: (v) => set({ readOnly: v }),
   past: [],
   future: [],
   lastCoalesce: null,
@@ -177,6 +183,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       editingTextId: null,
       fitRequest: get().fitRequest + 1,
       readerOpen: false,
+      readOnly: false,
     })
   },
   closeProject: () => {
@@ -187,8 +194,10 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setPage: (id) => set({ pageId: id, selection: [], croppingPanelId: null, editingTextId: null, fitRequest: get().fitRequest + 1 }),
 
   mutate: (recipe, opts = {}) => {
-    const { project, past, lastCoalesce } = get()
+    const { project, past, lastCoalesce, readOnly } = get()
     if (!project) return
+    // En solo lectura no se modifica nada (los cambios automáticos, como la miniatura, se ignoran en silencio).
+    if (readOnly) return opts.history === false ? undefined : notifyReadOnly()
     // Primero se ve si el documento cambió de verdad; recién después se sella la hora.
     // Una acción sin efecto no entra al historial, no borra "Rehacer" ni marca cambios.
     const changed = produce(project, recipe)
@@ -210,6 +219,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   undo: () => {
     const { project, past, future } = get()
     if (!project || past.length === 0) return
+    if (get().readOnly) return notifyReadOnly()
     const prev = past[past.length - 1]
     set({
       project: { ...prev, assets: project.assets, thumbnail: project.thumbnail },
@@ -227,6 +237,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   redo: () => {
     const { project, past, future } = get()
     if (!project || future.length === 0) return
+    if (get().readOnly) return notifyReadOnly()
     const next = future[0]
     set({
       project: { ...next, assets: project.assets, thumbnail: project.thumbnail },
@@ -254,16 +265,20 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setEditingText: (id) => set({ editingTextId: id }),
   setSaveStatus: (s) => set({ saveStatus: s }),
   saveNow: async () => {
-    const { project, revision, saveStatus } = get()
-    if (!project || saveStatus === 'saved') return true
+    const { project, revision, saveStatus, readOnly } = get()
+    if (!project || saveStatus === 'saved' || readOnly) return true
     set({ saveStatus: 'saving' })
     try {
       await enqueueSave(project, revision)
+      clearSaveFailed(project.id)
+      // Instantánea local acotada (como mucho una cada 5 minutos por proyecto).
+      void takeSnapshot(project).catch(() => undefined)
       const now = get()
       if (now.project?.id === project.id && now.revision === revision) set({ saveStatus: 'saved' })
       return true
     } catch (e) {
       console.error(e)
+      markSaveFailed(project.id)
       const now = get()
       if (now.project?.id === project.id) {
         // Queda marcado como no guardado: el próximo cambio o "Reintentar" lo vuelve a intentar.
@@ -654,8 +669,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
 
 /** Al cambiar o cerrar el proyecto, lo que quedó sin guardar se escribe enseguida (sin esperar el debounce). */
 function flushOnLeave() {
-  const { project, saveStatus, revision } = useEditor.getState()
-  if (!project) return
+  const { project, saveStatus, revision, readOnly } = useEditor.getState()
+  if (!project || readOnly) return
   if (saveStatus !== 'saved')
     enqueueSave(project, revision).catch((e) => {
       console.error(e)
@@ -761,6 +776,13 @@ export function scriptStatus(page: Page | undefined, block: ScriptBlock): Script
   const el = block.placedElementId ? page?.elements.find((e) => e.id === block.placedElementId) : undefined
   if (!el || (el.type !== 'bubble' && el.type !== 'text')) return 'pendiente'
   return el.text === block.text ? 'colocado' : 'modificado'
+}
+
+let readOnlyToastAt = 0
+function notifyReadOnly() {
+  if (Date.now() - readOnlyToastAt < 3000) return
+  readOnlyToastAt = Date.now()
+  useEditor.getState().toast('Solo lectura: este proyecto se está editando en otra pestaña.', 'info')
 }
 
 /** Aviso corto cuando una operación deja afuera elementos bloqueados. */

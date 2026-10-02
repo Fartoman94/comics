@@ -19,6 +19,8 @@ export interface Asset {
   height: number
   mime: string
   createdAt: number
+  /** SHA-256 del archivo original (para no duplicar la misma imagen). */
+  hash?: string
 }
 
 export interface ImageFilters {
