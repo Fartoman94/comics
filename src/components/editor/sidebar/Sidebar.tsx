@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Files, Images, Layers, LayoutGrid, Shapes } from 'lucide-react'
+import { FileText, Files, Images, Layers, LayoutGrid, Shapes } from 'lucide-react'
 import { cx } from '../../ui/controls'
 import { MadeByMateLabs } from '../../ui/Brand'
 import { PagesPanel } from './PagesPanel'
@@ -7,8 +7,9 @@ import { LayoutsPanel } from './LayoutsPanel'
 import { AssetsPanel } from './AssetsPanel'
 import { InsertPanel } from './InsertPanel'
 import { LayersPanel } from './LayersPanel'
+import { ScriptPanel } from './ScriptPanel'
 
-export type SidebarTab = 'pages' | 'layouts' | 'assets' | 'insert' | 'layers'
+export type SidebarTab = 'pages' | 'layouts' | 'assets' | 'insert' | 'layers' | 'script'
 
 export const SIDEBAR_TABS: { id: SidebarTab; label: string; icon: React.ReactNode }[] = [
   { id: 'pages', label: 'Páginas', icon: <Files size={16} /> },
@@ -16,6 +17,7 @@ export const SIDEBAR_TABS: { id: SidebarTab; label: string; icon: React.ReactNod
   { id: 'assets', label: 'Imágenes', icon: <Images size={16} /> },
   { id: 'insert', label: 'Insertar', icon: <Shapes size={16} /> },
   { id: 'layers', label: 'Capas', icon: <Layers size={16} /> },
+  { id: 'script', label: 'Guion', icon: <FileText size={16} /> },
 ]
 
 export function SidebarBody({ tab }: { tab: SidebarTab }) {
@@ -26,6 +28,7 @@ export function SidebarBody({ tab }: { tab: SidebarTab }) {
       {tab === 'assets' && <AssetsPanel />}
       {tab === 'insert' && <InsertPanel />}
       {tab === 'layers' && <LayersPanel />}
+      {tab === 'script' && <ScriptPanel />}
     </>
   )
 }

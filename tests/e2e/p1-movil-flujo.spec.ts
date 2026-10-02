@@ -14,6 +14,8 @@ test.describe('flujo completo sólo con el dedo (390×844)', () => {
     await noTips(page)
     await gotoHome(page)
     await page.getByRole('button', { name: /Empezar un proyecto|Nuevo proyecto/ }).first().tap()
+    await page.getByRole('button', { name: 'Siguiente' }).tap()
+    await page.getByRole('button', { name: 'Siguiente' }).tap()
     await page.getByRole('textbox', { name: 'Título' }).fill('Hecho en el celular')
     await page.getByRole('button', { name: 'Crear proyecto' }).tap()
     await expect(page.locator('[data-ui-mode=simple]')).toBeVisible()

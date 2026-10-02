@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { produce, type Draft } from 'immer'
-import type { Asset, BrushSettings, ComicElement, Page, Project, Tool } from '../types'
-import { clonePage, cloneElement, createPage } from '../lib/factories'
+import type { Asset, BrushSettings, ComicElement, Page, Project, ScriptBlock, ScriptKind, Tool } from '../types'
+import { clonePage, cloneElement, createBubble, createPage, createText, TEXT_PRESETS } from '../lib/factories'
 import { buildTemplatePanels, TEMPLATES } from '../lib/templates'
 import { measureTextHeight } from '../lib/textFit'
 import { enqueueSave, enqueueTask } from '../lib/persistence'
@@ -9,6 +9,7 @@ import { deleteBlobsIfUnused, getAssetBlob, putAssetBlob } from '../lib/storage'
 import { forgetAsset } from '../lib/assetCache'
 import { referencedAssetIds } from '../lib/projectSchema'
 import { uid } from '../lib/id'
+import { findFreeSpot, intersect } from '../lib/freeSpot'
 
 const HISTORY_LIMIT = 120
 const TEXT_KEYS = ['text', 'fontSize', 'fontFamily', 'fontStyle', 'lineHeight', 'letterSpacing', 'width', 'uppercase']
@@ -68,6 +69,8 @@ interface EditorState {
   toasts: Toast[]
   /** Cambia cada vez que el canvas pide encajar la página en pantalla. */
   fitRequest: number
+  /** Parte de la página que se ve en pantalla (coordenadas de página). */
+  visibleRect: { x: number; y: number; width: number; height: number } | null
 
   openProject(p: Project): void
   closeProject(): void
@@ -97,6 +100,20 @@ interface EditorState {
   copySelection(): void
   paste(): Promise<void>
   copyPages(ids: string[]): void
+  /** Duplica una viñeta con todo lo que tiene encima (globos, textos, imágenes, efectos) en una sola acción. */
+  duplicatePanelWithContent(panelId: string): void
+  /** Página nueva con las mismas viñetas, sin contenido ni imágenes. */
+  duplicatePageStructure(pageId: string): void
+  /** Aplica una página (plantilla propia) reemplazando la actual o como página nueva. Copia sus imágenes. */
+  applyPageTemplate(page: Page, assets: Asset[], mode: 'replace' | 'new'): Promise<void>
+  // Guion
+  addScriptBlock(pageId: string, panelId: string | null, kind: ScriptKind, text?: string): string
+  updateScriptBlock(pageId: string, blockId: string, patch: Partial<Pick<ScriptBlock, 'kind' | 'text' | 'character'>>): void
+  removeScriptBlock(pageId: string, blockId: string): void
+  moveScriptBlock(pageId: string, blockId: string, dir: -1 | 1): void
+  placeScriptBlock(pageId: string, blockId: string): void
+  /** Resuelve una divergencia: 'page' = el guion toma el texto de la página; 'script' = la página toma el del guion. */
+  syncScriptBlock(pageId: string, blockId: string, from: 'page' | 'script'): void
   pastePages(afterId?: string): Promise<void>
   arrange(dir: 'front' | 'back' | 'forward' | 'backward'): void
   reorderElement(id: string, toIndex: number): void
@@ -106,6 +123,8 @@ interface EditorState {
   deletePage(id: string): void
   movePage(from: number, to: number): void
   applyTemplate(templateId: string, margin: number, gutter: number, mode: 'replace' | 'add'): void
+  /** Página nueva (después de la actual) armada con la plantilla, en una sola acción. */
+  addPageFromTemplate(templateId: string, margin: number, gutter: number): void
 
   addAsset(a: Asset): void
   removeAsset(id: string): void
@@ -141,6 +160,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   lastCoalesce: null,
   toasts: [],
   fitRequest: 0,
+  visibleRect: null,
 
   openProject: (p) => {
     flushOnLeave()
@@ -342,6 +362,139 @@ export const useEditor = create<EditorState>()((set, get) => ({
     get().toast(pages.length === 1 ? 'Página copiada' : `${pages.length} páginas copiadas`)
   },
 
+  duplicatePanelWithContent: (panelId) => {
+    const page = currentPage()
+    const panel = page?.elements.find((e) => e.id === panelId)
+    if (!page || !panel || panel.type !== 'panel') return
+    // Contenido = lo que está por encima de la viñeta y con su centro adentro.
+    const at = page.elements.indexOf(panel)
+    const inside = page.elements.filter((e, i) => i > at && e.type !== 'panel' && e.type !== 'drawing' && centerIn(e, panel))
+    const group = [panel, ...inside]
+    const { width: W, height: H } = get().project!.format
+    // Al lado si entra, si no abajo, si no un poco corrida: composición relativa intacta.
+    const gap = Math.round(W * 0.018)
+    const dx = panel.x + panel.width * 2 + gap <= W ? panel.width + gap : 0
+    const dy = dx === 0 && panel.y + panel.height * 2 + gap <= H ? panel.height + gap : 0
+    const [ox, oy] = dx || dy ? [dx, dy] : [24, 24]
+    const copies = group.map((e) => {
+      const c = cloneElement(e, 0)
+      c.x += ox
+      c.y += oy
+      return c
+    })
+    get().addElements(copies)
+  },
+
+  duplicatePageStructure: (pageId) => {
+    const src = get().project?.pages.find((p) => p.id === pageId)
+    if (!src) return
+    const copy = clonePage({ ...src, elements: src.elements.filter((e) => e.type === 'panel') })
+    copy.name = `${src.name} (estructura)`
+    copy.elements = copy.elements.map((e) => (e.type === 'panel' ? { ...e, image: null } : e))
+    get().mutate((d) => {
+      d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, copy as Draft<Page>)
+    })
+    get().setPage(copy.id)
+  },
+
+  applyPageTemplate: async (page, assets, mode) => {
+    const { project, pageId } = get()
+    if (!project) return
+    const adopted = await adoptClipboardAssets({ projectId: 'plantilla', elements: [], assets }, project.id)
+    if (!adopted) return
+    const fresh = clonePage(page)
+    const elements = fresh.elements.filter((el) => !(el.type === 'image' && adopted.lost.has(el.assetId))).map((el) => adopted.remap(el))
+    if (mode === 'new') {
+      const created = { ...fresh, name: page.name || 'Página', elements }
+      get().mutate((d) => {
+        d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, created as Draft<Page>)
+      })
+      get().setPage(created.id)
+    } else {
+      get().mutate((d) => {
+        const pg = d.pages.find((p) => p.id === pageId)
+        if (!pg) return
+        pg.elements = elements as Draft<ComicElement>[]
+        pg.background = page.background
+      })
+      set({ selection: [] })
+    }
+  },
+
+  addScriptBlock: (pageId, panelId, kind, text = '') => {
+    const blockId = uid('sb_')
+    get().mutate((d) => {
+      d.script ??= { pages: {} }
+      const sp = (d.script.pages[pageId] ??= { panels: [] })
+      let row = sp.panels.find((p) => p.panelId === panelId)
+      if (!row) {
+        row = { id: uid('sp_'), panelId, blocks: [] }
+        sp.panels.push(row)
+      }
+      row.blocks.push({ id: blockId, kind, text })
+    })
+    return blockId
+  },
+  updateScriptBlock: (pageId, blockId, patch) =>
+    get().mutate(
+      (d) => {
+        const b = findBlock(d.script, pageId, blockId)
+        if (b) Object.assign(b, patch)
+      },
+      { coalesce: `guion:${blockId}` },
+    ),
+  removeScriptBlock: (pageId, blockId) =>
+    get().mutate((d) => {
+      for (const row of d.script?.pages[pageId]?.panels ?? []) row.blocks = row.blocks.filter((b) => b.id !== blockId)
+    }),
+  moveScriptBlock: (pageId, blockId, dir) =>
+    get().mutate((d) => {
+      for (const row of d.script?.pages[pageId]?.panels ?? []) {
+        const i = row.blocks.findIndex((b) => b.id === blockId)
+        const j = i + dir
+        if (i >= 0 && j >= 0 && j < row.blocks.length) [row.blocks[i], row.blocks[j]] = [row.blocks[j], row.blocks[i]]
+      }
+    }),
+  placeScriptBlock: (pageId, blockId) => {
+    const { project } = get()
+    const page = project?.pages.find((p) => p.id === pageId)
+    const row = project?.script?.pages[pageId]?.panels.find((r) => r.blocks.some((b) => b.id === blockId))
+    const block = row?.blocks.find((b) => b.id === blockId)
+    if (!project || !page || !block || block.kind === 'description') return
+    if (get().pageId !== pageId) get().setPage(pageId)
+    const scale = project.format.width / 900
+    let el: ComicElement
+    if (block.kind === 'sfx') {
+      const t = createText(0, 0, TEXT_PRESETS.find((p) => p.id.includes('sfx')) ?? TEXT_PRESETS[0])
+      t.text = block.text
+      t.fontSize = Math.round(t.fontSize * scale)
+      el = t
+    } else {
+      const b = createBubble(block.kind === 'thought' ? 'thought' : block.kind === 'caption' ? 'box' : 'speech', 0, 0, scale)
+      b.text = block.text
+      el = b
+    }
+    // Dentro de la viñeta del guion (si existe todavía), en un lugar libre y visible.
+    const panel = row?.panelId ? page.elements.find((e) => e.id === row.panelId && e.type === 'panel') : undefined
+    if (panel) useEditor.setState({ selection: [panel.id] })
+    Object.assign(el, placementFor(el.width, el.height))
+    get().mutate((d) => {
+      const pg = d.pages.find((p) => p.id === pageId)
+      pg?.elements.push(el as Draft<ComicElement>)
+      const b = findBlock(d.script, pageId, blockId)
+      if (b) b.placedElementId = el.id
+    })
+    set({ selection: [el.id] })
+  },
+  syncScriptBlock: (pageId, blockId, from) =>
+    get().mutate((d) => {
+      const b = findBlock(d.script, pageId, blockId)
+      const el = b?.placedElementId ? d.pages.find((p) => p.id === pageId)?.elements.find((e) => e.id === b.placedElementId) : undefined
+      if (!b || !el || (el.type !== 'bubble' && el.type !== 'text')) return
+      if (from === 'page') b.text = el.text
+      else el.text = b.text
+    }),
+
   pastePages: async (afterId) => {
     const { clipboard, project } = get()
     if (!project || !clipboard?.pages?.length) return
@@ -470,6 +623,18 @@ export const useEditor = create<EditorState>()((set, get) => ({
     set({ selection: [] })
   },
 
+  addPageFromTemplate: (templateId, margin, gutter) => {
+    const { project, pageId } = get()
+    const tpl = TEMPLATES.find((t) => t.id === templateId)
+    if (!project || !tpl) return
+    const page = createPage(`Página ${project.pages.length + 1}`, project.format)
+    page.elements = buildTemplatePanels(tpl, project.format, margin, gutter)
+    get().mutate((d) => {
+      d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, page as Draft<Page>)
+    })
+    get().setPage(page.id)
+  },
+
   addAsset: (a) => get().mutate((d) => void d.assets.push(a), { history: false }),
   removeAsset: (id) => {
     const asset = get().project?.assets.find((a) => a.id === id)
@@ -575,6 +740,29 @@ async function adoptClipboardAssets(clipboard: ClipboardData, projectId: string)
   return { lost, remap }
 }
 
+const centerIn = (e: ComicElement, box: ComicElement) => {
+  const cx = e.x + e.width / 2
+  const cy = e.y + e.height / 2
+  return cx >= box.x && cx <= box.x + box.width && cy >= box.y && cy <= box.y + box.height
+}
+
+function findBlock(script: Project['script'], pageId: string, blockId: string) {
+  for (const row of script?.pages[pageId]?.panels ?? []) {
+    const b = row.blocks.find((x) => x.id === blockId)
+    if (b) return b
+  }
+  return undefined
+}
+
+export type ScriptStatus = 'pendiente' | 'colocado' | 'modificado'
+
+/** Estado de un bloque: pendiente (no está en la página), colocado (igual) o modificado (los textos divergen). */
+export function scriptStatus(page: Page | undefined, block: ScriptBlock): ScriptStatus {
+  const el = block.placedElementId ? page?.elements.find((e) => e.id === block.placedElementId) : undefined
+  if (!el || (el.type !== 'bubble' && el.type !== 'text')) return 'pendiente'
+  return el.text === block.text ? 'colocado' : 'modificado'
+}
+
 /** Aviso corto cuando una operación deja afuera elementos bloqueados. */
 export function notifyLocked(n: number) {
   useEditor.getState().toast(n === 1 ? 'Se omitió 1 elemento bloqueado' : `Se omitieron ${n} elementos bloqueados`)
@@ -590,6 +778,22 @@ function fixupAfterHistory() {
   }
   const ids = new Set(page.elements.map((e) => e.id))
   useEditor.setState({ selection: s.selection.filter((id) => ids.has(id)) })
+}
+
+/**
+ * Dónde poner algo nuevo de w×h: en un lugar libre de la viñeta seleccionada o, si no hay, de la
+ * parte visible de la página (para que aparezca a la vista y sin taparse con lo que ya está).
+ */
+export function placementFor(w: number, h: number): { x: number; y: number } {
+  const s = useEditor.getState()
+  const page = currentPage()
+  if (!s.project || !page) return { x: 0, y: 0 }
+  const { width: W, height: H } = s.project.format
+  const pageRect = { x: 0, y: 0, width: W, height: H }
+  const sel = s.selection.length === 1 ? page.elements.find((e) => e.id === s.selection[0] && e.type === 'panel') : undefined
+  const visible = s.visibleRect ? intersect(s.visibleRect, pageRect) : pageRect
+  const area = sel ? intersect({ x: sel.x, y: sel.y, width: sel.width, height: sel.height }, visible) : visible
+  return findFreeSpot(Math.min(w, area.width), Math.min(h, area.height), page, area)
 }
 
 export function currentPage(): Page | undefined {

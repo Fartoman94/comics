@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDownToLine, ArrowUpToLine, Brush, Check, Copy, Crop, Eraser, Files, ImagePlus, Images, Layers, LayoutGrid, MessageCircle, Minus, PenLine, Plus, SlidersHorizontal, SquareDashed, Trash2, Type, Undo2 } from 'lucide-react'
 import type { ComicElement } from '../../../types'
-import { currentPage, useEditor, useSelectedElements } from '../../../store/editor'
+import { currentPage, placementFor, useEditor, useSelectedElements } from '../../../store/editor'
 import { createBubble, createDrawing, createText, TEXT_PRESETS } from '../../../lib/factories'
 import { importFiles, placeAsset } from '../../../lib/placement'
 import { cx } from '../../ui/controls'
@@ -10,13 +10,15 @@ import { LayoutsPanel } from '../sidebar/LayoutsPanel'
 import { AssetsPanel } from '../sidebar/AssetsPanel'
 import { InsertPanel } from '../sidebar/InsertPanel'
 import { LayersPanel } from '../sidebar/LayersPanel'
+import { ScriptPanel } from '../sidebar/ScriptPanel'
+import { useUi } from '../../../store/ui'
 import { InspectorBody } from '../inspector/Inspector'
 import { pickImageFor } from '../CanvasStage'
 import { BottomSheet } from './BottomSheet'
 import { Tip } from './Tip'
 
 type Group = 'pages' | 'design' | 'images' | 'text' | 'layers'
-type Sheet = Group | 'props' | 'add' | null
+type Sheet = Group | 'props' | 'add' | 'script' | null
 
 const GROUPS: { id: Group; label: string; icon: React.ReactNode; title: string }[] = [
   { id: 'pages', label: 'Páginas', icon: <Files size={20} />, title: 'Páginas' },
@@ -41,6 +43,11 @@ const TIPS: Record<Group, string> = {
  */
 export function SimpleBottomBar() {
   const [sheet, setSheet] = useState<Sheet>(null)
+  // El menú "⋯" puede pedir abrir una hoja (por ejemplo, el guion).
+  const request = useUi((s) => s.sheetRequest)
+  useEffect(() => {
+    if (request?.id === 'script') setSheet('script')
+  }, [request])
   const selection = useEditor((s) => s.selection)
   const tool = useEditor((s) => s.tool)
   const editing = useEditor((s) => !!s.editingTextId || !!s.croppingPanelId)
@@ -89,6 +96,11 @@ export function SimpleBottomBar() {
       {sheet === 'props' && (
         <BottomSheet title="Todas las opciones" onClose={close}>
           <InspectorBody />
+        </BottomSheet>
+      )}
+      {sheet === 'script' && (
+        <BottomSheet title="Guion" onClose={close}>
+          <ScriptPanel />
         </BottomSheet>
       )}
       {sheet === 'add' && (
@@ -152,7 +164,7 @@ function ContextBar({ onMore }: { onMore: () => void }) {
       <>
         <Action label={el.image ? 'Cambiar foto' : 'Poner foto'} onClick={() => pickImageFor(el.id)}><ImagePlus size={19} /></Action>
         {el.image && <Action label="Encuadrar" onClick={() => s.setCropping(el.id)}><Crop size={19} /></Action>}
-        {dup}
+        <Action label="Duplicar escena" onClick={() => s.duplicatePanelWithContent(el.id)}><Copy size={19} /></Action>
         {del}
       </>
     )
@@ -226,7 +238,7 @@ function AddMenu({ onDone }: { onDone: () => void }) {
   const s = useEditor.getState()
   const format = s.project!.format
   const scale = format.width / 900
-  const center = (w: number, h: number) => ({ x: Math.round(format.width / 2 - w / 2), y: Math.round(format.height / 2 - h / 2) })
+  const center = (w: number, h: number) => placementFor(w, h)
   const go = (fn: () => void) => () => {
     fn()
     onDone()

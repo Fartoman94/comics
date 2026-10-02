@@ -3,6 +3,8 @@
 // o malicioso no debe poder dejar la app en blanco.
 import type {
   Asset,
+  Script,
+  ScriptKind,
   BlendMode,
   BrushKind,
   BubbleShape,
@@ -320,6 +322,43 @@ function asset(v: unknown, p: string): Asset {
   }
 }
 
+const SCRIPT_KINDS: ScriptKind[] = ['description', 'dialogue', 'thought', 'caption', 'sfx']
+
+function script(v: unknown, p: string): Script {
+  const o = obj(v, p)
+  const pages = obj(o.pages ?? {}, `${p}.pages`)
+  const keys = Object.keys(pages)
+  if (keys.length > LIMITS.pages * 2) throw new Bad(`${p}.pages`, 'demasiadas páginas en el guion', 'limits')
+  const out: Script = { pages: {} }
+  for (const key of keys) {
+    id(key, `${p}.pages[${key}]`)
+    const pg = obj(pages[key], `${p}.pages.${key}`)
+    out.pages[key] = {
+      panels: arr(pg.panels, `${p}.pages.${key}.panels`, 200).map((pv, i) => {
+        const pp = `${p}.pages.${key}.panels[${i}]`
+        const pan = obj(pv, pp)
+        return {
+          id: id(pan.id, `${pp}.id`),
+          panelId: pan.panelId === null || pan.panelId === undefined ? null : id(pan.panelId, `${pp}.panelId`),
+          blocks: arr(pan.blocks, `${pp}.blocks`, 300).map((bv, j) => {
+            const bp = `${pp}.blocks[${j}]`
+            const b = obj(bv, bp)
+            const block: Script['pages'][string]['panels'][number]['blocks'][number] = {
+              id: id(b.id, `${bp}.id`),
+              kind: oneOf(b.kind, `${bp}.kind`, SCRIPT_KINDS),
+              text: str(b.text, `${bp}.text`, LIMITS.text, ''),
+            }
+            if (b.character !== undefined) block.character = str(b.character, `${bp}.character`, LIMITS.shortText)
+            if (b.placedElementId !== undefined && b.placedElementId !== null) block.placedElementId = id(b.placedElementId, `${bp}.placedElementId`)
+            return block
+          }),
+        }
+      }),
+    }
+  }
+  return out
+}
+
 /** Ids de recursos referenciados por las páginas. */
 export function referencedAssetIds(pages: Page[]): Set<string> {
   const out = new Set<string>()
@@ -370,6 +409,7 @@ export function validateProject(raw: unknown): Project {
       pages,
       assets,
       thumbnail: thumb,
+      ...(o.script === undefined || o.script === null ? {} : { script: script(o.script, 'project.script') }),
       createdAt: num(o.createdAt, 'project.createdAt', 0, 1e15, 0),
       updatedAt: num(o.updatedAt, 'project.updatedAt', 0, 1e15, 0),
     }

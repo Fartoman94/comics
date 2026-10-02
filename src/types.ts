@@ -197,6 +197,31 @@ export interface Page {
   elements: ComicElement[]
 }
 
+/** Guion liviano (opcional): por página y por viñeta, asociado por id (no por posición). */
+export type ScriptKind = 'description' | 'dialogue' | 'thought' | 'caption' | 'sfx'
+
+export interface ScriptBlock {
+  id: string
+  kind: ScriptKind
+  text: string
+  /** Quién habla (diálogo / pensamiento). */
+  character?: string
+  /** Elemento de la página creado con "Colocar". Su texto puede divergir del guion. */
+  placedElementId?: string | null
+}
+
+export interface ScriptPanel {
+  id: string
+  /** Viñeta de la página a la que pertenece; null = bloques de la página sin viñeta asignada. */
+  panelId: string | null
+  blocks: ScriptBlock[]
+}
+
+export interface Script {
+  /** Clave: id de la página. */
+  pages: Record<string, { panels: ScriptPanel[] }>
+}
+
 export interface Project {
   id: string
   version: 1
@@ -209,6 +234,8 @@ export interface Project {
   pages: Page[]
   assets: Asset[]
   thumbnail: string | null
+  /** Guion opcional (agregado sin cambiar la versión del archivo: los .vineta viejos no lo tienen). */
+  script?: Script
   createdAt: number
   updatedAt: number
 }

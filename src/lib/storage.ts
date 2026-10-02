@@ -1,11 +1,23 @@
 import { createStore, del, entries, get, set } from 'idb-keyval'
-import type { Asset, Project } from '../types'
+import type { Asset, Page, PageFormat, Project } from '../types'
 import { uid } from './id'
 import { LIMITS, parseProjectFile, ProjectFileError, remapAssetIds, validateProject } from './projectSchema'
 
 // Dos bases separadas: los proyectos son JSON livianos, las imágenes son blobs pesados.
 const projectStore = createStore('vineta-projects', 'projects')
 const blobStore = createStore('vineta-assets', 'blobs')
+// Plantillas propias: páginas guardadas por la persona, con copia propia de sus imágenes.
+const templateStore = createStore('vineta-plantillas', 'plantillas')
+
+export interface LocalTemplate {
+  id: string
+  name: string
+  createdAt: number
+  /** Tamaño de la página original, para escalar al aplicar en otro formato. */
+  format: Pick<PageFormat, 'width' | 'height'>
+  page: Page
+  assets: Asset[]
+}
 
 /** Proyecto guardado que no pasa la validación: se ofrece exportarlo o borrarlo, nunca se dibuja. */
 export interface DamagedProject {
@@ -45,10 +57,11 @@ export async function loadProject(id: string): Promise<Project | null> {
 }
 export const saveProject = (p: Project) => set(p.id, p, projectStore)
 
-/** Ids de recursos que usa cada proyecto guardado (los dañados cuentan por lo que se pueda leer). */
+/** Ids de recursos que usa cada proyecto guardado y cada plantilla propia (los dañados cuentan por lo que se pueda leer). */
 async function assetUsage(exceptKey?: string): Promise<Set<string>> {
   const used = new Set<string>()
-  for (const [key, raw] of await entries<IDBValidKey, unknown>(projectStore)) {
+  const all = [...(await entries<IDBValidKey, unknown>(projectStore)), ...(await entries<IDBValidKey, unknown>(templateStore))]
+  for (const [key, raw] of all) {
     if (String(key) === exceptKey) continue
     const assets = (raw as { assets?: unknown } | null)?.assets
     if (Array.isArray(assets)) for (const a of assets) if (typeof (a as Asset)?.id === 'string') used.add((a as Asset).id)
@@ -73,6 +86,54 @@ export async function deleteBlobsIfUnused(ids: string[]): Promise<string[]> {
   const gone = ids.filter((i) => !used.has(i))
   await Promise.all(gone.map((i) => del(i, blobStore)))
   return gone
+}
+
+export async function listLocalTemplates(): Promise<LocalTemplate[]> {
+  const all = await entries<string, LocalTemplate>(templateStore)
+  return all.map(([, t]) => t).sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/**
+ * Guarda una página como plantilla propia: ids nuevos, sin vínculos de guion, y una copia propia de
+ * cada imagen (borrar el proyecto original no la afecta). Todo o nada.
+ */
+export async function saveLocalTemplate(project: Project, page: Page, name: string): Promise<LocalTemplate> {
+  const clean: Page = { ...structuredClone(page), id: uid('pg_'), name }
+  clean.elements = clean.elements.map((e) => ({ ...e, id: uid('el_') }))
+  const used = new Set<string>()
+  for (const e of clean.elements) {
+    if (e.type === 'image') used.add(e.assetId)
+    if (e.type === 'panel' && e.image) used.add(e.image.assetId)
+  }
+  const map = new Map<string, string>()
+  const assets: Asset[] = []
+  const written: string[] = []
+  try {
+    for (const a of project.assets.filter((x) => used.has(x.id))) {
+      const blob = await getAssetBlob(a.id)
+      if (!blob) continue
+      const nid = uid('as_')
+      await putAssetBlob(nid, blob)
+      written.push(nid)
+      map.set(a.id, nid)
+      assets.push({ ...a, id: nid })
+    }
+    // Imágenes que no se pudieron copiar: se sacan de la plantilla (nunca referencias rotas).
+    clean.elements = clean.elements
+      .filter((e) => !(e.type === 'image' && !map.has(e.assetId)))
+      .map((e) => (e.type === 'image' ? { ...e, assetId: map.get(e.assetId)! } : e.type === 'panel' && e.image ? { ...e, image: map.has(e.image.assetId) ? { ...e.image, assetId: map.get(e.image.assetId)! } : null } : e))
+    const tpl: LocalTemplate = { id: uid('tp_'), name, createdAt: Date.now(), format: { width: project.format.width, height: project.format.height }, page: clean, assets }
+    await set(tpl.id, tpl, templateStore)
+    return tpl
+  } catch (e) {
+    await Promise.allSettled(written.map((w) => del(w, blobStore)))
+    throw e
+  }
+}
+
+export async function deleteLocalTemplate(t: LocalTemplate) {
+  await del(t.id, templateStore)
+  await deleteBlobsIfUnused(t.assets.map((a) => a.id))
 }
 
 /** Borra un registro dañado sin necesidad de entenderlo. */

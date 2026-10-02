@@ -39,6 +39,9 @@ interface UiState {
   dismissTip(id: string): void
   disableTips(): void
   resetTips(): void
+  /** Pedido de abrir una hoja del modo simple desde otro lado (p. ej. el menú "⋯"). */
+  sheetRequest: { id: string; n: number } | null
+  requestSheet(id: string): void
 }
 
 export const useUi = create<UiState>()((set, get) => ({
@@ -64,6 +67,8 @@ export const useUi = create<UiState>()((set, get) => ({
     write(TIPS_OFF_KEY, '1')
     set({ tipsOff: true })
   },
+  sheetRequest: null,
+  requestSheet: (id) => set({ sheetRequest: { id, n: (get().sheetRequest?.n ?? 0) + 1 } }),
   resetTips: () => {
     write(TIPS_KEY, null)
     write(TIPS_OFF_KEY, null)

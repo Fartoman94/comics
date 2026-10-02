@@ -2,12 +2,63 @@ import type { PageFormat, PanelElement } from '../types'
 import { bbox, insetConvexPolygon, type Pt } from './geometry'
 import { createPanel } from './factories'
 
+export type TemplateCategory = 'portada' | 'accion' | 'dialogo' | 'tira' | 'yonkoma' | 'splash' | 'webtoon'
+export type TemplateStyle = 'occidental' | 'manga' | 'neutral'
+/** Para qué formato de página está pensada: vertical (página), horizontal (tira) o tira larga (webtoon). */
+export type TemplateShape = 'vertical' | 'horizontal' | 'larga'
+
 export interface PanelTemplate {
   id: string
   name: string
   group: 'Clásicos' | 'Manga' | 'Dinámicos' | 'Webtoon / tiras'
   /** Polígonos convexos en coordenadas normalizadas del área útil (0..1). */
   polys: Pt[][]
+}
+
+export interface TemplateMeta {
+  categories: TemplateCategory[]
+  style: TemplateStyle
+  shape: TemplateShape
+  /** Una línea: para qué sirve. */
+  use: string
+}
+
+export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  portada: 'Portada',
+  accion: 'Acción',
+  dialogo: 'Diálogo',
+  tira: 'Tira',
+  yonkoma: 'Yonkoma',
+  splash: 'Splash',
+  webtoon: 'Webtoon',
+}
+
+/** Organización de las 18 plantillas (no cambia sus viñetas). */
+export const TEMPLATE_META: Record<string, TemplateMeta> = {
+  splash: { categories: ['splash', 'portada'], style: 'neutral', shape: 'vertical', use: 'Una sola imagen a página completa: portadas y momentos clave.' },
+  'two-rows': { categories: ['dialogo'], style: 'neutral', shape: 'vertical', use: 'Dos bandas anchas para paisajes o conversaciones.' },
+  'three-rows': { categories: ['dialogo'], style: 'neutral', shape: 'vertical', use: 'Tres bandas: ritmo pausado, ideal para diálogo.' },
+  'grid-2x2': { categories: ['dialogo'], style: 'neutral', shape: 'vertical', use: 'Cuatro viñetas iguales para un intercambio parejo.' },
+  'classic-6': { categories: ['dialogo'], style: 'occidental', shape: 'vertical', use: 'La página clásica de cómic: seis viñetas de lectura clara.' },
+  'grid-9': { categories: ['dialogo'], style: 'occidental', shape: 'vertical', use: 'Nueve viñetas: mucho diálogo o tiempo que pasa.' },
+  'hero-top': { categories: ['portada', 'accion'], style: 'neutral', shape: 'vertical', use: 'Una viñeta grande arriba para presentar la escena.' },
+  'hero-mid': { categories: ['accion'], style: 'neutral', shape: 'vertical', use: 'El golpe o la revelación en el centro de la página.' },
+  'mixed-5': { categories: ['accion', 'dialogo'], style: 'occidental', shape: 'vertical', use: 'Cinco viñetas con anchos variados para dar ritmo.' },
+  'manga-dynamic': { categories: ['accion'], style: 'manga', shape: 'vertical', use: 'Cortes en diagonal típicos del manga, lectura der → izq.' },
+  'manga-vertical': { categories: ['accion', 'dialogo'], style: 'manga', shape: 'vertical', use: 'Columnas altas para personajes de cuerpo entero.' },
+  'manga-action': { categories: ['accion'], style: 'manga', shape: 'vertical', use: 'Diagonales fuertes para peleas y movimiento.' },
+  'manga-4koma': { categories: ['yonkoma', 'tira'], style: 'manga', shape: 'vertical', use: 'Cuatro viñetas verticales: el chiste en cuatro tiempos.' },
+  shards: { categories: ['accion'], style: 'neutral', shape: 'vertical', use: 'Fragmentos irregulares para tensión o caos.' },
+  zigzag: { categories: ['accion'], style: 'neutral', shape: 'vertical', use: 'Zigzag que guía la mirada por la página.' },
+  'webtoon-stack': { categories: ['webtoon'], style: 'neutral', shape: 'larga', use: 'Viñetas apiladas con aire para leer en el celular.' },
+  'strip-3': { categories: ['tira'], style: 'occidental', shape: 'horizontal', use: 'Tira de diario de tres viñetas.' },
+  'strip-4': { categories: ['tira'], style: 'occidental', shape: 'horizontal', use: 'Tira de cuatro viñetas para redes o diario.' },
+}
+
+/** Forma de página para filtrar plantillas según el formato del proyecto. */
+export function formatShape(f: Pick<PageFormat, 'width' | 'height'>): TemplateShape {
+  const r = f.width / f.height
+  return r > 1.3 ? 'horizontal' : r < 0.45 ? 'larga' : 'vertical'
 }
 
 type Row = { h: number; cols: number[] }
