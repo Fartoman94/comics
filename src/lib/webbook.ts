@@ -1,7 +1,8 @@
 import type { Project } from '../types'
 import { renderPage } from './render'
-import { downloadBlob, safeFilename } from './storage'
-import type { ExportProgress } from './export'
+import { safeFilename } from './storage'
+import type { ExportCtx, ExportResult } from './export'
+import { ExportCancelled } from './export'
 import { detectScript } from './fonts'
 // El visor va incrustado: el libro web funciona como un único archivo, sin internet ni CDN.
 import pageFlipSource from 'page-flip/dist/js/page-flip.browser.js?raw'
@@ -33,17 +34,18 @@ export function projectLanguage(project: Project): 'es' | 'ja' | 'ko' | 'zh' {
 }
 
 /** Genera un único .html autocontenido con el visor de libro: para compartir o subir a cualquier hosting. */
-export async function exportWebBook(project: Project, onProgress?: ExportProgress) {
+export async function exportWebBook(project: Project, ctx: ExportCtx = {}): Promise<ExportResult> {
   const ratio = Math.max(0.5, Math.min(2, 2000 / project.format.height))
   const pages: string[] = []
   for (let i = 0; i < project.pages.length; i++) {
-    onProgress?.(i, project.pages.length)
+    if (ctx.signal?.aborted) throw new ExportCancelled()
+    ctx.onProgress?.(i, project.pages.length)
     pages.push(await renderPage(project, project.pages[i], { pixelRatio: ratio, mime: 'image/jpeg', quality: 0.86 }))
   }
-  onProgress?.(project.pages.length, project.pages.length)
+  ctx.onProgress?.(project.pages.length, project.pages.length)
   const logo = await toDataURL('/brand/matelabs-logo.png').catch(() => '')
-  const html = webBookHtml(project, pages, logo)
-  downloadBlob(new Blob([html], { type: 'text/html' }), `${safeFilename(project.title)}-libro.html`)
+  const file = { name: `${safeFilename(project.title)}-libro.html`, blob: new Blob([webBookHtml(project, pages, logo)], { type: 'text/html' }) }
+  return { files: [file], download: file }
 }
 
 export function webBookHtml(p: Project, pages: string[], logo: string) {

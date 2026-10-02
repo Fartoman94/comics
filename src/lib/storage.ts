@@ -215,12 +215,6 @@ export async function importImageFile(file: Blob, name: string): Promise<Asset> 
 
 // ---------- Exportar / importar proyecto completo (.vineta) ----------
 
-interface ProjectFile {
-  app: 'vineta-studio'
-  version: 1
-  project: Project
-  blobs: Record<string, string>
-}
 
 const blobToDataURL = (b: Blob) =>
   new Promise<string>((res, rej) => {
@@ -230,14 +224,21 @@ const blobToDataURL = (b: Blob) =>
     r.readAsDataURL(b)
   })
 
+/**
+ * Arma el .vineta por partes: el JSON del proyecto y cada imagen por separado dentro de un Blob,
+ * sin construir un único string gigante con todas las imágenes.
+ */
 export async function exportProjectFile(p: Project): Promise<Blob> {
-  const blobs: Record<string, string> = {}
+  const parts: BlobPart[] = [`{"app":"vineta-studio","version":1,"project":${JSON.stringify(p)},"blobs":{`]
+  let first = true
   for (const a of p.assets) {
     const b = await getAssetBlob(a.id)
-    if (b) blobs[a.id] = await blobToDataURL(b)
+    if (!b) continue
+    parts.push(`${first ? '' : ','}${JSON.stringify(a.id)}:"`, await blobToDataURL(b), '"')
+    first = false
   }
-  const data: ProjectFile = { app: 'vineta-studio', version: 1, project: p, blobs }
-  return new Blob([JSON.stringify(data)], { type: 'application/json' })
+  parts.push('}}')
+  return new Blob(parts, { type: 'application/json' })
 }
 
 /**

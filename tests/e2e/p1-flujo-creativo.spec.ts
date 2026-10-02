@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { createProjectInDb, FIXTURES, gotoHome, inApp, openProject, openView, skipTour } from './helpers'
+import { createProjectInDb, FIXTURES, gotoHome, inApp, openProject, openView, skipTour, exportPreset } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await skipTour(page)
@@ -112,6 +112,8 @@ test('plantilla propia: guardar, borrar el proyecto original y reutilizarla con 
   await page.getByRole('tab', { name: 'Viñetas' }).click()
   await page.getByRole('button', { name: 'Página nueva' }).click()
   await page.getByRole('button', { name: 'Usar mi plantilla Mi escena' }).click()
+  // Aplicar copia las imágenes de la plantilla: es asincrónico.
+  await expect.poll(() => inApp<number>(page, 'return s.project.pages.length')).toBe(2)
   const r = await inApp<{ pages: number; ok: boolean }>(
     page,
     `const pg = s.project.pages.find(p => p.id === s.pageId); const pan = pg.elements.find(e => e.type === 'panel' && e.image)
@@ -129,9 +131,7 @@ test('duplicar página con imágenes y exportar/importar el proyecto', async ({ 
   await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + 'foto-b.png')
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
   await inApp(page, `s.setPage(s.project.pages[1].id); const pan = s.project.pages[1].elements.find(e => e.type === 'panel'); m.placement.fillPanel(pan.id, s.project.assets[0]); m.store.useEditor.getState().duplicatePage(s.project.pages[1].id)`)
-  await page.getByRole('button', { name: /Exportar/ }).first().click()
-  await page.getByText('Exportar…').click()
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /Proyecto editable/ }).click()])
+  const dl = await exportPreset(page, /Archivo editable/)
   const file = JSON.parse(readFileSync((await dl.path())!, 'utf8'))
   expect(file.project.pages).toHaveLength(3)
   const ok = await inApp<boolean>(page, `const p = await m.storage.importProjectFile(new File([JSON.stringify(arg)], 'd.vineta')); const refs = p.pages.flatMap(pg => pg.elements).filter(e => e.type === 'panel' && e.image).map(e => e.image.assetId); return refs.length === 2 && refs.every(r => p.assets.some(a => a.id === r))`, file)

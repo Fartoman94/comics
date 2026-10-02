@@ -58,8 +58,9 @@ test.describe('flujo completo sólo con el dedo (390×844)', () => {
     // Exportar PDF desde el menú.
     await page.getByRole('button', { name: 'Más opciones del proyecto' }).tap()
     await page.getByRole('button', { name: /Exportar/ }).tap()
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60_000 }), page.getByRole('button', { name: /PDF liviano/ }).tap()])
-    expect(dl.suggestedFilename()).toMatch(/hecho-en-el-celular\.pdf$/)
+    await page.getByRole('radio', { name: /Pantalla \(PDF liviano\)/ }).tap()
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60_000 }), page.getByRole('dialog', { name: 'Exportar' }).getByRole('button', { name: 'Exportar', exact: true }).tap()])
+    expect(dl.suggestedFilename()).toMatch(/hecho-en-el-celular-liviano\.pdf$/)
     expect(await overflow(page)).toBeLessThanOrEqual(0)
   })
 })

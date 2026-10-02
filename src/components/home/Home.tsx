@@ -4,7 +4,7 @@ import type { Project } from '../../types'
 import { deleteDamagedProject, deleteProject, downloadBlob, duplicateProject, exportRawProjectFile, importProjectFile, listAllProjects, type DamagedProject } from '../../lib/storage'
 import { ProjectFileError } from '../../lib/projectSchema'
 import { settleSaves } from '../../lib/persistence'
-import { exportProject } from '../../lib/export'
+import { downloadProject } from '../../lib/export'
 import { navigateToProject } from '../../lib/nav'
 import { PROJECT_KINDS } from '../../lib/formats'
 import { useEditor } from '../../store/editor'
@@ -244,7 +244,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
                     {(close) => (
                       <>
                         <MenuItem icon={<Copy size={14} />} label="Duplicar" onClick={() => (close(), void duplicate(p))} />
-                        <MenuItem icon={<Download size={14} />} label="Descargar .vineta" onClick={() => (close(), void exportProject(p))} />
+                        <MenuItem icon={<Download size={14} />} label="Descargar .vineta" onClick={() => (close(), void downloadProject(p))} />
                         <MenuItem icon={<Trash2 size={14} />} label="Eliminar" danger onClick={() => (close(), void remove(p))} />
                       </>
                     )}
