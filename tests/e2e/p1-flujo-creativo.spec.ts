@@ -112,6 +112,8 @@ test('plantilla propia: guardar, borrar el proyecto original y reutilizarla con 
   await page.getByRole('tab', { name: 'Viñetas' }).click()
   await page.getByRole('button', { name: 'Página nueva' }).click()
   await page.getByRole('button', { name: 'Usar mi plantilla Mi escena' }).click()
+  // Aplicar copia las imágenes de la plantilla: es asincrónico.
+  await expect.poll(() => inApp<number>(page, 'return s.project.pages.length')).toBe(2)
   const r = await inApp<{ pages: number; ok: boolean }>(
     page,
     `const pg = s.project.pages.find(p => p.id === s.pageId); const pan = pg.elements.find(e => e.type === 'panel' && e.image)
