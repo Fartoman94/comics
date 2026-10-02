@@ -104,6 +104,11 @@ export function Tour() {
     measure()
   }, [measure])
 
+  // En cada paso el foco va al botón principal (para seguir con Enter o con el lector de pantalla).
+  useEffect(() => {
+    if (step !== null) cardEl?.querySelector<HTMLElement>('[data-tour-next]')?.focus()
+  }, [step, cardEl])
+
   useEffect(() => {
     if (step === null) return
     window.addEventListener('resize', measure)
@@ -163,7 +168,7 @@ export function Tour() {
                 Atrás
               </Button>
             )}
-            <Button size="sm" variant="primary" onClick={() => (last ? finish() : setStep(step + 1))}>
+            <Button size="sm" variant="primary" data-tour-next onClick={() => (last ? finish() : setStep(step + 1))}>
               {step === 0 ? 'Empezar' : last ? '¡Listo!' : 'Siguiente'}
             </Button>
           </div>

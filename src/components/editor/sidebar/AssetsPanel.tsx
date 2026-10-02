@@ -74,11 +74,16 @@ function ProjectAssets() {
         }}
         className={cx('no-autoclose flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed px-3 py-5 text-center transition-colors', over ? 'border-accent bg-accent-soft' : 'border-ink-600 hover:border-ink-400')}
       >
-        <Upload size={20} className="text-accent" />
+        <Upload size={20} className="text-accent-bright" />
         <span className="text-xs font-medium text-white">{busy ? 'Subiendo…' : 'Subir imágenes o fotos'}</span>
         <span className="text-[11px] text-ink-400">PNG, JPG, WebP o GIF · hasta 4096 px por lado (las más grandes se reducen) · arrastralas acá o al lienzo · Ctrl+V pega</span>
       </button>
-      <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files && void upload(e.target.files)} />
+      <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => {
+          // Se copia la lista y se vacía el input: así se puede volver a elegir el mismo archivo.
+          const files = e.target.files ? [...e.target.files] : []
+          e.target.value = ''
+          if (files.length) void upload(files)
+        }} />
 
       {assets.length === 0 ? (
         <div className="mt-6 flex flex-col items-center gap-2 text-center text-xs text-ink-500">

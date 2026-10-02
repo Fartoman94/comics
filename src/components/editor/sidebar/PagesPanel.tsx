@@ -28,7 +28,7 @@ export function PagesPanel() {
         <span className="text-xs text-ink-400">
           {project.pages.length} páginas{rtl && ' · lectura →←'}
         </span>
-        <button onClick={() => s.addPage(undefined, pageId)} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-accent hover:bg-accent-soft">
+        <button onClick={() => s.addPage(undefined, pageId)} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-accent-bright hover:bg-accent-soft">
           <Plus size={14} /> Página
         </button>
       </div>
@@ -74,7 +74,7 @@ export function PagesPanel() {
                   {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" draggable={false} /> : <div className="h-full w-full animate-pulse" style={{ background: p.background }} />}
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-[11px]">
-                  <span className={cx('font-semibold tabular-nums', active ? 'text-accent' : 'text-ink-400')}>{i + 1}</span>
+                  <span className={cx('font-semibold tabular-nums', active ? 'text-accent-bright' : 'text-ink-400')}>{i + 1}</span>
                   <span className="truncate text-ink-300">{p.name}</span>
                 </div>
               </button>

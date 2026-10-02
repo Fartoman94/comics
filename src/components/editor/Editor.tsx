@@ -37,6 +37,7 @@ export function Editor() {
   const [exportOpen, setExportOpen] = useState(false)
   const openShortcuts = useCallback(() => setShortcuts(true), [])
   const simple = useUi((s) => s.mode === 'simple')
+  const projectTitle = useEditor((s) => s.project?.title ?? '')
   // Mismas acciones para los dos layouts (estudio y simple).
   const nav: EditorNav = {
     read: () => setView('read'),
@@ -63,11 +64,12 @@ export function Editor() {
       <div className="flex min-h-0 flex-1">
         {!simple && <ToolRail />}
         {!simple && <Sidebar />}
-        <div className="relative min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'}>
+        <main className="relative min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'} aria-label="Lienzo de la página">
+          {!simple && <h1 className="sr-only">{projectTitle}</h1>}
           <CanvasStage />
           <CropBar />
           <PhoneFrameBar onPreview={() => setView('preview')} />
-        </div>
+        </main>
         {!simple && <Inspector />}
       </div>
       {simple ? <SimpleBottomBar /> : <MobileBar />}

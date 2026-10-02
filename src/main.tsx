@@ -3,6 +3,16 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { App } from './App'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
+import { registerServiceWorker } from './lib/pwa'
+
+// Si falla la precarga de un chunk (deploy nuevo mientras la app estaba abierta), se recarga una vez.
+window.addEventListener('vite:preloadError', (e) => {
+  e.preventDefault()
+  void import('./lib/lazyWithReload').then((m) => m.reloadForNewVersion())
+})
+
+
+registerServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

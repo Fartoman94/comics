@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useFocusTrap } from './useFocusTrap'
 import { X } from 'lucide-react'
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
@@ -127,19 +128,19 @@ export function Slider({ label, value, onChange, min, max, step = 1, format }: {
         <span>{label}</span>
         <span className="text-ink-200 tabular-nums">{format ? format(value) : Math.round(value * 100) / 100}</span>
       </div>
-      <input type="range" className="h-1.5 w-full cursor-pointer" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input type="range" aria-label={label} aria-valuetext={format ? format(value) : undefined} className="h-1.5 w-full cursor-pointer" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   )
 }
 
 export const SWATCHES = ['#111111', '#ffffff', '#6b7280', '#ef4444', '#ff5a36', '#f59e0b', '#ffd23f', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#fde7c9', '#7c4a2d']
 
-export function ColorInput({ value, onChange, swatches = false }: { value: string; onChange: (v: string) => void; swatches?: boolean }) {
+export function ColorInput({ value, onChange, swatches = false, label = 'Color' }: { value: string; onChange: (v: string) => void; swatches?: boolean; label?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
-        <input type="color" value={toHex(value)} onChange={(e) => onChange(e.target.value)} className="size-8 shrink-0 cursor-pointer rounded-md ring-1 ring-ink-600" />
-        <input className={cx(inputCls, 'font-mono uppercase')} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input type="color" aria-label={`${label}: elegir`} value={toHex(value)} onChange={(e) => onChange(e.target.value)} className="size-8 shrink-0 cursor-pointer rounded-md ring-1 ring-ink-600" />
+        <input aria-label={`${label}: código`} className={cx(inputCls, 'font-mono uppercase')} value={value} onChange={(e) => onChange(e.target.value)} />
       </div>
       {swatches && (
         <div className="flex flex-wrap gap-1">
@@ -209,6 +210,8 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
 }
 
 export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: { open: boolean; onClose: () => void; title: string; children: ReactNode; width?: string }) {
+  const box = useRef<HTMLDivElement>(null)
+  useFocusTrap(box, open)
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -218,9 +221,11 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: { 
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={cx('max-h-[90vh] w-full overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 shadow-2xl', width)} role="dialog" aria-modal="true" aria-label={title}>
+      <div ref={box} tabIndex={-1} className={cx('max-h-[90vh] w-full overflow-hidden rounded-2xl border border-ink-700 bg-ink-850 shadow-2xl outline-none', width)} role="dialog" aria-modal="true" aria-label={title}>
         <div className="flex items-center justify-between border-b border-ink-700 px-5 py-3.5">
-          <h2 className="text-sm font-semibold">{title}</h2>
+          <h2 className="text-sm font-semibold" id={`dlg-${title.replace(/\W+/g, '-')}`}>
+            {title}
+          </h2>
           <IconButton label="Cerrar" onClick={onClose}>
             <X size={16} />
           </IconButton>

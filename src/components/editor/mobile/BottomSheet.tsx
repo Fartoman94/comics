@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useFocusTrap } from '../../ui/useFocusTrap'
 import { X } from 'lucide-react'
 
 /**
@@ -8,6 +9,8 @@ import { X } from 'lucide-react'
 export function BottomSheet({ title, onClose, children, onBodyClick, labelledBy }: { title: string; onClose: () => void; children: React.ReactNode; onBodyClick?: (e: React.MouseEvent) => void; labelledBy?: string }) {
   const [dy, setDy] = useState(0)
   const start = useRef<number | null>(null)
+  const box = useRef<HTMLDivElement>(null)
+  useFocusTrap(box)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -23,7 +26,10 @@ export function BottomSheet({ title, onClose, children, onBodyClick, labelledBy 
     <>
       <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} aria-hidden="true" />
       <div
-        className="fixed inset-x-0 bottom-0 z-40 flex max-h-[min(75dvh,calc(100dvh-4rem))] flex-col rounded-t-2xl border-t border-ink-600 bg-ink-850 shadow-2xl transition-transform"
+        ref={box}
+        tabIndex={-1}
+        aria-modal="true"
+        className="fixed inset-x-0 bottom-0 z-40 flex outline-none max-h-[min(75dvh,calc(100dvh-4rem))] flex-col rounded-t-2xl border-t border-ink-600 bg-ink-850 shadow-2xl transition-transform"
         style={{ transform: dy ? `translateY(${dy}px)` : undefined, transitionDuration: dy ? '0ms' : undefined }}
         role="dialog"
         aria-label={labelledBy ? undefined : title}

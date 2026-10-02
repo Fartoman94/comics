@@ -254,3 +254,17 @@ test('centro de recuperación: copia de seguridad completa y restauración valid
   await expect(rc.getByRole('status').filter({ hasText: 'Restaurados: 2' })).toBeVisible()
   await expect(page.getByTestId('recuperacion-resumen')).toContainText('4 sanos')
 })
+
+test('se puede elegir el mismo archivo dos veces seguidas (y se reutiliza sin duplicar)', async ({ page }) => {
+  await gotoHome(page)
+  const id = await createProjectInDb(page, 'Mismo archivo', 'comic', 1)
+  await openProject(page, id)
+  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  const input = page.locator('input[type=file][accept="image/*"]')
+  await input.setInputFiles(FIXTURES + 'foto-a.png')
+  await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
+  // El input quedó vacío: el navegador vuelve a avisar aunque sea el mismo archivo.
+  expect(await input.evaluate((el) => (el as HTMLInputElement).value)).toBe('')
+  await input.setInputFiles(FIXTURES + 'foto-a.png')
+  await expect(page.getByRole('status').filter({ hasText: 'ya estaba' })).toBeVisible()
+})

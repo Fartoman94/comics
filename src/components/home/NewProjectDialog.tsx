@@ -127,7 +127,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
                   <span className="min-w-0">
                     <span className="font-comic block text-xl tracking-wide text-white">{k.name}</span>
                     <span className="block text-[11px] leading-snug text-ink-300">{k.use}</span>
-                    <span className="block text-[10px] text-ink-500">
+                    <span className="block text-[10px] text-ink-400">
                       {f.name} · {f.description}
                     </span>
                   </span>
@@ -149,7 +149,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
               ).map(([id, name, desc, icon]) => (
                 <button key={id} role="radio" aria-checked={start === id} onClick={() => setStart(id)} className={card(start === id)}>
                   <span className="flex items-center gap-2 text-sm font-medium text-white">
-                    <span className="text-accent">{icon}</span>
+                    <span className="text-accent-bright">{icon}</span>
                     {name}
                   </span>
                   <span className="mt-1 block text-[11px] text-ink-300">{desc}</span>
@@ -252,7 +252,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
 function FormatBox({ w, h, size, label }: { w: number; h: number; size: number; label?: boolean }) {
   const horizontal = w > h
   return (
-    <div className="flex shrink-0 items-center justify-center bg-white text-[10px] font-semibold text-ink-500 shadow-lg" style={{ width: horizontal ? size : (size * w) / h, height: horizontal ? (size * h) / w : size }} aria-hidden="true">
+    <div className="flex shrink-0 items-center justify-center bg-white text-[10px] font-semibold text-ink-700 shadow-lg" style={{ width: horizontal ? size : (size * w) / h, height: horizontal ? (size * h) / w : size }} aria-hidden="true">
       {label ? `${w}×${h}` : null}
     </div>
   )

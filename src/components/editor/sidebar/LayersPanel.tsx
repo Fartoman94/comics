@@ -54,7 +54,7 @@ export function LayersPanel() {
                 el.hidden && 'opacity-50',
               )}
             >
-              <span className={cx(sel ? 'text-accent' : 'text-ink-400')}>{ICONS[el.type]}</span>
+              <span className={cx(sel ? 'text-accent-bright' : 'text-ink-400')}>{ICONS[el.type]}</span>
               {renaming === el.id ? (
                 <input
                   autoFocus

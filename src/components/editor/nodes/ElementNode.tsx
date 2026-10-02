@@ -71,22 +71,37 @@ function filterList(f: ImageFilters) {
 }
 
 function useFilters(ref: React.RefObject<Konva.Image | null>, image: HTMLImageElement | undefined, f: ImageFilters) {
+  // Mientras se mueve un slider (cambios seguidos) se filtra una versión reducida; al soltar,
+  // la imagen completa. Así un desenfoque sobre 4096² no bloquea cada tick.
+  const last = useRef(0)
+  const settle = useRef(0)
   useEffect(() => {
     const node = ref.current
     if (!node || !image) return
-    const list = filterList(f)
-    if (list.length) {
-      node.cache({ pixelRatio: 1 })
-      node.filters(list)
-      node.brightness(1 + f.brightness)
-      node.contrast(f.contrast)
-      node.threshold(f.threshold)
-      node.blurRadius(f.blur)
-    } else {
-      node.filters([])
-      node.clearCache()
+    const apply = (preview: boolean) => {
+      const list = filterList(f)
+      if (list.length) {
+        const side = Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height, 1)
+        const ratio = preview ? Math.min(1, 640 / side) : 1
+        node.cache({ pixelRatio: ratio })
+        node.filters(list)
+        node.brightness(1 + f.brightness)
+        node.contrast(f.contrast)
+        node.threshold(f.threshold)
+        node.blurRadius(f.blur * ratio)
+      } else {
+        node.filters([])
+        node.clearCache()
+      }
+      node.getLayer()?.batchDraw()
     }
-    node.getLayer()?.batchDraw()
+    const now = performance.now()
+    const rapid = now - last.current < 250
+    last.current = now
+    clearTimeout(settle.current)
+    apply(rapid)
+    if (rapid) settle.current = window.setTimeout(() => apply(false), 300)
+    return () => clearTimeout(settle.current)
   }, [ref, image, f])
 }
 

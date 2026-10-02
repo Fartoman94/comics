@@ -1,19 +1,14 @@
-import Konva from 'konva'
 import type { TextElement } from '../types'
 
+type Measurable = Pick<TextElement, 'text' | 'width' | 'fontFamily' | 'fontSize' | 'fontStyle' | 'lineHeight' | 'letterSpacing' | 'uppercase'>
+
+// La medición usa Konva, que sólo se carga con el editor (el inicio no la necesita).
+let measurer: ((el: Measurable) => number) | null = null
+export function setTextMeasurer(fn: (el: Measurable) => number) {
+  measurer = fn
+}
+
 /** Alto necesario para que un texto horizontal entre completo en su ancho actual. */
-export function measureTextHeight(el: Pick<TextElement, 'text' | 'width' | 'fontFamily' | 'fontSize' | 'fontStyle' | 'lineHeight' | 'letterSpacing' | 'uppercase'>) {
-  const t = new Konva.Text({
-    text: el.uppercase ? el.text.toUpperCase() : el.text,
-    width: el.width,
-    fontFamily: el.fontFamily,
-    fontSize: el.fontSize,
-    fontStyle: el.fontStyle,
-    lineHeight: el.lineHeight,
-    letterSpacing: el.letterSpacing,
-    wrap: 'word',
-  })
-  const h = t.height()
-  t.destroy()
-  return Math.ceil(h + el.fontSize * 0.25)
+export function measureTextHeight(el: Measurable) {
+  return measurer ? measurer(el) : 0
 }

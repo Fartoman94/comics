@@ -1,0 +1,16 @@
+{
+  "name": "Viñeta Studio",
+  "short_name": "Viñeta",
+  "description": "Estudio para crear cómics, manga y webtoons en el navegador. Funciona sin conexión con tus proyectos locales.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0b0e",
+  "theme_color": "#0e0e11",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

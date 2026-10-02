@@ -28,25 +28,60 @@ const SAMPLE: Record<FontScript, string> = {
   zh: '中文轰砰',
 }
 
-let ready: Promise<void> | null = null
+// Pesos que se piden a Google Fonts por familia (las demás sólo tienen 400).
+const WEIGHTS: Record<string, string> = {
+  'Comic Neue': 'wght@400;700',
+  Inter: 'wght@400;500;600;700',
+  Kalam: 'wght@400;700',
+  'Noto Sans JP': 'wght@400;700;900',
+  'Noto Sans KR': 'wght@400;700;900',
+  'Noto Sans SC': 'wght@400;700;900',
+  'Noto Sans TC': 'wght@400;700',
+  'Noto Serif JP': 'wght@400;700',
+}
+const requested = new Set<string>(['Inter', 'Bangers']) // ya vienen en index.html (interfaz)
 
-/** Konva dibuja en canvas: hay que esperar a que las fuentes estén cargadas. */
-export function loadFonts(): Promise<void> {
-  if (!ready) {
-    ready = Promise.all(
-      FONTS.flatMap((f) => [
-        document.fonts.load(`400 32px "${f.family}"`, SAMPLE[f.script]),
-        document.fonts.load(`700 32px "${f.family}"`, SAMPLE[f.script]),
-      ]),
-    )
-      .then(() => undefined)
-      .catch(() => undefined)
-  }
-  return ready
+/**
+ * Pide a Google Fonts sólo las familias que se van a usar (antes se pedían las 17 al abrir la
+ * página). Las CJK vienen partidas por rangos unicode: sólo se descargan los glifos que aparecen.
+ */
+export function requireFonts(families: string[]) {
+  const missing = [...new Set(families)].filter((f) => !requested.has(f) && FONTS.some((x) => x.family === f))
+  if (!missing.length || typeof document === 'undefined') return
+  missing.forEach((f) => requested.add(f))
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = 'https://fonts.googleapis.com/css2?' + missing.map((f) => `family=${f.replace(/ /g, '+')}${WEIGHTS[f] ? `:${WEIGHTS[f]}` : ''}`).join('&') + '&display=swap'
+  link.dataset.vinetaFonts = '1'
+  document.head.appendChild(link)
+}
+
+/** Fuentes latinas de rotulado: las que se ofrecen siempre en el editor. */
+export const LATIN_FONTS = FONTS.filter((f) => f.script === 'latin').map((f) => f.family)
+
+const scriptOf = (family: string) => FONTS.find((f) => f.family === family)?.script ?? 'latin'
+const cssReady = (family: string) =>
+  new Promise<void>((res) => {
+    // Esperar a que la hoja de estilos con @font-face esté aplicada antes de pedir los glifos.
+    const t0 = performance.now()
+    const tick = () => ([...document.fonts].some((f) => f.family.replace(/"/g, '') === family) || performance.now() - t0 > 4000 ? res() : setTimeout(tick, 40))
+    tick()
+  })
+
+/** Konva dibuja en canvas: hay que esperar a que las fuentes que se usan estén cargadas. */
+export function loadFonts(families: string[] = LATIN_FONTS): Promise<void> {
+  const list = [...new Set(families)]
+  requireFonts(list)
+  return Promise.all(
+    list.flatMap((f) => [cssReady(f).then(() => Promise.all([document.fonts.load(`400 32px "${f}"`, SAMPLE[scriptOf(f)]), document.fonts.load(`700 32px "${f}"`, SAMPLE[scriptOf(f)])]))]),
+  )
+    .then(() => undefined)
+    .catch(() => undefined)
 }
 
 /** Carga los glifos exactos de un texto (útil para kanji poco comunes). */
 export function loadGlyphs(family: string, text: string, bold = false) {
+  requireFonts([family])
   return document.fonts.load(`${bold ? 700 : 400} 32px "${family}"`, text).catch(() => [])
 }
 

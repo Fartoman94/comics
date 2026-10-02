@@ -71,7 +71,7 @@ export function SimpleBottomBar() {
 
       <nav className="flex shrink-0 items-stretch border-t border-ink-700 bg-ink-900 pb-[env(safe-area-inset-bottom)]" aria-label="Herramientas">
         {GROUPS.map((g) => (
-          <button key={g.id} onClick={() => setSheet(sheet === g.id ? null : g.id)} aria-pressed={sheet === g.id} className={cx('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px]', sheet === g.id ? 'text-accent' : 'text-ink-200')}>
+          <button key={g.id} onClick={() => setSheet(sheet === g.id ? null : g.id)} aria-pressed={sheet === g.id} className={cx('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px]', sheet === g.id ? 'text-accent-bright' : 'text-ink-200')}>
             {g.icon}
             {g.label}
           </button>
@@ -214,8 +214,8 @@ function DrawingBar({ onSettings }: { onSettings: () => void }) {
   const s = useEditor.getState()
   return (
     <Bar label="Dibujo">
-      <Action label="Pincel" onClick={() => s.setTool('brush')}><Brush size={19} className={tool === 'brush' ? 'text-accent' : ''} /></Action>
-      <Action label="Borrador" onClick={() => s.setTool('eraser')}><Eraser size={19} className={tool === 'eraser' ? 'text-accent' : ''} /></Action>
+      <Action label="Pincel" onClick={() => s.setTool('brush')}><Brush size={19} className={tool === 'brush' ? 'text-accent-bright' : ''} /></Action>
+      <Action label="Borrador" onClick={() => s.setTool('eraser')}><Eraser size={19} className={tool === 'eraser' ? 'text-accent-bright' : ''} /></Action>
       <Action label="Ajustes" onClick={onSettings}><SlidersHorizontal size={19} /></Action>
       <Action label="Listo" onClick={() => s.setTool('select')}><Check size={19} className="text-emerald-400" /></Action>
     </Bar>
@@ -286,7 +286,7 @@ function AddMenu({ onDone }: { onDone: () => void }) {
     <div className="grid grid-cols-2 gap-2 p-3">
       {items.map((it) => (
         <button key={it.label} onClick={it.run} className="flex min-h-16 items-center gap-3 rounded-xl bg-ink-900 p-3 text-left ring-1 ring-ink-700 active:bg-ink-700">
-          <span className="text-accent">{it.icon}</span>
+          <span className="text-accent-bright">{it.icon}</span>
           <span>
             <span className="block text-sm font-medium text-white">{it.label}</span>
             <span className="block text-[11px] text-ink-400">{it.desc}</span>
@@ -300,8 +300,9 @@ function AddMenu({ onDone }: { onDone: () => void }) {
         hidden
         data-testid="agregar-imagen"
         onChange={async (e) => {
-          const files = e.target.files
-          if (!files?.length) return
+          const files = e.target.files ? [...e.target.files] : []
+          e.target.value = ''
+          if (!files.length) return
           const page = currentPage()
           const assets = await importFiles(files)
           if (page) assets.forEach((a) => placeAsset(a))

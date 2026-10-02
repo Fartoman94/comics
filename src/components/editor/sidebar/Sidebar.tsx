@@ -56,7 +56,7 @@ export function SidebarTabs({ tab, onChange }: { tab: SidebarTab; onChange: (t: 
 export function Sidebar() {
   const [tab, setTab] = useState<SidebarTab>('pages')
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-r border-ink-700 bg-ink-850 lg:flex">
+    <aside aria-label="Paneles del proyecto" className="hidden w-72 shrink-0 flex-col border-r border-ink-700 bg-ink-850 lg:flex">
       <SidebarTabs tab={tab} onChange={setTab} />
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <SidebarBody tab={tab} />

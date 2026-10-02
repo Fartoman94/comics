@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
+import '../../lib/textFitKonva'
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Transformer } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { BubbleElement, ComicElement, DrawingElement, Stroke, TextElement } from '../../types'
@@ -8,7 +9,7 @@ import { createBubble, createDrawing, createPanel, createText, TEXT_PRESETS } fr
 import { importFiles, placeAsset } from '../../lib/placement'
 import { listLibrary } from '../../lib/storage'
 import { insertLibraryItem } from '../../lib/library'
-import { ensureGlyphs, loadFonts } from '../../lib/fonts'
+import { ensureGlyphs, LATIN_FONTS, loadFonts } from '../../lib/fonts'
 import { PageContent } from './nodes/PageContent'
 import type { NodeProps } from './nodes/ElementNode'
 import { paintStroke } from './nodes/strokes'
@@ -62,7 +63,9 @@ export function CanvasStage() {
   const zoomRef = useRef(zoom)
 
   useEffect(() => {
-    void loadFonts().then(() => setFontsReady((n) => n + 1))
+    // Fuentes de rotulado latinas y las que ya usa el proyecto (CJK incluidas), bajo demanda.
+    const used = useEditor.getState().project?.pages.flatMap((p) => p.elements.flatMap((e) => (e.type === 'text' || e.type === 'bubble' ? [e.fontFamily] : []))) ?? []
+    void loadFonts([...LATIN_FONTS, ...used]).then(() => setFontsReady((n) => n + 1))
     const onFonts = () => setFontsReady((n) => n + 1)
     window.addEventListener('vineta:fonts', onFonts)
     return () => window.removeEventListener('vineta:fonts', onFonts)

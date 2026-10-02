@@ -70,13 +70,13 @@ export function ScriptPanel() {
         return (
           <section key={sec.panelId ?? 'pagina'} className="rounded-lg bg-ink-900 ring-1 ring-ink-700" aria-label={sec.label}>
             <header className="flex items-center justify-between px-2.5 py-1.5">
-              <button className="text-xs font-semibold text-white hover:text-accent" onClick={() => sec.panelId && s.select([sec.panelId])} disabled={!sec.panelId}>
+              <button className="text-xs font-semibold text-white hover:text-accent-bright" onClick={() => sec.panelId && s.select([sec.panelId])} disabled={!sec.panelId}>
                 {sec.label}
               </button>
               <Menu
                 align="right"
                 trigger={(_, toggle) => (
-                  <button onClick={toggle} className="rounded-md px-2 py-1 text-[11px] text-accent hover:bg-accent-soft pointer-coarse:min-h-10">
+                  <button onClick={toggle} className="rounded-md px-2 py-1 text-[11px] text-accent-bright hover:bg-accent-soft pointer-coarse:min-h-10">
                     + Agregar
                   </button>
                 )}

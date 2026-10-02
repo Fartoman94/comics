@@ -18,7 +18,7 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
       <AppLogo className={compact ? 'size-7' : 'size-9'} />
       <div className="leading-none">
         <div className={cx('font-comic tracking-wide text-white', compact ? 'text-lg' : 'text-2xl')}>
-          VIÑETA <span className="text-accent">STUDIO</span>
+          VIÑETA <span className="text-accent-bright">STUDIO</span>
         </div>
         {!compact && <div className="mt-1 text-[11px] text-ink-400">Cómic · Manga · Webtoon</div>}
       </div>
