@@ -16,6 +16,11 @@ import { CropBar } from './CropBar'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { MobileBar } from './MobileBar'
 import { Tour } from './Tour'
+import { ExportDialog } from './ExportDialog'
+import type { EditorNav } from './TopBar'
+import { SimpleTopBar } from './mobile/SimpleTopBar'
+import { SimpleBottomBar } from './mobile/SimpleBottomBar'
+import { useUi } from '../../store/ui'
 import { HelpGuide } from '../help/HelpGuide'
 
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
@@ -26,7 +31,22 @@ export function Editor() {
   const pageIndex = useEditor((s) => Math.max(0, s.project?.pages.findIndex((p) => p.id === s.pageId) ?? 0))
   const backToEdit = useCallback(() => setView('edit'), [])
   const [shortcuts, setShortcuts] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const openShortcuts = useCallback(() => setShortcuts(true), [])
+  const simple = useUi((s) => s.mode === 'simple')
+  // Mismas acciones para los dos layouts (estudio y simple).
+  const nav: EditorNav = {
+    read: () => setView('read'),
+    preview: () => setView('preview'),
+    overview: () => setView('overview'),
+    exportOpen: () => setExportOpen(true),
+    shortcuts: openShortcuts,
+  }
+  // Los avisos aparecen por encima de la barra inferior del celular.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--toast-offset', simple ? '9.5rem' : '5rem')
+    return () => void document.documentElement.style.removeProperty('--toast-offset')
+  }, [simple])
   useAutosave()
   usePageThumbnails()
   useShortcuts(openShortcuts)
@@ -34,23 +54,24 @@ export function Editor() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
-      <TopBar onRead={() => setView('read')} onPreview={() => setView('preview')} onOverview={() => setView('overview')} onShortcuts={openShortcuts} />
+      {simple ? <SimpleTopBar nav={nav} /> : <TopBar nav={nav} />}
       <div className="flex min-h-0 flex-1">
-        <ToolRail />
-        <Sidebar />
-        <div className="relative min-w-0 flex-1">
+        {!simple && <ToolRail />}
+        {!simple && <Sidebar />}
+        <div className="relative min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'}>
           <CanvasStage />
           <CropBar />
         </div>
-        <Inspector />
+        {!simple && <Inspector />}
       </div>
-      <MobileBar />
+      {simple ? <SimpleBottomBar /> : <MobileBar />}
+      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       {view === 'read' && <Reader onClose={backToEdit} startPage={pageIndex} />}
       {view === 'preview' && <Preview onClose={backToEdit} />}
       {view === 'overview' && <Overview onClose={backToEdit} />}
       <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
       <HelpGuide canTour />
-      <Tour />
+      {!simple && <Tour />}
     </div>
   )
 }

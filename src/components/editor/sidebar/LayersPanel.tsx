@@ -76,7 +76,7 @@ export function LayersPanel() {
               {el.blend && el.blend !== 'source-over' && <span className="text-[9px] text-ink-400 uppercase">{el.blend.slice(0, 4)}</span>}
               <IconButton
                 label={el.locked ? 'Desbloquear' : 'Bloquear'}
-                className={cx('size-6', !el.locked && 'opacity-0 group-hover:opacity-100')}
+                className={cx('size-6 pointer-coarse:size-10', !el.locked && '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100')}
                 onClick={(e) => {
                   e.stopPropagation()
                   s.updateElement(el.id, { locked: !el.locked })
@@ -86,7 +86,7 @@ export function LayersPanel() {
               </IconButton>
               <IconButton
                 label={el.hidden ? 'Mostrar' : 'Ocultar'}
-                className={cx('size-6', !el.hidden && 'opacity-0 group-hover:opacity-100')}
+                className={cx('size-6 pointer-coarse:size-10', !el.hidden && '[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100')}
                 onClick={(e) => {
                   e.stopPropagation()
                   s.updateElement(el.id, { hidden: !el.hidden })

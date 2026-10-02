@@ -232,11 +232,11 @@ export function Home({ notFound }: { notFound?: boolean }) {
                     </div>
                   </div>
                 </button>
-                <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute top-2 right-2 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">
                   <Menu
                     align="right"
                     trigger={(_, toggle) => (
-                      <IconButton label="Opciones" onClick={toggle} className="bg-black/70 text-white hover:bg-black">
+                      <IconButton label="Opciones" onClick={toggle} className="bg-black/70 text-white hover:bg-black pointer-coarse:size-11">
                         <MoreHorizontal size={16} />
                       </IconButton>
                     )}

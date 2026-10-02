@@ -87,7 +87,14 @@ const SFX: { lang: string; font: string; items: [string, string][] }[] = [
 
 let cascade = 0
 
-export function InsertPanel() {
+export type InsertSection = 'bubbles' | 'texts' | 'sfx' | 'effects' | 'drawing'
+
+/**
+ * `sections` permite armar los grupos del modo simple (Texto / Diseñar) con el mismo panel.
+ * `editOnInsert`: el globo o texto insertado entra directo en edición (modo simple).
+ */
+export function InsertPanel({ sections, editOnInsert = false }: { sections?: InsertSection[]; editOnInsert?: boolean } = {}) {
+  const has = (k: InsertSection) => !sections || sections.includes(k)
   const format = useEditor((s) => s.project!.format)
   const scale = format.width / 900
   const add = useEditor((s) => s.addElements)
@@ -102,6 +109,7 @@ export function InsertPanel() {
     const b = createBubble(shape, 0, 0, scale)
     Object.assign(b, center(b.width, b.height))
     add([b])
+    if (editOnInsert) setTimeout(() => useEditor.getState().setEditingText(b.id), 120)
   }
   const addText = (patch: Partial<TextElement>, name?: string) => {
     const t = createText(0, 0, { id: 'x', label: name ?? 'Texto', patch: { ...patch, fontSize: Math.round((patch.fontSize ?? 60) * scale) } })
@@ -117,6 +125,7 @@ export function InsertPanel() {
     Object.assign(t, center(t.width, t.height))
     ensureGlyphs(t.fontFamily, t.text)
     add([t])
+    if (editOnInsert && script === 'latin' && !patch.text) setTimeout(() => useEditor.getState().setEditingText(t.id), 120)
   }
   const addEffect = (kind: EffectKind) => {
     const sel = useEditor.getState().selection
@@ -137,104 +146,114 @@ export function InsertPanel() {
 
   return (
     <div>
-      <Section title="Globos">
-        <div className="grid grid-cols-3 gap-2">
-          {BUBBLES.map((b) => (
-            <button key={b.shape} onClick={() => addBubble(b.shape)} className="flex flex-col items-center gap-1 rounded-lg bg-ink-900 p-2 ring-1 ring-ink-700 transition-colors hover:ring-accent">
-              <svg viewBox="0 0 48 44" className="h-9 w-10">
-                <path d={b.path} fill="#fff" stroke="#111" strokeWidth={2} strokeLinejoin="round" strokeDasharray={b.dash ? '3 2' : undefined} />
-              </svg>
-              <span className="text-[10px] text-ink-300">{b.label}</span>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Textos">
-        <div className="grid grid-cols-2 gap-2">
-          {TEXT_PRESETS.map((p) => (
-            <button key={p.id} onClick={() => addText(p.patch, p.label)} className="flex h-14 items-center justify-center overflow-hidden rounded-lg bg-ink-900 px-2 ring-1 ring-ink-700 transition-colors hover:ring-accent">
-              <span
-                style={{
-                  fontFamily: p.patch.fontFamily,
-                  color: p.patch.textColor === '#111111' ? '#fff' : p.patch.textColor,
-                  fontWeight: p.patch.fontStyle?.includes('bold') ? 700 : 400,
-                  WebkitTextStroke: p.patch.strokeWidth ? `1px ${p.patch.stroke === '#ffffff' ? '#111' : p.patch.stroke}` : undefined,
-                  transform: p.patch.skewX ? `skewX(${p.patch.skewX * -40}deg)` : undefined,
-                }}
-                className="truncate text-lg"
-              >
-                {p.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Onomatopeyas (SFX)">
-        {SFX.map((g) => (
-          <div key={g.lang}>
-            <div className="mb-1.5 text-[11px] text-ink-400">{g.lang}</div>
-            <div className="flex flex-wrap gap-1.5">
-              {g.items.map(([t, desc]) => (
-                <button
-                  key={t}
-                  title={desc}
-                  onClick={() => addText({ text: t, fontFamily: g.font, fontSize: 90, textColor: '#111111', stroke: '#ffffff', strokeWidth: 6, skewX: 0, shadow: false, uppercase: false, letterSpacing: 0 }, t)}
-                  className="rounded-md bg-ink-900 px-2 py-1 text-sm text-white ring-1 ring-ink-700 transition-colors hover:ring-accent"
-                  style={{ fontFamily: g.font }}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+      {has('bubbles') && (
+        <Section title="Globos">
+          <div className="grid grid-cols-3 gap-2">
+            {BUBBLES.map((b) => (
+              <button key={b.shape} onClick={() => addBubble(b.shape)} className="flex flex-col items-center gap-1 rounded-lg bg-ink-900 p-2 ring-1 ring-ink-700 transition-colors hover:ring-accent">
+                <svg viewBox="0 0 48 44" className="h-9 w-10">
+                  <path d={b.path} fill="#fff" stroke="#111" strokeWidth={2} strokeLinejoin="round" strokeDasharray={b.dash ? '3 2' : undefined} />
+                </svg>
+                <span className="text-[10px] text-ink-300">{b.label}</span>
+              </button>
+            ))}
           </div>
-        ))}
-        <p className="text-[11px] leading-relaxed text-ink-500">Podés escribir en cualquier idioma con el teclado de tu sistema (IME). En Propiedades activá "Vertical" para rotular en tategaki.</p>
-      </Section>
+        </Section>
+      )}
 
-      <Section title="Efectos manga">
-        <div className="space-y-1.5">
-          {EFFECTS.map((e) => (
-            <button key={e.kind} onClick={() => addEffect(e.kind)} className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent">
-              <EffectIcon kind={e.kind} />
-              <span>
-                <span className="block text-xs font-medium text-white">{e.label}</span>
-                <span className="block text-[10px] text-ink-400">{e.desc}</span>
-              </span>
-            </button>
+      {has('texts') && (
+        <Section title="Textos">
+          <div className="grid grid-cols-2 gap-2">
+            {TEXT_PRESETS.map((p) => (
+              <button key={p.id} onClick={() => addText(p.patch, p.label)} className="flex h-14 items-center justify-center overflow-hidden rounded-lg bg-ink-900 px-2 ring-1 ring-ink-700 transition-colors hover:ring-accent">
+                <span
+                  style={{
+                    fontFamily: p.patch.fontFamily,
+                    color: p.patch.textColor === '#111111' ? '#fff' : p.patch.textColor,
+                    fontWeight: p.patch.fontStyle?.includes('bold') ? 700 : 400,
+                    WebkitTextStroke: p.patch.strokeWidth ? `1px ${p.patch.stroke === '#ffffff' ? '#111' : p.patch.stroke}` : undefined,
+                    transform: p.patch.skewX ? `skewX(${p.patch.skewX * -40}deg)` : undefined,
+                  }}
+                  className="truncate text-lg"
+                >
+                  {p.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {has('sfx') && (
+        <Section title="Onomatopeyas (SFX)">
+          {SFX.map((g) => (
+            <div key={g.lang}>
+              <div className="mb-1.5 text-[11px] text-ink-400">{g.lang}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {g.items.map(([t, desc]) => (
+                  <button
+                    key={t}
+                    title={desc}
+                    onClick={() => addText({ text: t, fontFamily: g.font, fontSize: 90, textColor: '#111111', stroke: '#ffffff', strokeWidth: 6, skewX: 0, shadow: false, uppercase: false, letterSpacing: 0 }, t)}
+                    className="rounded-md bg-ink-900 px-2 py-1 text-sm text-white ring-1 ring-ink-700 transition-colors hover:ring-accent"
+                    style={{ fontFamily: g.font }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
-        </div>
-        <p className="text-[11px] text-ink-500">Con una viñeta seleccionada, el efecto se ajusta a ella.</p>
-      </Section>
+          <p className="text-[11px] leading-relaxed text-ink-500">Podés escribir en cualquier idioma con el teclado de tu sistema (IME). En Propiedades activá "Vertical" para rotular en tategaki.</p>
+        </Section>
+      )}
 
-      <Section title="Dibujo">
-        <button
-          onClick={() => {
-            const d = createDrawing(format.width, format.height)
-            add([d])
-            useEditor.getState().setTool('brush')
-          }}
-          className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent"
-        >
-          <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent">
-            <Layers size={16} />
-          </span>
-          <span>
-            <span className="block text-xs font-medium text-white">Nueva capa de dibujo</span>
-            <span className="block text-[10px] text-ink-400">Bocetos, entintado y color por separado</span>
-          </span>
-        </button>
-        <button onClick={() => useEditor.getState().setTool('brush')} className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent">
-          <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent">
-            <Brush size={16} />
-          </span>
-          <span>
-            <span className="block text-xs font-medium text-white">Pincel (B)</span>
-            <span className="block text-[10px] text-ink-400">Sensible a la presión en tabletas y lápices</span>
-          </span>
-        </button>
-      </Section>
+      {has('effects') && (
+        <Section title="Efectos manga">
+          <div className="space-y-1.5">
+            {EFFECTS.map((e) => (
+              <button key={e.kind} onClick={() => addEffect(e.kind)} className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent">
+                <EffectIcon kind={e.kind} />
+                <span>
+                  <span className="block text-xs font-medium text-white">{e.label}</span>
+                  <span className="block text-[10px] text-ink-400">{e.desc}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-ink-500">Con una viñeta seleccionada, el efecto se ajusta a ella.</p>
+        </Section>
+      )}
+
+      {has('drawing') && (
+        <Section title="Dibujo">
+          <button
+            onClick={() => {
+              const d = createDrawing(format.width, format.height)
+              add([d])
+              useEditor.getState().setTool('brush')
+            }}
+            className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent"
+          >
+            <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent">
+              <Layers size={16} />
+            </span>
+            <span>
+              <span className="block text-xs font-medium text-white">Nueva capa de dibujo</span>
+              <span className="block text-[10px] text-ink-400">Bocetos, entintado y color por separado</span>
+            </span>
+          </button>
+          <button onClick={() => useEditor.getState().setTool('brush')} className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent">
+            <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent">
+              <Brush size={16} />
+            </span>
+            <span>
+              <span className="block text-xs font-medium text-white">Pincel (B)</span>
+              <span className="block text-[10px] text-ink-400">Sensible a la presión en tabletas y lápices</span>
+            </span>
+          </button>
+        </Section>
+      )}
     </div>
   )
 }

@@ -39,7 +39,21 @@ export function createProjectInDb(page: Page, title: string, kind = 'comic', pag
 
 export async function openProject(page: Page, id: string) {
   await page.goto(`/#/p/${id}`)
-  await expect(page.locator('[data-tour=read]')).toBeVisible()
+  await expect(page.locator('[data-ui-mode]')).toBeVisible()
+}
+
+/** Abre una vista del editor en cualquiera de los dos modos (simple: menú "⋯"; estudio: barra superior). */
+export async function openView(page: Page, view: 'Leer' | 'Previsualizar' | 'Vista general') {
+  const simple = (await page.locator('[data-ui-mode]').getAttribute('data-ui-mode')) === 'simple'
+  if (simple) {
+    await page.getByRole('button', { name: 'Más opciones del proyecto' }).click()
+    await page.getByRole('button', { name: view, exact: true }).click()
+    return
+  }
+  const direct = view === 'Leer' ? page.locator('[data-tour=read]') : page.getByRole('button', { name: view, exact: true }).first()
+  if (await direct.isVisible()) return direct.click()
+  await page.getByRole('button', { name: 'Exportar' }).click()
+  await page.getByRole('button', { name: view === 'Leer' ? 'Ver lectura' : view, exact: true }).last().click()
 }
 
 export function projectCard(page: Page, title: string) {

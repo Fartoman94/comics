@@ -481,7 +481,8 @@ export const useEditor = create<EditorState>()((set, get) => ({
   toast: (message, tone = 'info', action) => {
     const id = ++toastSeq
     set({ toasts: [...get().toasts, { id, message, tone, action }] })
-    setTimeout(() => get().dismissToast(id), action ? 10000 : 3200)
+    // Los errores y los avisos con acción duran más; todos se pueden cerrar.
+    setTimeout(() => get().dismissToast(id), action ? 10000 : tone === 'error' ? 6000 : 3500)
   },
   dismissToast: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
 }))
