@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useEditor } from '../../store/editor'
+import { notifyLocked, useEditor } from '../../store/editor'
 import { renderPage } from '../../lib/render'
 import { getThumb, setThumb, thumbIsFresh } from '../../lib/thumbs'
 import { importFiles, placeAsset } from '../../lib/placement'
@@ -169,6 +169,8 @@ function useShortcuts(openHelp: () => void) {
         else s.select([])
       } else if (k.startsWith('arrow') && s.selection.length) {
         e.preventDefault()
+        const locked = s.project?.pages.find((p) => p.id === s.pageId)?.elements.filter((el) => s.selection.includes(el.id) && el.locked).length ?? 0
+        if (locked && !e.repeat) notifyLocked(locked)
         const d = e.shiftKey ? 10 : 1
         const dx = k === 'arrowleft' ? -d : k === 'arrowright' ? d : 0
         const dy = k === 'arrowup' ? -d : k === 'arrowdown' ? d : 0

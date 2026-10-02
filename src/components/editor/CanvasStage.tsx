@@ -3,7 +3,7 @@ import Konva from 'konva'
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Transformer } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { BubbleElement, ComicElement, DrawingElement, Stroke, TextElement } from '../../types'
-import { currentPage, findEl, useCurrentPage, useEditor } from '../../store/editor'
+import { currentPage, findEl, notifyLocked, useCurrentPage, useEditor } from '../../store/editor'
 import { createBubble, createDrawing, createPanel, createText, TEXT_PRESETS } from '../../lib/factories'
 import { importFiles, placeAsset } from '../../lib/placement'
 import { ensureGlyphs, loadFonts } from '../../lib/fonts'
@@ -134,7 +134,17 @@ export function CanvasStage() {
       if (e.touches.length === 2) {
         // El segundo dedo cancela cualquier trazo o arrastre en curso.
         interaction.current = null
-        stageRef.current?.stopDrag()
+        liveRef.current?.getLayer()?.batchDraw()
+        const stage = stageRef.current
+        if (stage) {
+          // Si el primer dedo empezó a arrastrar un elemento, vuelve a su lugar y el arrastre se descarta.
+          const started = dragStart.current
+          dragStart.current = new Map()
+          for (const [id, pos] of started) stage.findOne('#' + id)?.position(pos)
+          stage.find('.element').forEach((n) => n.isDragging() && n.stopDrag())
+          stage.stopDrag()
+          setGuides([])
+        }
         last = read(e.touches)
       }
     }
@@ -237,6 +247,8 @@ export function CanvasStage() {
       b.tailY = b.height + b.height * 0.4
       s.addElements([b])
       s.setTool('select')
+      // Igual que la herramienta Texto: se escribe enseguida, sin que la primera letra dispare un atajo.
+      setTimeout(() => useEditor.getState().setEditingText(b.id), 30)
       return
     }
     if (tool === 'text') {
@@ -334,10 +346,22 @@ export function CanvasStage() {
     }
   }
 
+  // El sistema puede cancelar un gesto (borde de pantalla, palma, notificación): se descarta sin aplicar.
+  const cancelInteraction = () => {
+    interaction.current = null
+    setMarquee(null)
+    setDraftPanel(null)
+    liveRef.current?.getLayer()?.batchDraw()
+  }
+
   useEffect(() => {
     const up = () => endInteraction()
     window.addEventListener('pointerup', up)
-    return () => window.removeEventListener('pointerup', up)
+    window.addEventListener('pointercancel', cancelInteraction)
+    return () => {
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', cancelInteraction)
+    }
   })
 
   const commitStroke = (stroke: Stroke) => {
@@ -359,10 +383,18 @@ export function CanvasStage() {
     const L = layer
     const kx = L.baseWidth / L.width
     const ky = L.baseHeight / L.height
+    // De la página a la capa: se deshace la posición y el giro de la capa (Konva gira alrededor de x,y).
+    const rad = (-L.rotation * Math.PI) / 180
+    const cos = Math.cos(rad)
+    const sin = Math.sin(rad)
     const local: Stroke = {
       ...stroke,
       size: stroke.size * kx,
-      points: stroke.points.map(([x, y, pr]) => [(x - L.x) * kx, (y - L.y) * ky, pr]),
+      points: stroke.points.map(([x, y, pr]) => {
+        const dx = x - L.x
+        const dy = y - L.y
+        return [(dx * cos - dy * sin) * kx, (dx * sin + dy * cos) * ky, pr]
+      }),
     }
     s.updateElement(L.id, (el) => {
       if (el.type === 'drawing') el.strokes = [...el.strokes, local] as typeof el.strokes
@@ -395,7 +427,15 @@ export function CanvasStage() {
     const id = elementIdFrom(e.target)
     if (!id || !e.target.hasName('element')) return
     const s = useEditor.getState()
-    const ids = s.selection.includes(id) ? s.selection : [id]
+    const pg = currentPage()
+    const wanted = s.selection.includes(id) ? s.selection : [id]
+    // Los bloqueados u ocultos no se mueven aunque estén en la selección.
+    const ids = wanted.filter((i) => {
+      const el = pg?.elements.find((x) => x.id === i)
+      return !!el && !el.locked && !el.hidden
+    })
+    const skipped = wanted.filter((i) => pg?.elements.find((x) => x.id === i)?.locked).length
+    if (skipped) notifyLocked(skipped)
     const stage = stageRef.current!
     dragStart.current = new Map(ids.map((i) => [i, stage.findOne('#' + i)?.position() ?? { x: 0, y: 0 }]))
   }
@@ -740,6 +780,8 @@ function TextEditOverlay({ id, stage, zoom, pan }: { id: string; stage: Konva.St
       onBlur={commit}
       onKeyDown={(e) => {
         e.stopPropagation()
+        // Durante la composición IME (japonés, coreano, chino) Esc y Enter son del IME, no del editor.
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return
         if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) {
           e.preventDefault()
           commit()

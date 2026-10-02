@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react'
 import { ImagePlus, Trash2, Upload } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
-import { getAssetUrl, forgetAsset, useAssetImage } from '../../../lib/assetCache'
+import { getAssetUrl, useAssetImage } from '../../../lib/assetCache'
 import { importFiles, placeAsset } from '../../../lib/placement'
-import { deleteAssetBlob } from '../../../lib/storage'
 import type { Asset } from '../../../types'
 import { cx, IconButton } from '../../ui/controls'
 import { confirmDialog } from '../../ui/Confirm'
@@ -34,9 +33,8 @@ export function AssetsPanel() {
       return
     }
     if (!(await confirmDialog('Eliminar imagen', `"${a.name}" se eliminará del proyecto.`, { confirmLabel: 'Eliminar', danger: true }))) return
+    // El archivo no se borra todavía: deshacer puede volver a necesitarlo. Se recolecta al salir del proyecto.
     useEditor.getState().removeAsset(a.id)
-    await deleteAssetBlob(a.id)
-    forgetAsset(a.id)
   }
 
   return (

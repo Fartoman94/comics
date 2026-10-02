@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Project } from '../../types'
 import { PAGE_FORMATS, PROJECT_KINDS } from '../../lib/formats'
 import { createProject } from '../../lib/factories'
 import { saveProject } from '../../lib/storage'
 import { navigateToProject } from '../../lib/nav'
+import { useEditor } from '../../store/editor'
 import { Button, cx, Modal, NumberInput } from '../ui/controls'
 
 export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -19,11 +20,25 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
     setPages(kind === 'webtoon' ? 3 : 4)
   }, [kind])
 
+  // Un solo proyecto por pedido, aunque haya doble clic, Enter repetido o IndexedDB lento.
+  const [creating, setCreating] = useState(false)
+  const busy = useRef(false)
   const create = async () => {
-    const p = createProject({ title: title.trim() || 'Sin título', author: author.trim(), kind, formatId, pages })
-    await saveProject(p)
-    onClose()
-    navigateToProject(p.id)
+    if (busy.current) return
+    busy.current = true
+    setCreating(true)
+    try {
+      const p = createProject({ title: title.trim() || 'Sin título', author: author.trim(), kind, formatId, pages })
+      await saveProject(p)
+      onClose()
+      navigateToProject(p.id)
+    } catch (e) {
+      console.error(e)
+      useEditor.getState().toast('No se pudo crear el proyecto. ¿El navegador se quedó sin espacio?', 'error', { label: 'Reintentar', run: () => void create() })
+    } finally {
+      busy.current = false
+      setCreating(false)
+    }
   }
 
   const format = PAGE_FORMATS.find((f) => f.id === formatId)!
@@ -101,8 +116,8 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
         <Button variant="ghost" onClick={onClose}>
           Cancelar
         </Button>
-        <Button variant="primary" onClick={() => void create()}>
-          Crear proyecto
+        <Button variant="primary" onClick={() => void create()} disabled={creating} aria-busy={creating}>
+          {creating ? 'Creando…' : 'Crear proyecto'}
         </Button>
       </div>
     </Modal>

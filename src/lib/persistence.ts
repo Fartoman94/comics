@@ -20,3 +20,10 @@ export function enqueueSave(project: Project, revision: number): Promise<void> {
 export function settleSaves(): Promise<void> {
   return queue.then(() => undefined)
 }
+
+/** Encola una tarea que debe correr después de las escrituras ya pedidas (p. ej. borrar blobs huérfanos). */
+export function enqueueTask(task: () => Promise<void>): Promise<void> {
+  const job = queue.then(task)
+  queue = job.catch(() => undefined)
+  return job
+}

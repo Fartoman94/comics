@@ -46,21 +46,59 @@ export function paintStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.restore()
 }
 
-const cache = new WeakMap<Stroke[], HTMLCanvasElement>()
+// Un canvas por capa de dibujo (por id), no por versión de la lista de trazos: el historial de
+// deshacer guarda muchas versiones y antes cada una retenía su propio canvas gigante.
+interface CacheEntry {
+  strokes: Stroke[]
+  canvas: HTMLCanvasElement
+  scale: number
+}
+const cache = new Map<string, CacheEntry>()
+const MAX_LAYERS = 24
+
+function paintAll(ctx: CanvasRenderingContext2D, scale: number, strokes: Stroke[], from = 0) {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0)
+  for (let i = from; i < strokes.length; i++) paintStroke(ctx, strokes[i])
+}
 
 /** Rasteriza la capa en un canvas propio: así el borrador sólo borra esta capa. */
 export function rasterizeDrawing(el: DrawingElement): HTMLCanvasElement {
-  const hit = cache.get(el.strokes)
-  if (hit && hit.dataset.w === String(el.baseWidth) && hit.dataset.h === String(el.baseHeight)) return hit
   const scale = Math.min(2, 4096 / Math.max(el.baseWidth, el.baseHeight))
+  const w = Math.ceil(el.baseWidth * scale)
+  const h = Math.ceil(el.baseHeight * scale)
+  const hit = cache.get(el.id)
+  if (hit && hit.canvas.width === w && hit.canvas.height === h) {
+    if (hit.strokes === el.strokes) return hit.canvas
+    const ctx = hit.canvas.getContext('2d')!
+    // Trazo nuevo al final: se pinta sólo lo que falta. Deshacer u otro cambio: se repinta entero.
+    const prefix = hit.strokes.length <= el.strokes.length && hit.strokes.every((st, i) => st === el.strokes[i])
+    if (!prefix) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+    }
+    paintAll(ctx, scale, el.strokes, prefix ? hit.strokes.length : 0)
+    hit.strokes = el.strokes
+    cache.delete(el.id)
+    cache.set(el.id, hit)
+    return hit.canvas
+  }
   const c = document.createElement('canvas')
-  c.width = Math.ceil(el.baseWidth * scale)
-  c.height = Math.ceil(el.baseHeight * scale)
-  c.dataset.w = String(el.baseWidth)
-  c.dataset.h = String(el.baseHeight)
-  const ctx = c.getContext('2d')!
-  ctx.scale(scale, scale)
-  for (const s of el.strokes) paintStroke(ctx, s)
-  cache.set(el.strokes, c)
+  c.width = w
+  c.height = h
+  paintAll(c.getContext('2d')!, scale, el.strokes)
+  cache.delete(el.id)
+  cache.set(el.id, { strokes: el.strokes, canvas: c, scale })
+  // Acotado: se liberan las capas usadas hace más tiempo.
+  while (cache.size > MAX_LAYERS) {
+    const oldest = cache.keys().next().value!
+    const entry = cache.get(oldest)!
+    entry.canvas.width = entry.canvas.height = 0
+    cache.delete(oldest)
+  }
   return c
+}
+
+/** Para tests y diagnóstico: cuántos canvases de dibujo hay retenidos. */
+export function strokeCacheSize() {
+  return cache.size
 }
