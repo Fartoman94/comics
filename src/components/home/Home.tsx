@@ -6,7 +6,6 @@ import { RecoveryCenter, RenameDialog, StorageMeter } from './RecoveryCenter'
 import { useUi } from '../../store/ui'
 import { ProjectFileError } from '../../lib/projectSchema'
 import { settleSaves } from '../../lib/persistence'
-import { downloadProject } from '../../lib/export'
 import { navigateToProject } from '../../lib/nav'
 import { PROJECT_KINDS } from '../../lib/formats'
 import { useEditor } from '../../store/editor'
@@ -15,7 +14,6 @@ import { MadeByMateLabs, Wordmark } from '../ui/Brand'
 import { confirmDialog } from '../ui/Confirm'
 import { NewProjectDialog } from './NewProjectDialog'
 import { HelpGuide, useHelp } from '../help/HelpGuide'
-import { demoCoverDataUrl } from '../../demo/demoProject'
 
 const FEATURES = [
   ['Plantillas de viñetas', 'Cuadrículas clásicas, cortes diagonales de manga, yonkoma y tiras.'],
@@ -80,9 +78,10 @@ export function Home({ notFound }: { notFound?: boolean }) {
   useEffect(() => {
     if (notFound) toast('Ese proyecto no existe en este navegador', 'error')
   }, [notFound, toast])
-  // Aviso antes de quedarse sin espacio.
+  // Aviso antes de quedarse sin espacio (una vez por visita al inicio).
+  const warned = useRef(false)
   useEffect(() => {
-    if (usage && usage.quota > 0 && usage.usage / usage.quota > 0.8) toast('Te queda poco espacio de almacenamiento en este navegador. Descargá copias (.vineta) y borrá lo que no uses.', 'error')
+    if (!warned.current && usage && usage.quota > 0 && usage.usage / usage.quota > 0.8 && (warned.current = true)) toast('Te queda poco espacio de almacenamiento en este navegador. Descargá copias (.vineta) y borrá lo que no uses.', 'error')
   }, [usage, toast])
 
   const healthy = useMemo(() => (summaries ?? []).filter((p) => !p.damaged), [summaries])
@@ -124,7 +123,8 @@ export function Home({ notFound }: { notFound?: boolean }) {
       }
       refresh()
     })
-  const download = (s: ProjectSummary) => withProject(s, downloadProject)
+  // El exportador (y su motor de render) se carga sólo cuando se usa.
+  const download = (s: ProjectSummary) => withProject(s, async (p) => (await import('../../lib/export')).downloadProject(p))
   const exportDamaged = async (id: string) => {
     try {
       downloadBlob(await exportRawProjectFile(id), `proyecto-dañado-${id}.vineta`)
@@ -182,12 +182,13 @@ export function Home({ notFound }: { notFound?: boolean }) {
           <input ref={fileRef} type="file" accept=".vineta,application/json" hidden onChange={(e) => void onImport(e.target.files?.[0])} />
         </div>
       </header>
+      <main>
 
       <section className="halftone border-b border-ink-800">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-          <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-accent uppercase">Estudio de historietas en el navegador</p>
+          <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-accent-bright uppercase">Estudio de historietas en el navegador</p>
           <h1 className="font-comic max-w-3xl text-5xl leading-[0.95] tracking-wide text-white sm:text-7xl">
-            Dibujá, rotulá y publicá tu <span className="text-accent">cómic</span> o <span className="text-accent">manga</span>.
+            Dibujá, rotulá y publicá tu <span className="text-accent-bright">cómic</span> o <span className="text-accent-bright">manga</span>.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-300">
             Viñetas, fotos, globos, tramas y dibujo con presión en un solo lugar. Todo se guarda automáticamente en tu navegador y se exporta listo para imprimir o publicar.
@@ -206,11 +207,11 @@ export function Home({ notFound }: { notFound?: boolean }) {
       <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
         <a href="#/demo" className="group grid overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 transition-colors hover:border-accent sm:grid-cols-[220px_1fr]">
           <div className="relative aspect-[3/4] overflow-hidden bg-white sm:aspect-auto sm:h-full">
-            <img src={demoCoverDataUrl()} alt="Portada del manga de ejemplo" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <img src="/demo/cover.webp" alt="Portada del manga de ejemplo" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             <span className="font-comic absolute right-3 bottom-3 left-3 text-center text-2xl leading-none tracking-wide text-white [text-shadow:0_2px_0_#000,2px_0_0_#000,-2px_0_0_#000,0_-2px_0_#000]">VIENTO DE SAKURA</span>
           </div>
           <div className="flex flex-col justify-center p-6">
-            <span className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">Mirá cómo queda</span>
+            <span className="text-xs font-semibold tracking-[0.2em] text-accent-bright uppercase">Mirá cómo queda</span>
             <h2 className="font-comic mt-2 text-4xl tracking-wide text-white">
               桜の風 <span className="text-ink-400">·</span> Viento de sakura
             </h2>
@@ -238,17 +239,17 @@ export function Home({ notFound }: { notFound?: boolean }) {
           {HOW_TO.map(([title, body, topic], i) => (
             <li key={title}>
               <button onClick={() => useHelp.getState().openGuide(topic)} className="group h-full w-full rounded-xl border border-ink-800 bg-ink-900 p-4 text-left transition-colors hover:border-accent">
-                <span className="font-comic text-4xl leading-none text-accent">{i + 1}</span>
+                <span className="font-comic text-4xl leading-none text-accent-bright">{i + 1}</span>
                 <h3 className="mt-2 text-sm font-semibold text-white">{title}</h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{body}</p>
-                <span className="mt-2 inline-block text-xs text-ink-500 group-hover:text-accent">Ver cómo →</span>
+                <span className="mt-2 inline-block text-xs text-ink-500 group-hover:text-accent-bright">Ver cómo →</span>
               </button>
             </li>
           ))}
         </ol>
       </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-label="Tus proyectos">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Tus proyectos</h2>
@@ -401,6 +402,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
             </div>
           ))}
         </section>
+      </section>
       </main>
 
       <footer className="border-t border-ink-800">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Home } from './components/home/Home'
-import { Editor } from './components/editor/Editor'
-import { DemoViewer } from './components/demo/DemoViewer'
+import { Suspense } from 'react'
+import { lazyWithReload } from './lib/lazyWithReload'
 import { Toasts } from './components/ui/Toasts'
 import { ConfirmHost } from './components/ui/Confirm'
 import { loadProject } from './lib/storage'
@@ -9,6 +9,11 @@ import { ProjectFileError } from './lib/projectSchema'
 import { navigateToProject } from './lib/nav'
 import { useEditor } from './store/editor'
 import { CrashScreen } from './components/ui/ErrorBoundary'
+
+// El editor (Konva, exportadores) y la demo se cargan sólo cuando se abren.
+const Editor = lazyWithReload(() => import('./components/editor/Editor').then((m) => ({ default: m.Editor })))
+const DemoViewer = lazyWithReload(() => import('./components/demo/DemoViewer').then((m) => ({ default: m.DemoViewer })))
+const Loading = () => <div className="grid h-full place-items-center text-sm text-ink-400" role="status">Cargando…</div>
 
 const isDemoHash = () => /^#\/demo\b/.test(location.hash)
 
@@ -69,6 +74,7 @@ export function App() {
 
   return (
     <>
+      <Suspense fallback={<Loading />}>
       {demo ? (
         <DemoViewer />
       ) : routeId && broken?.id === routeId ? (
@@ -80,6 +86,7 @@ export function App() {
       ) : (
         <Home notFound={missing} />
       )}
+      </Suspense>
       <Toasts />
       <ConfirmHost />
     </>

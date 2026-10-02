@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Columns2, FileText, Maximize2, Mi
 import { useEditor } from '../../store/editor'
 import { PHONES, useUi, type PhoneId } from '../../store/ui'
 import { keyStep, pageLabel, spreadOf } from '../../lib/readerNav'
+import { useFocusTrap } from '../ui/useFocusTrap'
 import { cx } from '../ui/controls'
 import { usePageImages, useReadingOverlay } from './Reader'
 
@@ -42,6 +43,7 @@ export function Preview({ onClose }: { onClose: () => void }) {
   const target = useMemo(() => Math.min(3600, project.format.height * Math.min(2, window.devicePixelRatio || 1)), [project.format.height])
   const images = usePageImages(project, target)
   useReadingOverlay()
+  useFocusTrap(rootRef)
 
   const shown = view === 'spread' ? spreadOf(index, n) : [index]
   const move = (dir: 1 | -1) => {

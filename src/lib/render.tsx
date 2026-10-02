@@ -73,7 +73,8 @@ function enqueue<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T
 async function doRender<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T): Promise<T> {
   // Sólo en desarrollo: permite a los tests simular una página que no se puede dibujar.
   if (import.meta.env.DEV && (window as unknown as { __vinetaFallarPagina?: string }).__vinetaFallarPagina === page.id) throw new Error('fallo simulado')
-  await withTimeout(loadFonts(), 8000, 'fuentes').catch(() => undefined)
+  const families = page.elements.flatMap((el) => (el.type === 'text' || el.type === 'bubble' ? [el.fontFamily] : []))
+  await withTimeout(loadFonts(families), 8000, 'fuentes').catch(() => undefined)
   await withTimeout(
     Promise.all(page.elements.flatMap((el) => (el.type === 'text' || el.type === 'bubble' ? [loadGlyphs(el.fontFamily, el.text, false), loadGlyphs(el.fontFamily, el.text, true)] : []))),
     8000,

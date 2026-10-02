@@ -5,6 +5,7 @@ import type { Project } from '../../types'
 import { useEditor } from '../../store/editor'
 import { renderPage } from '../../lib/render'
 import { isTap, keyStep, pageLabel, swipeStep, tapStep, toBookIndex, visiblePages, type Step } from '../../lib/readerNav'
+import { useFocusTrap } from '../ui/useFocusTrap'
 import { cx } from '../ui/controls'
 import { MadeByMateLabs } from '../ui/Brand'
 
@@ -75,6 +76,7 @@ export function Reader({ onClose, actions, startPage = 0 }: { onClose: () => voi
   const total = project.pages.length
   const ready = images.length === total
   useReadingOverlay()
+  useFocusTrap(rootRef)
 
   // La interfaz se esconde sola para leer sin distracciones; tocar o enfocar con teclado la muestra.
   // Los controles siguen respondiendo aunque estén ocultos: el primer toque ejecuta la acción.
@@ -116,7 +118,7 @@ export function Reader({ onClose, actions, startPage = 0 }: { onClose: () => voi
   return (
     <div ref={rootRef} className="reader-room fixed inset-0 z-50 flex flex-col overflow-hidden text-white" onPointerMove={poke} onPointerDown={poke} onFocus={poke} role="dialog" aria-modal="true" aria-label={`Lectura: ${project.title}`}>
       <div className={cx('absolute inset-x-0 top-0 z-20 flex h-14 items-center gap-2 bg-gradient-to-b from-black/80 to-transparent px-3 transition-opacity duration-300 focus-within:opacity-100 sm:gap-3 sm:px-5', chrome ? 'opacity-100' : 'opacity-0')}>
-        <BookOpen size={18} className="hidden shrink-0 text-accent sm:block" />
+        <BookOpen size={18} className="hidden shrink-0 text-accent-bright sm:block" />
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{project.title}</div>
           {project.author && <div className="truncate text-[11px] text-white/60">{project.author}</div>}
@@ -289,7 +291,7 @@ function FlipBook({ project, images, chrome, start, onCurrent, tapNav }: { proje
       usePortrait: box.portrait,
       mobileScrollSupport: false,
       maxShadowOpacity: 0.55,
-      flippingTime: 650,
+      flippingTime: matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 650,
       drawShadow: true,
       // Los gestos los maneja el lector (dirección lógica uniforme en cómic y manga).
       useMouseEvents: false,

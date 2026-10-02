@@ -4,6 +4,7 @@ import type { Page } from '../../types'
 import { useEditor } from '../../store/editor'
 import { getThumb, setThumb, subscribeThumbs, thumbIsFresh } from '../../lib/thumbs'
 import { renderPage } from '../../lib/render'
+import { useFocusTrap } from '../ui/useFocusTrap'
 import { cx, IconButton } from '../ui/controls'
 import { confirmDialog } from '../ui/Confirm'
 import { useReadingOverlay } from './Reader'
@@ -27,6 +28,8 @@ export function Overview({ onClose }: { onClose: () => void }) {
   const hasPagesClip = useEditor((s) => !!s.clipboard?.pages?.length)
   const s = useEditor.getState()
   useReadingOverlay()
+  const trapRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(trapRef)
   useSyncExternalStore(subscribeThumbs, () => project.pages.map((p) => getThumb(p.id) ?? '').join('|'))
   const [drag, setDrag] = useState<{ from: number; over: number } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -72,7 +75,7 @@ export function Overview({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink-950 text-ink-100" role="dialog" aria-modal="true" aria-label="Vista general de páginas">
+    <div ref={trapRef} tabIndex={-1} className="fixed inset-0 z-50 flex flex-col bg-ink-950 text-ink-100" role="dialog" aria-modal="true" aria-label="Vista general de páginas">
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-ink-700 bg-ink-900 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <button onClick={onClose} className="flex h-9 items-center gap-1.5 rounded-lg bg-ink-700 px-3 text-sm hover:bg-ink-600" aria-label="Volver al editor">
           <ArrowLeft size={16} /> Volver
@@ -173,7 +176,7 @@ function OverviewCard(props: {
         </div>
       </button>
       <div className="flex items-center gap-1 text-[11px]">
-        <span className={cx('font-semibold tabular-nums', props.active ? 'text-accent' : 'text-ink-300')}>{index + 1}</span>
+        <span className={cx('font-semibold tabular-nums', props.active ? 'text-accent-bright' : 'text-ink-300')}>{index + 1}</span>
         {props.renaming ? (
           <input
             autoFocus

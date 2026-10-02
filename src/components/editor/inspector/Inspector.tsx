@@ -28,7 +28,7 @@ import { pickImageFor } from '../CanvasStage'
 
 export function Inspector() {
   return (
-    <aside data-tour="inspector" className="scroll-thin hidden w-72 shrink-0 overflow-y-auto border-l border-ink-700 bg-ink-850 xl:block">
+    <aside data-tour="inspector" aria-label="Propiedades" className="scroll-thin hidden w-72 shrink-0 overflow-y-auto border-l border-ink-700 bg-ink-850 xl:block">
       <InspectorBody />
     </aside>
   )
@@ -299,7 +299,7 @@ function ElementPanel({ el }: { el: ComicElement }) {
     <>
       <div className="flex items-center justify-between border-b border-ink-700 px-4 py-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold tracking-wider text-accent uppercase">{TYPE_LABEL[el.type]}</div>
+          <div className="text-[10px] font-semibold tracking-wider text-accent-bright uppercase">{TYPE_LABEL[el.type]}</div>
           <div className="truncate text-sm font-medium text-white">{el.name}</div>
         </div>
         <div className="flex">

@@ -103,7 +103,7 @@ function build(){const st=$('stage');st.style.setProperty('--bar',(document.quer
  const pw=Math.floor(portrait?Math.min(W,H*D.ratio):Math.min(W/2,H*D.ratio)),ph=Math.floor(pw/D.ratio);
  if(pf){cur=pf.getCurrentPageIndex();try{pf.destroy()}catch(e){}}st.innerHTML='<div id="book"></div>';const book=$('book');
  const els=order.map((k,i)=>{const d=document.createElement('div');d.className='page';d.dataset.density=(i===0||i===N-1)?'hard':'soft';const im=document.createElement('img');im.src=D.pages[k];im.alt=D.names[k];d.appendChild(im);book.appendChild(d);return d});
- pf=new St.PageFlip(book,{width:pw,height:ph,size:'fixed',showCover:true,usePortrait:portrait,mobileScrollSupport:false,maxShadowOpacity:.55,flippingTime:650,startPage:cur,autoSize:false,useMouseEvents:false});
+ pf=new St.PageFlip(book,{width:pw,height:ph,size:'fixed',showCover:true,usePortrait:portrait,mobileScrollSupport:false,maxShadowOpacity:.55,flippingTime:matchMedia('(prefers-reduced-motion: reduce)').matches?1:650,startPage:cur,autoSize:false,useMouseEvents:false});
  pf.loadFromHTML(els);if(pf.getCurrentPageIndex()!==cur)pf.turnToPage(cur);pf.on('flip',e=>{cur=e.data;sync()});sync()}
 // Avanzar (+1) siempre es ir a la página siguiente de la historia, en cómic y en manga.
 function step(s){if(!pf||!s)return;((s===1)!==D.rtl)?pf.flipNext('bottom'):pf.flipPrev('bottom')}

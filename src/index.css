@@ -9,13 +9,16 @@
   --color-ink-800: #1c1c22;
   --color-ink-700: #26262e;
   --color-ink-600: #34343e;
-  --color-ink-500: #4a4a56;
-  --color-ink-400: #71717d;
-  --color-ink-300: #a1a1ab;
+  /* Grises de texto con contraste AA (≥ 4,5:1) sobre los fondos oscuros de la app. */
+  --color-ink-500: #8b8b98;
+  --color-ink-400: #9b9ba7;
+  --color-ink-300: #b4b4bd;
   --color-ink-200: #d4d4d9;
   --color-ink-100: #ececef;
-  --color-accent: #ff5a36;
-  --color-accent-hover: #ff7352;
+  /* Acento: fondo de botones con texto blanco (4,7:1). Para texto/íconos sobre oscuro, accent-bright. */
+  --color-accent: #d23f19;
+  --color-accent-hover: #bd3714;
+  --color-accent-bright: #ff6a48;
   --color-accent-soft: rgb(255 90 54 / 0.14);
   --color-mate: #34d399;
 }
@@ -119,4 +122,30 @@ input[type='color']::-moz-color-swatch {
 }
 .flip-page[data-density='hard'] {
   background: #111;
+}
+
+/* Foco visible para teclado: contorno grueso, no sólo cambio de color. */
+:focus-visible {
+  outline: 3px solid var(--color-accent-bright);
+  outline-offset: 2px;
+}
+
+/* Menos movimiento si la persona lo pide en su sistema. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.sr-only-focusable:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }

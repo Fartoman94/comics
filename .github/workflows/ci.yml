@@ -30,6 +30,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Tests E2E (Playwright)
         run: npm run test:e2e
+      - name: Tests sobre el build de producción (CSP, 404, actualización, sin conexión)
+        run: npx playwright test -c playwright.prod.config.ts
+      - name: Tamaño de los bundles
+        run: ls -l dist/assets | awk '{print $5, $9}' | sort -n
       - name: Reporte de Playwright
         if: failure()
         uses: actions/upload-artifact@v4

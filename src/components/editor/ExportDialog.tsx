@@ -139,7 +139,8 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             {phase.result.files.length} {phase.result.files.length === 1 ? 'archivo' : 'archivos'} · {formatBytes(phase.result.files.reduce((s, f) => s + f.blob.size, 0))} en total
           </p>
           <div className="flex flex-wrap justify-end gap-2">
-            {phase.result.download.name.match(/\.(pdf|html|png|jpg)$/) ? (
+            {/* El libro .html se abre descargado (la vista previa en esta pestaña quedaría limitada por la CSP del sitio). */}
+            {phase.result.download.name.match(/\.(pdf|png|jpg)$/) ? (
               <Button variant="ghost" onClick={() => preview(phase.result.download.blob)}>
                 <Eye size={15} /> Abrir vista previa
               </Button>
@@ -170,7 +171,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 onClick={() => setPreset(o.id)}
                 className={cx('flex items-start gap-3 rounded-xl border p-3 text-left transition-colors disabled:opacity-50', preset === o.id ? 'border-accent bg-accent-soft' : 'border-ink-700 hover:border-ink-500 hover:bg-ink-800')}
               >
-                <span className="mt-0.5 text-accent">{o.icon}</span>
+                <span className="mt-0.5 text-accent-bright">{o.icon}</span>
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-white">{o.title}</span>
                   <span className="block text-[11px] text-ink-300">{o.detail}</span>
@@ -220,6 +221,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
             </div>
           )}
 
+          {!navigator.onLine && (
+            <p className="rounded-lg bg-ink-900 p-2 text-[11px] text-ink-300" role="note">
+              Sin conexión: las exportaciones que ya usaste en esta versión funcionan; las demás necesitan internet la primera vez para descargar su motor (PDF, ZIP).
+            </p>
+          )}
           {summary && !running && (
             <p className="text-xs text-ink-300" data-testid="resumen-exportacion">
               Se va a generar {summary.files === 1 ? '1 archivo' : `${summary.files} archivos`} · {summary.dims} · aprox. {formatBytes(Math.round(summary.bytes))}

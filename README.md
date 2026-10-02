@@ -74,11 +74,27 @@ Todo vive en IndexedDB del navegador (nada se sube a un servidor):
 - **Dos pestañas:** si un proyecto ya está abierto en otra pestaña (BroadcastChannel), la nueva abre en solo lectura y ofrece "Editar en esta pestaña"; la otra pasa a solo lectura. Nunca gana en silencio el último guardado.
 - **Centro de recuperación** (inicio o Ayuda): uso de almacenamiento, almacenamiento persistente, proyectos sanos y dañados, guardados fallidos, instantáneas, copia de seguridad completa (.zip) y restauración validada.
 
+## Seguridad, rendimiento y uso sin conexión
+
+- **Headers** (`security-headers.json`, aplicados en `vercel.json` y en `vite preview`):
+  - CSP sin `unsafe-eval` ni scripts inline, `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y COOP.
+  - Sin rewrite global: un asset que no existe devuelve 404.
+- **Carga:**
+  - El inicio no trae el editor, Konva ni los exportadores: se cargan al usarlos.
+  - Las fuentes de rotulado y CJK se piden a Google Fonts recién cuando se usan; el inicio sólo carga Inter y Bangers.
+  - Los filtros de imagen se previsualizan en resolución reducida mientras se mueve el slider.
+- **Actualizaciones:** si un chunk viejo ya no existe después de un deploy, la app guarda y recarga una vez, sin pantalla en blanco.
+- **PWA:**
+  - El service worker (`public/sw.js`) va primero a la red para el HTML y a la caché para `/assets/*` con hash. Nunca guarda respuestas de error.
+  - No se activa solo: la app avisa "Hay una versión nueva" y recarga después de guardar.
+  - Sin conexión abren la app, los proyectos locales y el editor. Las exportaciones necesitan haber descargado su motor alguna vez.
+
 ## Tests
 
 ```bash
 npm test            # unitarios (Vitest + fake-indexeddb)
 npm run test:e2e    # Playwright: escritorio, celular 390×844 y tablet 820×1180 táctiles
+npx playwright test -c playwright.prod.config.ts   # sobre el build: CSP, 404, actualización y sin conexión
 # con Chrome del sistema: PW_CHROME=/usr/bin/google-chrome npm run test:e2e
 ```
 

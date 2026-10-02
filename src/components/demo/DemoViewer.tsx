@@ -45,7 +45,7 @@ export function DemoViewer() {
       <div className="grid h-full place-items-center p-6 text-center text-sm text-ink-300">
         <div>
           <p>{error}</p>
-          <a href="#/" className="mt-3 inline-block text-accent">
+          <a href="#/" className="mt-3 inline-block text-accent-bright">
             Volver al inicio
           </a>
         </div>

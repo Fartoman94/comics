@@ -2,7 +2,8 @@ import { Brush, Layers } from 'lucide-react'
 import type { BubbleShape, EffectKind, TextElement } from '../../../types'
 import { currentPage, placementFor, useEditor } from '../../../store/editor'
 import { createBubble, createDrawing, createEffect, createText, TEXT_PRESETS } from '../../../lib/factories'
-import { detectScript, ensureGlyphs } from '../../../lib/fonts'
+import { detectScript, ensureGlyphs, requireFonts } from '../../../lib/fonts'
+import { useEffect } from 'react'
 import { Section } from '../../ui/controls'
 
 const BUBBLES: { shape: BubbleShape; label: string; path: string; dash?: boolean }[] = [
@@ -97,6 +98,8 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
   const format = useEditor((s) => s.project!.format)
   const scale = format.width / 900
   const add = useEditor((s) => s.addElements)
+  // Las fuentes de las onomatopeyas se piden recién cuando se abre este panel.
+  useEffect(() => requireFonts([...SFX.map((g) => g.font), ...TEXT_PRESETS.map((p) => p.patch.fontFamily ?? '')]), [])
   // Cada inserción busca un lugar libre y visible (en la viñeta seleccionada, si hay una).
   const center = (w: number, h: number) => placementFor(w, h)
 
@@ -230,7 +233,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
             }}
             className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent"
           >
-            <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent">
+            <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent-bright">
               <Layers size={16} />
             </span>
             <span>
@@ -239,7 +242,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
             </span>
           </button>
           <button onClick={() => useEditor.getState().setTool('brush')} className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent">
-            <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent">
+            <span className="flex size-8 items-center justify-center rounded-md bg-ink-700 text-accent-bright">
               <Brush size={16} />
             </span>
             <span>

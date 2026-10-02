@@ -54,13 +54,13 @@ export function MobileBar() {
             key={t.id}
             data-tour={`tab-${t.id}`}
             onClick={() => setSheet(sheet === t.id ? null : t.id)}
-            className={cx('flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] lg:hidden', sheet === t.id ? 'text-accent' : 'text-ink-300')}
+            className={cx('flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] lg:hidden', sheet === t.id ? 'text-accent-bright' : 'text-ink-300')}
           >
             {t.icon}
             {t.label}
           </button>
         ))}
-        <button data-tour="inspector" onClick={() => setSheet(sheet === 'props' ? null : 'props')} className={cx('flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px]', sheet === 'props' ? 'text-accent' : 'text-ink-300')}>
+        <button data-tour="inspector" onClick={() => setSheet(sheet === 'props' ? null : 'props')} className={cx('flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px]', sheet === 'props' ? 'text-accent-bright' : 'text-ink-300')}>
           <SlidersHorizontal size={16} />
           Ajustes
         </button>

@@ -44,7 +44,7 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
             </button>
           ))}
           {canTour && mode === 'studio' && (
-            <button onClick={startTour} className="mt-1 flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-accent hover:bg-accent-soft sm:mt-auto">
+            <button onClick={startTour} className="mt-1 flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-accent-bright hover:bg-accent-soft sm:mt-auto">
               <PlayCircle size={15} /> Ver el tour guiado
             </button>
           )}
@@ -75,7 +75,7 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
           <ol className="mt-5 space-y-4">
             {current.steps.map((s, i) => (
               <li key={s.title} className="flex gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink-800 text-xs font-semibold text-accent ring-1 ring-ink-700">{i + 1}</span>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink-800 text-xs font-semibold text-accent-bright ring-1 ring-ink-700">{i + 1}</span>
                 <div>
                   <div className="text-sm font-medium text-white">{s.title}</div>
                   <p className="mt-0.5 text-[13px] leading-relaxed text-ink-300">{s.body}</p>
