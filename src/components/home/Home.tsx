@@ -3,6 +3,7 @@ import { AlertTriangle, BookOpen, CircleHelp, Copy, Download, FileUp, MoreHorizo
 import type { Project } from '../../types'
 import { deleteDamagedProject, deleteProject, downloadBlob, duplicateProject, exportRawProjectFile, importProjectFile, listAllProjects, type DamagedProject } from '../../lib/storage'
 import { ProjectFileError } from '../../lib/projectSchema'
+import { settleSaves } from '../../lib/persistence'
 import { exportProject } from '../../lib/export'
 import { navigateToProject } from '../../lib/nav'
 import { PROJECT_KINDS } from '../../lib/formats'
@@ -37,8 +38,10 @@ export function Home({ notFound }: { notFound?: boolean }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const toast = useEditor((s) => s.toast)
 
+  // Espera los guardados pendientes (p. ej. al volver con Atrás) para no listar datos viejos.
   const refresh = () =>
-    void listAllProjects()
+    void settleSaves()
+      .then(listAllProjects)
       .then(({ projects, damaged }) => {
         setProjects(projects)
         setDamaged(damaged)

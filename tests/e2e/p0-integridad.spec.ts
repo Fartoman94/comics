@@ -50,8 +50,11 @@ test('A2 · editar y apretar Atrás antes de 800 ms no pierde el cambio', async 
   await page.locator('body').click({ position: { x: 5, y: 450 } })
   await inApp(page, `s.select([arg])`, elId)
   for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight')
+  await page.getByRole('textbox', { name: 'Título del proyecto' }).fill('Título cambiado')
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Tus proyectos' })).toBeVisible()
+  // El inicio ya muestra el dato nuevo (no una lista leída antes de terminar el guardado).
+  await expect(projectCard(page, 'Título cambiado')).toBeVisible()
   await expect.poll(async () => (await storedProject(page, id))!.pages[0].elements.find((e) => e.id === elId)!.x).toBe(x0 + 50)
   await page.reload()
   await openProject(page, id)
