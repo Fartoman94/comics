@@ -10,6 +10,8 @@ import { ToolRail } from './ToolRail'
 import { Sidebar } from './sidebar/Sidebar'
 import { Inspector } from './inspector/Inspector'
 import { Reader } from './Reader'
+import { Preview } from './Preview'
+import { Overview } from './Overview'
 import { CropBar } from './CropBar'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { MobileBar } from './MobileBar'
@@ -19,7 +21,10 @@ import { HelpGuide } from '../help/HelpGuide'
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
 
 export function Editor() {
-  const [reading, setReading] = useState(false)
+  // Vistas: edición (por defecto), lectura, previsualización y vista general.
+  const [view, setView] = useState<'edit' | 'read' | 'preview' | 'overview'>('edit')
+  const pageIndex = useEditor((s) => Math.max(0, s.project?.pages.findIndex((p) => p.id === s.pageId) ?? 0))
+  const backToEdit = useCallback(() => setView('edit'), [])
   const [shortcuts, setShortcuts] = useState(false)
   const openShortcuts = useCallback(() => setShortcuts(true), [])
   useAutosave()
@@ -29,7 +34,7 @@ export function Editor() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
-      <TopBar onRead={() => setReading(true)} onShortcuts={openShortcuts} />
+      <TopBar onRead={() => setView('read')} onPreview={() => setView('preview')} onOverview={() => setView('overview')} onShortcuts={openShortcuts} />
       <div className="flex min-h-0 flex-1">
         <ToolRail />
         <Sidebar />
@@ -40,7 +45,9 @@ export function Editor() {
         <Inspector />
       </div>
       <MobileBar />
-      {reading && <Reader onClose={() => setReading(false)} />}
+      {view === 'read' && <Reader onClose={backToEdit} startPage={pageIndex} />}
+      {view === 'preview' && <Preview onClose={backToEdit} />}
+      {view === 'overview' && <Overview onClose={backToEdit} />}
       <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
       <HelpGuide canTour />
       <Tour />
