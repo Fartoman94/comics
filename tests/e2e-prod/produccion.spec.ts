@@ -99,3 +99,37 @@ test('sin conexión: abre la app, lista los proyectos locales y el editor', asyn
   await expect(page.locator('[data-tour=canvas]')).toBeVisible({ timeout: 20_000 })
   await context.setOffline(false)
 })
+
+test('primera visita: el service worker toma el control sin recargar la página', async ({ page }) => {
+  await prepare(page)
+  let navigations = 0
+  page.on('framenavigated', (f) => f === page.mainFrame() && navigations++)
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Tus proyectos' })).toBeVisible()
+  // El usuario empieza a crear un proyecto mientras el service worker se instala.
+  await page.getByRole('button', { name: 'Nuevo proyecto' }).first().click()
+  await expect(page.getByRole('button', { name: 'Crear rápido' })).toBeVisible()
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 30_000 })
+  await page.waitForTimeout(1500)
+  expect(navigations).toBe(1)
+  await expect(page.getByRole('button', { name: 'Crear rápido' })).toBeVisible()
+})
+
+test('versión nueva: avisa, y sólo al aceptar guarda y recarga una vez', async ({ page }) => {
+  await prepare(page)
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Tus proyectos' })).toBeVisible()
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 30_000 })
+  let navigations = 0
+  page.on('framenavigated', (f) => f === page.mainFrame() && navigations++)
+  // Simula un deploy: el mismo registro pasa a un sw.js con otra versión.
+  await page.evaluate(() => navigator.serviceWorker.register('/sw.js?v=deploy-nuevo'))
+  const update = page.getByRole('button', { name: 'Actualizar' })
+  await expect(update).toBeVisible({ timeout: 30_000 })
+  await page.waitForTimeout(1000)
+  expect(navigations).toBe(0) // instalada y esperando: no recarga sola
+  await update.click()
+  await expect.poll(() => navigations, { timeout: 15_000 }).toBe(1)
+  await expect(page.getByRole('heading', { name: 'Tus proyectos' })).toBeVisible()
+  expect(await page.evaluate(() => new URL(navigator.serviceWorker.controller!.scriptURL).searchParams.get('v'))).toBe('deploy-nuevo')
+})
