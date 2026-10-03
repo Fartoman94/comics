@@ -93,7 +93,10 @@ export function canvasPoint(page: Page, target: string | { x: number; y: number 
   return page.evaluate(async (target) => {
     const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => /\/konva\.js/.test(n))!
     const Konva = (await import(/* @vite-ignore */ url)).default
-    const stage = Konva.stages[Konva.stages.length - 1]
+    // El stage del lienzo visible: la app también crea stages temporales fuera de pantalla
+    // (miniaturas, exportación) y el último de la lista puede ser uno de esos.
+    const canvas = document.querySelector('[data-tour=canvas]')
+    const stage = [...Konva.stages].reverse().find((st) => canvas?.contains(st.container())) ?? Konva.stages[Konva.stages.length - 1]
     const box = stage.container().getBoundingClientRect()
     if (typeof target === 'string') {
       const r = stage.findOne('#' + target).getClientRect()

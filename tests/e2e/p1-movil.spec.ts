@@ -161,7 +161,7 @@ test.describe('modo simple en 390×844', () => {
     const pt = await page.evaluate(async (id) => {
       const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => /\/konva\.js/.test(n))!
       const K = (await import(/* @vite-ignore */ url)).default
-      const st = K.stages[K.stages.length - 1]
+      const st = [...K.stages].reverse().find((x: { container(): Element }) => document.querySelector('[data-tour=canvas]')?.contains(x.container())) ?? K.stages[K.stages.length - 1]
       const r = st.findOne('#' + id).getClientRect()
       const b = st.container().getBoundingClientRect()
       return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height / 2, empty: { x: b.left + 8, y: b.top + 8 } }

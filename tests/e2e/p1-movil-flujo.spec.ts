@@ -26,7 +26,7 @@ test.describe('flujo completo sólo con el dedo (390×844)', () => {
     const p = await page.evaluate(async (id) => {
       const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => /\/konva\.js/.test(n))!
       const K = (await import(/* @vite-ignore */ url)).default
-      const st = K.stages[K.stages.length - 1]
+      const st = [...K.stages].reverse().find((x: { container(): Element }) => document.querySelector('[data-tour=canvas]')?.contains(x.container())) ?? K.stages[K.stages.length - 1]
       const r = st.findOne('#' + id).getClientRect()
       const b = st.container().getBoundingClientRect()
       return { x: b.left + r.x + r.width / 2, y: b.top + r.y + r.height / 2 }
