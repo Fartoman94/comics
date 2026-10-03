@@ -224,7 +224,7 @@ test('@movil ningún control queda cortado a lo ancho: inicio, asistente, editor
   await expect(page.locator('[data-ui-mode]')).toBeVisible()
   await page.waitForTimeout(500)
   for (const mode of ['simple', 'studio'] as const) {
-    await page.evaluate(async (mode) => (await import(/* @vite-ignore */ '/src/store/ui.ts')).useUi.getState().setMode(mode), mode)
+    await page.evaluate(async ([mode, path]) => (await import(/* @vite-ignore */ path)).useUi.getState().setMode(mode), [mode, '/src/store/ui.ts'] as const)
     await expect(page.locator(`[data-ui-mode=${mode}]`)).toBeVisible()
     await page.waitForTimeout(300)
     expect(await clippedControls(page), `editor ${mode}`).toEqual([])
