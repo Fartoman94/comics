@@ -175,7 +175,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-white">{o.title}</span>
                   <span className="block text-[11px] text-ink-300">{o.detail}</span>
-                  <span className="block text-[11px] text-ink-500">{o.use}</span>
+                  <span className="block text-[11px] text-ink-400">{o.use}</span>
                 </span>
               </button>
             ))}
