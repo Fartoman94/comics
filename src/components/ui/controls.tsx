@@ -262,12 +262,12 @@ export function Menu({ trigger, children, align = 'left' }: { trigger: (open: bo
   )
 }
 
-export function MenuItem({ icon, label, hint, onClick, disabled, danger }: { icon?: ReactNode; label: string; hint?: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+export function MenuItem({ icon, label, hint, onClick, disabled, danger, className }: { icon?: ReactNode; label: string; hint?: string; onClick: () => void; disabled?: boolean; danger?: boolean; className?: string }) {
   return (
     <button
       disabled={disabled}
       onClick={onClick}
-      className={cx('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-ink-700 disabled:opacity-40 pointer-coarse:min-h-11', danger ? 'text-red-300' : 'text-ink-100')}
+      className={cx('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-colors hover:bg-ink-700 disabled:opacity-40 pointer-coarse:min-h-11', danger ? 'text-red-300' : 'text-ink-100', className)}
     >
       {icon && <span className="text-ink-300">{icon}</span>}
       <span className="flex-1">{label}</span>

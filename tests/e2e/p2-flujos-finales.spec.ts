@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import JSZip from 'jszip'
-import { canvasPoint, exportPreset, FIXTURES, gotoHome, inApp, openView, projectCard, skipTour } from './helpers'
+import { canvasPoint, clippedControls, exportPreset, FIXTURES, gotoHome, inApp, openView, projectCard, skipTour } from './helpers'
 
 // Validación final (etapa 09): los recorridos completos de punta a punta, con los archivos
 // exportados abiertos y verificados, no sólo descargados.
@@ -212,4 +212,24 @@ test.describe('tablet 820×1180 táctil', () => {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await expect.poll(state).not.toBe(start)
   })
+})
+
+test('@movil ningún control queda cortado a lo ancho: inicio, asistente, editor simple y estudio', async ({ page }) => {
+  await gotoHome(page)
+  expect(await clippedControls(page), 'inicio vacío').toEqual([])
+  await page.getByRole('button', { name: 'Nuevo proyecto' }).first().click()
+  await expect(page.getByRole('button', { name: 'Crear rápido' })).toBeVisible()
+  expect(await clippedControls(page), 'proyecto nuevo').toEqual([])
+  await page.getByRole('button', { name: 'Crear rápido' }).click()
+  await expect(page.locator('[data-ui-mode]')).toBeVisible()
+  await page.waitForTimeout(500)
+  for (const mode of ['simple', 'studio'] as const) {
+    await page.evaluate(async (mode) => (await import(/* @vite-ignore */ '/src/store/ui.ts')).useUi.getState().setMode(mode), mode)
+    await expect(page.locator(`[data-ui-mode=${mode}]`)).toBeVisible()
+    await page.waitForTimeout(300)
+    expect(await clippedControls(page), `editor ${mode}`).toEqual([])
+  }
+  await page.getByTitle('Volver a mis proyectos').first().click()
+  await expect(page.getByRole('heading', { name: 'Tus proyectos' })).toBeVisible()
+  expect(await clippedControls(page), 'inicio con proyecto').toEqual([])
 })
