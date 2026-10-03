@@ -33,7 +33,7 @@ export function TopBar({ nav }: { nav: EditorNav }) {
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-ink-700 bg-ink-900 px-2">
       <button onClick={() => void goHome()} className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-ink-700" title="Volver a mis proyectos">
         <AppLogo className="size-7" />
-        <LayoutDashboard size={14} className="text-ink-400" />
+        <LayoutDashboard size={14} className="hidden text-ink-400 sm:block" />
       </button>
       <div className="h-5 w-px bg-ink-700" />
       <input
@@ -82,22 +82,22 @@ export function TopBar({ nav }: { nav: EditorNav }) {
         </IconButton>
       </div>
 
-      <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide()} data-tour="help" title="Guía de uso" aria-label="Ayuda">
+      <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide()} data-tour="help" title="Guía de uso" aria-label="Ayuda" className="max-sm:hidden">
         <CircleHelp size={15} /> <span className="hidden sm:inline">Ayuda</span>
       </Button>
-      <Button variant="ghost" size="sm" onClick={onOverview} title="Vista general de páginas" aria-label="Vista general" className="hidden md:inline-flex">
+      <Button variant="ghost" size="sm" onClick={onOverview} title="Vista general de páginas" aria-label="Vista general" className="max-md:hidden">
         <Grid2x2 size={15} /> <span className="hidden xl:inline">Vista general</span>
       </Button>
-      <Button variant="ghost" size="sm" onClick={onPreview} title="Previsualizar sin guías ni selección" aria-label="Previsualizar">
+      <Button variant="ghost" size="sm" onClick={onPreview} title="Previsualizar sin guías ni selección" aria-label="Previsualizar" className="max-sm:hidden">
         <Eye size={15} /> <span className="hidden lg:inline">Previsualizar</span>
       </Button>
-      <Button variant="ghost" size="sm" onClick={onRead} data-tour="read" title="Leer como libro" aria-label="Leer">
+      <Button variant="ghost" size="sm" onClick={onRead} data-tour="read" title="Leer como libro" aria-label="Leer" className="max-sm:hidden">
         <BookOpenText size={15} /> <span className="hidden sm:inline">Leer</span>
       </Button>
       <Menu
         align="right"
         trigger={(_, toggle) => (
-          <Button variant="primary" size="sm" onClick={toggle} data-tour="export" aria-label="Exportar">
+          <Button variant="primary" size="sm" onClick={toggle} data-tour="export" aria-label="Exportar" className="shrink-0">
             <Download size={15} /> <span className="hidden sm:inline">Exportar</span> <ChevronDown size={13} />
           </Button>
         )}
@@ -108,6 +108,7 @@ export function TopBar({ nav }: { nav: EditorNav }) {
             <MenuItem label="Ver lectura" onClick={() => (close(), onRead())} icon={<BookOpenText size={14} />} />
             <MenuItem label="Previsualizar" onClick={() => (close(), onPreview())} icon={<Eye size={14} />} />
             <MenuItem label="Vista general" onClick={() => (close(), onOverview())} icon={<Grid2x2 size={14} />} />
+            <MenuItem label="Ayuda" hint="Guía de uso" onClick={() => (close(), useHelp.getState().openGuide())} icon={<CircleHelp size={14} />} className="sm:hidden" />
             <MenuItem label="Modo simple" hint="Menos botones, lienzo más grande" onClick={() => (close(), useUi.getState().setMode('simple'))} icon={<Smartphone size={14} />} />
           </>
         )}

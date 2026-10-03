@@ -118,3 +118,29 @@ export async function exportPreset(page: Page, preset: RegExp) {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90_000 }), page.getByRole('dialog', { name: 'Exportar' }).getByRole('button', { name: 'Exportar', exact: true }).click()])
   return dl
 }
+
+/**
+ * Botones y links visibles cortados a lo ancho de la pantalla. Sólo se excluyen los que están
+ * dentro de una tira con scroll sólo horizontal (ahí cortarse es esperable). Un contenedor con
+ * scroll vertical que además se desplaza a lo ancho NO cuenta: eso es un desborde.
+ */
+export function clippedControls(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('button, a[href], [role=button], [role=tab], input:not([type=hidden])')]
+      .filter((e) => {
+        const r = e.getBoundingClientRect()
+        if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight || e.closest('[aria-hidden=true],[inert]')) return false
+        const cs = getComputedStyle(e)
+        if (cs.visibility === 'hidden' || cs.opacity === '0') return false
+        for (let p = e.parentElement; p; p = p.parentElement) {
+          const ps = getComputedStyle(p)
+          if (/(auto|scroll)/.test(ps.overflowX) && !/(auto|scroll)/.test(ps.overflowY) && p.scrollWidth > p.clientWidth + 1) return false
+        }
+        // Tapado por un diálogo u hoja modal: no es un control al alcance.
+        const hit = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)))
+        if (hit && !e.contains(hit) && !hit.contains(e) && hit.closest('[role=dialog]') && !e.closest('[role=dialog]')) return false
+        return r.right > innerWidth + 1 || r.left < -1
+      })
+      .map((e) => (e.getAttribute('aria-label') || e.textContent || e.tagName).trim().slice(0, 40)),
+  )
+}

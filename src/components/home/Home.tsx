@@ -169,14 +169,15 @@ export function Home({ notFound }: { notFound?: boolean }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Wordmark />
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => useHelp.getState().openGuide('start')} className="hidden sm:inline-flex">
-              <CircleHelp size={16} /> Cómo se usa
+            {/* En el celular sólo íconos: el botón principal nunca queda cortado. */}
+            <Button variant="ghost" onClick={() => useHelp.getState().openGuide('start')} title="Cómo se usa" className="max-sm:px-2.5">
+              <CircleHelp size={16} /> <span className="max-sm:sr-only">Cómo se usa</span>
             </Button>
-            <Button variant="ghost" onClick={() => fileRef.current?.click()} className="hidden sm:inline-flex">
-              <FileUp size={16} /> Importar
+            <Button variant="ghost" onClick={() => fileRef.current?.click()} title="Importar un proyecto (.vineta)" className="max-sm:px-2.5">
+              <FileUp size={16} /> <span className="max-sm:sr-only">Importar</span>
             </Button>
-            <Button variant="primary" onClick={() => setNewOpen(true)}>
-              <Plus size={16} /> Nuevo proyecto
+            <Button variant="primary" onClick={() => setNewOpen(true)} aria-label="Nuevo proyecto" className="max-sm:px-3">
+              <Plus size={16} /> Nuevo<span className="max-sm:hidden"> proyecto</span>
             </Button>
           </div>
           <input ref={fileRef} type="file" accept=".vineta,application/json" hidden onChange={(e) => void onImport(e.target.files?.[0])} />

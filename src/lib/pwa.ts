@@ -10,12 +10,18 @@ export function registerServiceWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
   window.addEventListener('load', async () => {
     try {
+      // Sólo se recarga cuando el usuario aceptó la versión nueva en esta pestaña. En la primera
+      // visita el service worker toma el control (clients.claim) y eso NO debe recargar: cortaría
+      // lo que el usuario esté haciendo.
+      let accepted = false
+      const hadController = !!navigator.serviceWorker.controller
       const reg = await navigator.serviceWorker.register(`/sw.js?v=${__BUILD_ID__}`)
       const offer = (w: ServiceWorker) =>
         useEditor.getState().toast('Hay una versión nueva de Viñeta Studio.', 'info', {
           label: 'Actualizar',
           run: async () => {
             await useEditor.getState().saveNow()
+            accepted = true
             w.postMessage('SKIP_WAITING')
           },
         })
@@ -27,8 +33,19 @@ export function registerServiceWorker() {
       let reloading = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (reloading) return
-        reloading = true
-        location.reload()
+        if (accepted) {
+          reloading = true
+          location.reload()
+        } else if (hadController) {
+          // Otra pestaña activó la versión nueva: avisar, sin recargar por sorpresa.
+          useEditor.getState().toast('Viñeta Studio se actualizó en otra pestaña.', 'info', {
+            label: 'Recargar',
+            run: async () => {
+              await useEditor.getState().saveNow()
+              location.reload()
+            },
+          })
+        }
       })
       // Buscar versiones nuevas de vez en cuando y al volver a la pestaña.
       setInterval(() => void reg.update().catch(() => undefined), 30 * 60_000)
