@@ -78,6 +78,8 @@ interface EditorState {
   urgentSave: number
   /** Cambia cada vez que el canvas pide encajar la página en pantalla. */
   fitRequest: number
+  /** Cómo encajar: la página entera o a lo ancho. */
+  fitMode: 'page' | 'width'
   /** Parte de la página que se ve en pantalla (coordenadas de página). */
   visibleRect: { x: number; y: number; width: number; height: number } | null
 
@@ -96,7 +98,7 @@ interface EditorState {
   setBrush(b: Partial<BrushSettings>): void
   setView(v: Partial<ViewOptions>): void
   setZoom(z: number): void
-  requestFit(): void
+  requestFit(mode?: 'page' | 'width'): void
   setCropping(id: string | null): void
   setEditingText(id: string | null): void
   setSaveStatus(s: SaveStatus): void
@@ -181,6 +183,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   toasts: [],
   urgentSave: 0,
   fitRequest: 0,
+  fitMode: 'page',
   visibleRect: null,
 
   openProject: (p) => {
@@ -197,6 +200,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       croppingPanelId: null,
       editingTextId: null,
       fitRequest: get().fitRequest + 1,
+      fitMode: 'page',
       readerOpen: false,
       readOnly: false,
     })
@@ -286,7 +290,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setBrush: (b) => set({ brush: { ...get().brush, ...b } }),
   setView: (v) => set({ view: { ...get().view, ...v } }),
   setZoom: (z) => set({ zoom: z }),
-  requestFit: () => set({ fitRequest: get().fitRequest + 1 }),
+  requestFit: (mode = 'page') => set({ fitRequest: get().fitRequest + 1, fitMode: mode }),
   setCropping: (id) => set({ croppingPanelId: id, selection: id ? [id] : get().selection }),
   setEditingText: (id) => set({ editingTextId: id }),
   setSaveStatus: (s) => set({ saveStatus: s }),
