@@ -45,10 +45,10 @@ const toBlob = (c: HTMLCanvasElement, mime: string, quality?: number) =>
   new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new ExportError('El navegador no pudo generar la imagen (memoria insuficiente).'))), mime, quality))
 
 /** Dibuja una página; si falla, el error dice cuál (nunca se entrega un archivo incompleto). */
-async function page(project: Project, index: number, ratio: number) {
+async function page(project: Project, index: number, ratio: number, transparent = false) {
   const p = project.pages[index]
   try {
-    return await renderPageCanvas(project, p, ratio)
+    return await renderPageCanvas(project, p, ratio, { transparent })
   } catch (e) {
     console.error(e)
     throw new ExportError(`No se pudo dibujar la página ${index + 1} («${p.name}»). No se generó ningún archivo.`)
@@ -58,7 +58,7 @@ async function page(project: Project, index: number, ratio: number) {
 const base = (p: Project) => safeFilename(p.title)
 
 /** PDF página por página (sin retener todas las imágenes). En manga declara lectura de derecha a izquierda. */
-export async function exportPDF(project: Project, quality: 'web' | 'print' = 'print', ctx: ExportCtx = {}): Promise<ExportResult> {
+export async function exportPDF(project: Project, quality: 'web' | 'print' = 'print', ctx: ExportCtx = {}, pages?: number[]): Promise<ExportResult> {
   const { jsPDF } = await import('jspdf')
   const { width, height } = project.format
   const orientation = width > height ? 'landscape' : 'portrait'
@@ -66,14 +66,15 @@ export async function exportPDF(project: Project, quality: 'web' | 'print' = 'pr
   pdf.setProperties({ title: project.title, author: project.author, subject: project.synopsis, creator: 'Viñeta Studio' })
   if (project.readingDirection === 'rtl') pdf.viewerPreferences({ Direction: 'R2L' }, true)
   const ratio = quality === 'print' ? 2 : 1
-  const n = project.pages.length
-  for (let i = 0; i < n; i++) {
+  const list = pageList(project, pages)
+  const n = list.length
+  for (let k = 0; k < n; k++) {
     check(ctx)
-    ctx.onProgress?.(i, n)
-    const canvas = await page(project, i, ratio)
+    ctx.onProgress?.(k, n)
+    const canvas = await page(project, list[k], ratio)
     const bytes = new Uint8Array(await (await toBlob(canvas, 'image/jpeg', quality === 'print' ? 0.92 : 0.82)).arrayBuffer())
     free(canvas)
-    if (i > 0) pdf.addPage([width, height], orientation)
+    if (k > 0) pdf.addPage([width, height], orientation)
     pdf.addImage(bytes, 'JPEG', 0, 0, width, height, undefined, 'FAST')
   }
   check(ctx)
@@ -82,13 +83,44 @@ export async function exportPDF(project: Project, quality: 'web' | 'print' = 'pr
   return { files: [file], download: file }
 }
 
-export async function exportPagePNG(project: Project, p: Page, pixelRatio = 2): Promise<ExportResult> {
+/** Opciones de imagen: formato, resolución (×1, ×2, ×3), calidad JPG y fondo transparente (sólo PNG). */
+export interface ImageOptions {
+  format: 'png' | 'jpg'
+  ratio: number
+  quality: number
+  transparent: boolean
+}
+export const DEFAULT_IMAGE: ImageOptions = { format: 'png', ratio: 2, quality: 0.92, transparent: false }
+
+/** Índices de página a exportar (todas si no se indica), sin repetir y en orden de lectura del proyecto. */
+export function pageList(project: Project, pages?: number[]) {
+  const n = project.pages.length
+  if (!pages?.length) return [...Array(n).keys()]
+  return [...new Set(pages.filter((i) => i >= 0 && i < n))].sort((a, b) => a - b)
+}
+
+/** Nombre determinista dentro del ZIP: pagina-001.png, pagina-002.png… (por posición en el proyecto). */
+export const zipPageName = (index: number, total: number, ext: string) => `pagina-${String(index + 1).padStart(Math.max(3, String(total).length), '0')}.${ext}`
+
+async function encode(project: Project, index: number, o: ImageOptions) {
+  // JPG no tiene transparencia: siempre lleva el fondo de la página.
+  const canvas = await page(project, index, o.ratio, o.format === 'png' && o.transparent)
+  try {
+    return await toBlob(canvas, o.format === 'png' ? 'image/png' : 'image/jpeg', o.format === 'jpg' ? o.quality : undefined)
+  } finally {
+    free(canvas)
+  }
+}
+
+/** Una página como PNG o JPG. */
+export async function exportPageImage(project: Project, p: Page, opts: Partial<ImageOptions> = {}): Promise<ExportResult> {
+  const o = { ...DEFAULT_IMAGE, ...opts }
   const index = project.pages.findIndex((x) => x.id === p.id)
-  const canvas = await page(project, index, pixelRatio)
-  const file = { name: numbered(base(project), index, project.pages.length, 'png'), blob: await toBlob(canvas, 'image/png') }
-  free(canvas)
+  const file = { name: numbered(base(project), index, project.pages.length, o.format), blob: await encode(project, index, o) }
   return { files: [file], download: file }
 }
+
+export const exportPagePNG = (project: Project, p: Page, pixelRatio = 2) => exportPageImage(project, p, { format: 'png', ratio: pixelRatio })
 
 async function zipFiles(name: string, files: ExportFile[]): Promise<ExportFile> {
   const { default: JSZip } = await import('jszip')
@@ -97,16 +129,16 @@ async function zipFiles(name: string, files: ExportFile[]): Promise<ExportFile> 
   return { name, blob: await zip.generateAsync({ type: 'blob', compression: 'STORE' }) }
 }
 
-/** Un PNG por página, numerados y ordenables (titulo-001.png…), en un ZIP. */
-export async function exportZIP(project: Project, ctx: ExportCtx = {}): Promise<ExportResult> {
-  const n = project.pages.length
+/** Una imagen por página (pagina-001.png…) en un ZIP. Las páginas pueden ser todas, una o un rango. */
+export async function exportZIP(project: Project, ctx: ExportCtx = {}, opts: Partial<ImageOptions> & { pages?: number[] } = {}): Promise<ExportResult> {
+  const o = { ...DEFAULT_IMAGE, ...opts }
+  const list = pageList(project, opts.pages)
+  const n = list.length
   const files: ExportFile[] = []
-  for (let i = 0; i < n; i++) {
+  for (let k = 0; k < n; k++) {
     check(ctx)
-    ctx.onProgress?.(i, n)
-    const canvas = await page(project, i, 2)
-    files.push({ name: numbered(base(project), i, n, 'png'), blob: await toBlob(canvas, 'image/png') })
-    free(canvas)
+    ctx.onProgress?.(k, n)
+    files.push({ name: zipPageName(list[k], project.pages.length, o.format), blob: await encode(project, list[k], o) })
   }
   check(ctx)
   ctx.onProgress?.(n, n)

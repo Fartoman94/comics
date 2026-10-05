@@ -60,17 +60,17 @@ export function renderPage(project: Project, page: Page, opts: RenderOpts = {}):
  * Igual, pero devuelve un canvas (para exportar sin pasar por dataURL). Quien lo pide lo libera
  * (canvas.width = 0) cuando termina.
  */
-export function renderPageCanvas(project: Project, page: Page, pixelRatio = 1): Promise<HTMLCanvasElement> {
-  return enqueue(project, page, (stage) => stage.toCanvas({ pixelRatio }))
+export function renderPageCanvas(project: Project, page: Page, pixelRatio = 1, opts: { transparent?: boolean } = {}): Promise<HTMLCanvasElement> {
+  return enqueue(project, page, (stage) => stage.toCanvas({ pixelRatio }), opts.transparent)
 }
 
-function enqueue<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T): Promise<T> {
-  const job = queue.then(() => withTimeout(doRender(project, page, out), 30000, `renderizar "${page.name}"`))
+function enqueue<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T, transparent = false): Promise<T> {
+  const job = queue.then(() => withTimeout(doRender(project, page, out, transparent), 30000, `renderizar "${page.name}"`))
   queue = job.catch(() => undefined)
   return job
 }
 
-async function doRender<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T): Promise<T> {
+async function doRender<T>(project: Project, page: Page, out: (stage: Konva.Stage) => T, transparent = false): Promise<T> {
   // Sólo en desarrollo: permite a los tests simular una página que no se puede dibujar.
   if (import.meta.env.DEV && (window as unknown as { __vinetaFallarPagina?: string }).__vinetaFallarPagina === page.id) throw new Error('fallo simulado')
   const families = page.elements.flatMap((el) => (el.type === 'text' || el.type === 'bubble' ? [el.fontFamily] : []))
@@ -94,7 +94,7 @@ async function doRender<T>(project: Project, page: Page, out: (stage: Konva.Stag
             if (s) resolve(s)
           }} width={width} height={height} listening={false}>
           <Layer>
-            <PageContent page={page} format={project.format} />
+            <PageContent page={page} format={project.format} transparent={transparent} />
           </Layer>
         </Stage>,
       )

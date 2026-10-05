@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { plural } from '../../lib/plural'
 import { ArrowLeft, BookOpen, Check, Download, Eye, FileArchive, FileImage, FileText, Package, Printer, ScrollText } from 'lucide-react'
 import { currentPage, useEditor } from '../../store/editor'
-import { ExportCancelled, ExportError, exportPagePNG, exportPDF, exportProject, exportWebtoon, exportZIP, webtoonPlan, type ExportResult, type WebtoonOptions } from '../../lib/export'
+import { ExportCancelled, ExportError, exportPageImage, exportPDF, exportProject, exportWebtoon, exportZIP, webtoonPlan, type ExportResult, type WebtoonOptions } from '../../lib/export'
 import { bytesPerPixel, formatBytes } from '../../lib/exportPlan'
 import { downloadBlob } from '../../lib/storage'
-import { Button, cx, Modal, Segmented, Slider } from '../ui/controls'
+import { Button, cx, Modal, Segmented, Slider, Toggle } from '../ui/controls'
 
-type Preset = 'pantalla' | 'webbook' | 'imprenta' | 'webtoon' | 'zip' | 'png' | 'editable'
+type Preset = 'pantalla' | 'webbook' | 'imprenta' | 'webtoon' | 'zip' | 'png' | 'jpg' | 'editable'
+type PageScope = 'all' | 'current' | 'range'
 type Phase = { kind: 'choose' } | { kind: 'running'; done: number; total: number } | { kind: 'done'; result: ExportResult } | { kind: 'error'; message: string }
 
 const PRESET_KEY = (kind: string) => `vineta:ultimo-preset:${kind}`
@@ -21,6 +22,14 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [preset, setPreset] = useState<Preset | null>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'choose' })
   const [wt, setWt] = useState<WebtoonOptions>({ format: 'jpg', quality: 0.9, targetWidth: Math.min(W, 800), mode: 'slices', sliceMaxHeight: 1280 * 4, from: 1, to: n })
+  // Opciones de páginas e imagen (PDF, ZIP, PNG y JPG).
+  const [scope, setScope] = useState<PageScope>('all')
+  const [range, setRange] = useState({ from: 1, to: n })
+  const [ratio, setRatio] = useState(2)
+  const [jpgQuality, setJpgQuality] = useState(0.9)
+  const [transparent, setTransparent] = useState(false)
+  const currentIndex = Math.max(0, project.pages.findIndex((p) => p.id === useEditor.getState().pageId))
+  const selectedPages = scope === 'all' ? [...Array(n).keys()] : scope === 'current' ? [currentIndex] : [...Array(Math.max(0, Math.min(n, range.to) - Math.max(1, range.from) + 1)).keys()].map((i) => i + Math.max(1, range.from) - 1)
   const abort = useRef<AbortController | null>(null)
   const urls = useRef<string[]>([])
 
@@ -48,33 +57,38 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     { id: 'webbook', icon: <BookOpen size={20} />, title: 'Libro web (.html)', detail: 'Un solo archivo, funciona sin internet', use: 'Para publicar o compartir con el visor de páginas que se dan vuelta.' },
     { id: 'imprenta', icon: <Printer size={20} />, title: 'Imprenta (PDF)', detail: `PDF · ${W * 2}×${H * 2} px · JPEG 92 %`, use: 'Doble resolución para imprimir.' },
     { id: 'webtoon', icon: <ScrollText size={20} />, title: 'Webtoon', detail: 'JPG o PNG · tira, páginas o segmentos numerados', use: 'Para plataformas de webtoon: segmenta solo si la tira es muy larga.' },
-    { id: 'zip', icon: <FileArchive size={20} />, title: 'Páginas en PNG (ZIP)', detail: `${n} PNG · ${W * 2}×${H * 2} px`, use: 'Un archivo por página, numerados para subir a plataformas.' },
-    { id: 'png', icon: <FileImage size={20} />, title: 'Esta página en PNG', detail: `PNG · ${W * 2}×${H * 2} px`, use: 'La página actual en alta calidad, sin guías.' },
+    { id: 'zip', icon: <FileArchive size={20} />, title: 'Páginas en imágenes (ZIP)', detail: `PNG o JPG · pagina-001, pagina-002…`, use: 'Un archivo por página, numerados para subir a plataformas.' },
+    { id: 'png', icon: <FileImage size={20} />, title: 'Esta página en PNG', detail: `PNG · hasta ${W * 3}×${H * 3} px · fondo transparente opcional`, use: 'La página actual en alta calidad, sin guías.' },
+    { id: 'jpg', icon: <FileImage size={20} />, title: 'Esta página en JPG', detail: 'JPG · calidad ajustable', use: 'Liviana para redes y mensajes.' },
     { id: 'editable', icon: <Package size={20} />, title: 'Archivo editable (.vineta)', detail: 'Proyecto completo con imágenes', use: 'Copia de seguridad; se abre desde «Importar».' },
   ]
 
   const plan = useMemo(() => (preset === 'webtoon' ? webtoonPlan(project, wt) : null), [preset, project, wt])
+  const [zipFormat, setZipFormat] = useState<'png' | 'jpg'>('png')
+  const k = selectedPages.length
 
   /** Resumen previo: cuántos archivos, de qué tamaño y cuánto pesan aproximadamente. */
   const summary = useMemo(() => {
     const px = (r: number) => W * r * H * r
     switch (preset) {
       case 'pantalla':
-        return { files: 1, dims: `${plural(n, 'página', 'páginas')} de ${W}×${H}`, bytes: px(1) * n * bytesPerPixel('jpg', 0.82) }
+        return { files: 1, dims: `${plural(k, 'página', 'páginas')} de ${W}×${H}`, bytes: px(1) * k * bytesPerPixel('jpg', 0.82) }
       case 'imprenta':
-        return { files: 1, dims: `${plural(n, 'página', 'páginas')} de ${W * 2}×${H * 2}`, bytes: px(2) * n * bytesPerPixel('jpg', 0.92) }
+        return { files: 1, dims: `${plural(k, 'página', 'páginas')} de ${W * 2}×${H * 2}`, bytes: px(2) * k * bytesPerPixel('jpg', 0.92) }
       case 'webbook':
         return { files: 1, dims: plural(n, 'página', 'páginas'), bytes: px(Math.min(2, 2000 / H)) * n * bytesPerPixel('jpg', 0.86) * 1.37 }
       case 'zip':
-        return { files: n, dims: `${W * 2}×${H * 2} cada una`, bytes: px(2) * n * bytesPerPixel('png', 1) }
+        return { files: k, dims: `${W * ratio}×${H * ratio} cada una`, bytes: px(ratio) * k * bytesPerPixel(zipFormat, jpgQuality) }
       case 'png':
-        return { files: 1, dims: `${W * 2}×${H * 2}`, bytes: px(2) * bytesPerPixel('png', 1) }
+        return { files: 1, dims: `${W * ratio}×${H * ratio}`, bytes: px(ratio) * bytesPerPixel('png', 1) }
+      case 'jpg':
+        return { files: 1, dims: `${W * ratio}×${H * ratio}`, bytes: px(ratio) * bytesPerPixel('jpg', jpgQuality) }
       case 'webtoon':
         return plan ? { files: plan.files.length, dims: plan.files.length === 1 ? `${plan.files[0].width}×${plan.files[0].height}` : `${plan.files[0].width} px de ancho, hasta ${Math.max(...plan.files.map((f) => f.height))} px de alto`, bytes: plan.estimatedBytes } : null
       default:
         return null
     }
-  }, [preset, plan, W, H, n])
+  }, [preset, plan, W, H, n, k, ratio, jpgQuality, zipFormat])
 
   const run = async () => {
     if (!preset) return
@@ -85,17 +99,19 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     }
     const ctrl = new AbortController()
     abort.current = ctrl
+    if ((preset === 'pantalla' || preset === 'imprenta' || preset === 'zip') && !selectedPages.length) return setPhase({ kind: 'error', message: 'El rango de páginas está vacío.' })
     setPhase({ kind: 'running', done: 0, total: n })
     // Foto del proyecto: exportar nunca lo modifica ni toca el historial.
     const p = structuredClone(useEditor.getState().project!)
     const ctx = { signal: ctrl.signal, onProgress: (done: number, total: number) => setPhase({ kind: 'running', done, total }) }
     try {
       let result: ExportResult
-      if (preset === 'pantalla') result = await exportPDF(p, 'web', ctx)
-      else if (preset === 'imprenta') result = await exportPDF(p, 'print', ctx)
+      if (preset === 'pantalla') result = await exportPDF(p, 'web', ctx, selectedPages)
+      else if (preset === 'imprenta') result = await exportPDF(p, 'print', ctx, selectedPages)
       else if (preset === 'webbook') result = await (await import('../../lib/webbook')).exportWebBook(p, ctx)
-      else if (preset === 'zip') result = await exportZIP(p, ctx)
-      else if (preset === 'png') result = await exportPagePNG(p, currentPage()!, 2)
+      else if (preset === 'zip') result = await exportZIP(p, ctx, { pages: selectedPages, format: zipFormat, ratio, quality: jpgQuality, transparent })
+      else if (preset === 'png') result = await exportPageImage(p, currentPage()!, { format: 'png', ratio, transparent })
+      else if (preset === 'jpg') result = await exportPageImage(p, currentPage()!, { format: 'jpg', ratio, quality: jpgQuality })
       else if (preset === 'webtoon') result = await exportWebtoon(p, wt, ctx)
       else result = await exportProject(p)
       if (ctrl.signal.aborted) throw new ExportCancelled()
@@ -219,6 +235,56 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                   La tira completa mediría {plan.totalHeight.toLocaleString('es-AR')} px de alto: es demasiado para un solo archivo seguro en todos los navegadores, así que se divide en partes numeradas.
                 </p>
               )}
+            </div>
+          )}
+
+          {preset && ['pantalla', 'imprenta', 'zip', 'png', 'jpg'].includes(preset) && (
+            <div className="space-y-3 rounded-xl bg-ink-900 p-3 ring-1 ring-ink-700" data-testid="opciones-exportacion">
+              {(preset === 'pantalla' || preset === 'imprenta' || preset === 'zip') && (
+                <div className="space-y-2">
+                  <div className="text-xs text-ink-300">Páginas</div>
+                  <Segmented
+                    value={scope}
+                    onChange={setScope}
+                    options={[
+                      { value: 'all', label: `Todas (${n})` },
+                      { value: 'current', label: `Actual (${currentIndex + 1})` },
+                      { value: 'range', label: 'Rango' },
+                    ]}
+                  />
+                  {scope === 'range' && (
+                    <div className="flex items-center gap-1.5 text-xs text-ink-300">
+                      De
+                      <input type="number" min={1} max={n} value={range.from} onChange={(e) => setRange({ ...range, from: Math.max(1, Math.min(n, Number(e.target.value) || 1)) })} className="h-8 w-16 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Desde la página" />
+                      a
+                      <input type="number" min={1} max={n} value={range.to} onChange={(e) => setRange({ ...range, to: Math.max(1, Math.min(n, Number(e.target.value) || n)) })} className="h-8 w-16 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Hasta la página" />
+                      <span className="text-ink-500">({plural(k, 'página', 'páginas')})</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {preset === 'zip' && (
+                <Segmented
+                  value={zipFormat}
+                  onChange={setZipFormat}
+                  options={[
+                    { value: 'png', label: 'PNG' },
+                    { value: 'jpg', label: 'JPG' },
+                  ]}
+                />
+              )}
+              {(preset === 'zip' || preset === 'png' || preset === 'jpg') && (
+                <div className="space-y-2">
+                  <div className="text-xs text-ink-300">Resolución</div>
+                  <Segmented
+                    value={String(ratio)}
+                    onChange={(v) => setRatio(Number(v))}
+                    options={[1, 2, 3].map((r) => ({ value: String(r), label: `×${r} · ${W * r}×${H * r}` }))}
+                  />
+                </div>
+              )}
+              {(preset === 'jpg' || (preset === 'zip' && zipFormat === 'jpg')) && <Slider label="Calidad JPG" value={jpgQuality} min={0.5} max={1} step={0.01} onChange={setJpgQuality} format={(v) => `${Math.round(v * 100)} %`} />}
+              {(preset === 'png' || (preset === 'zip' && zipFormat === 'png')) && <Toggle label="Fondo transparente (sin el color de la página)" checked={transparent} onChange={setTransparent} />}
             </div>
           )}
 

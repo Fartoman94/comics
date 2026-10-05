@@ -89,7 +89,7 @@ test('si una página falla, se informa cuál y no se entrega un ZIP incompleto',
   await openProject(page, id)
   await inApp(page, `window.__vinetaFallarPagina = s.project.pages[1].id`)
   await openExport(page)
-  await page.getByRole('radio', { name: /Páginas en PNG/ }).click()
+  await page.getByRole('radio', { name: /Páginas en imágenes/ }).click()
   let downloaded = false
   page.on('download', () => (downloaded = true))
   await page.getByRole('dialog', { name: 'Exportar' }).getByRole('button', { name: 'Exportar', exact: true }).click()
@@ -122,11 +122,12 @@ test('ZIP de páginas: nombres ordenables, PNG y dimensiones; exportar no muta e
   await openProject(page, id)
   await inApp(page, `s.updateElement(s.project.pages[0].elements[0].id, { x: 10 })`)
   const before = await inApp<string>(page, 'return JSON.stringify({ p: s.project.pages, past: s.past.length, future: s.future.length })')
-  const dl = await exportPreset(page, /Páginas en PNG/)
+  const dl = await exportPreset(page, /Páginas en imágenes/)
   expect(dl.suggestedFilename()).toBe('mi-cómic.zip')
   const zip = await JSZip.loadAsync(readFileSync((await dl.path())!))
-  expect(Object.keys(zip.files).sort()).toEqual(['mi-cómic-001.png', 'mi-cómic-002.png', 'mi-cómic-003.png'])
-  const s = pngSize(Buffer.from(await zip.files['mi-cómic-001.png'].async('uint8array')))
+  // P10: nombres deterministas pagina-001.png, pagina-002.png…
+  expect(Object.keys(zip.files).sort()).toEqual(['pagina-001.png', 'pagina-002.png', 'pagina-003.png'])
+  const s = pngSize(Buffer.from(await zip.files['pagina-001.png'].async('uint8array')))
   expect(s).toEqual({ w: 994 * 2, h: 1538 * 2, png: true })
   expect(await inApp<string>(page, 'return JSON.stringify({ p: s.project.pages, past: s.past.length, future: s.future.length })')).toBe(before)
 })
@@ -146,7 +147,7 @@ test('CJK, imagen de 4096 px con transparencia y .vineta por partes que se vuelv
      const t = m.factories.createText(50, 50); t.text = 'ドドド 쾅 轰'; t.vertical = true; m.store.useEditor.getState().addElements([t])`,
   )
   expect(await inApp<number[]>(page, 'const a = s.project.assets[0]; return [a.width, a.height]')).toEqual([4096, 4096])
-  const zipDl = await exportPreset(page, /Páginas en PNG/)
+  const zipDl = await exportPreset(page, /Páginas en imágenes/)
   expect(Object.keys((await JSZip.loadAsync(readFileSync((await zipDl.path())!))).files)).toHaveLength(2)
   await page.getByRole('button', { name: 'Listo' }).click()
   const vin = await exportPreset(page, /Archivo editable/)
