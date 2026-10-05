@@ -16,6 +16,8 @@ import { paintStroke } from './nodes/strokes'
 import { bubbleTextBox } from './nodes/bubblePath'
 import { PHONES, useUi } from '../../store/ui'
 import { TYPE_LABEL, withPanelContent } from '../../lib/hierarchy'
+import { openImagePicker } from './images/ImagePicker'
+import { ImagePlus } from 'lucide-react'
 
 Konva.dragDistance = 3
 
@@ -234,6 +236,13 @@ export function CanvasStage() {
     tr.nodes(nodes)
     tr.getLayer()?.batchDraw()
   }, [transformable, page])
+
+  // Viñeta vacía seleccionada (sola, sin girar): se ofrece agregarle una imagen.
+  const emptyPanel = useMemo(() => {
+    if (tool !== 'select' || cropping || editingText || selection.length !== 1 || !page) return undefined
+    const el = page.elements.find((e) => e.id === selection[0])
+    return el?.type === 'panel' && !el.image && !el.locked && !el.hidden && !el.rotation ? el : undefined
+  }, [tool, cropping, editingText, selection, page])
 
   const keepRatio = transformable.length > 0 && transformable.every((e) => e.type === 'image' || e.type === 'drawing')
 
@@ -772,6 +781,7 @@ export function CanvasStage() {
         </Stage>
       )}
       {editingText && stageRef.current && <TextEditOverlay id={editingText} stage={stageRef.current} zoom={zoom} pan={pan} />}
+      {emptyPanel && !dragging && <EmptyPanelAction panel={emptyPanel} zoom={zoom} pan={pan} />}
     </div>
   )
 }
@@ -780,7 +790,9 @@ export function CanvasStage() {
 function SelectionTag({ els, zoom }: { els: ComicElement[]; zoom: number }) {
   if (els.length !== 1) return null
   const el = els[0]
-  const label = `${el.locked ? '🔒 ' : ''}${TYPE_LABEL[el.type]}${el.name && el.name !== TYPE_LABEL[el.type] ? ` · ${el.name}` : ''}`
+  const type = TYPE_LABEL[el.type]
+  // "Viñeta 4" ya dice qué es: no repetir "Viñeta · Viñeta 4".
+  const label = `${el.locked ? '🔒 ' : ''}${!el.name || el.name.startsWith(type) ? el.name || type : `${type} · ${el.name}`}`
   const text = label.length > 36 ? label.slice(0, 35) + '…' : label
   const k = 1 / zoom
   return (
@@ -810,40 +822,33 @@ function isTyping(e: KeyboardEvent) {
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable
 }
 
-/**
- * Reemplaza la imagen de una imagen libre por otra que se sube ahora. Conserva posición, ancho,
- * giro, espejos, filtros y opacidad; el alto se adapta a la proporción de la nueva y el recorte se
- * descarta (era en píxeles de la imagen vieja).
- */
+/** Reemplazar la imagen de una imagen libre: abre el selector (subir o galería). */
 export function replaceImageFor(elId: string) {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/*'
-  input.onchange = async () => {
-    if (!input.files?.length) return
-    const [asset] = await importFiles(input.files)
-    const s = useEditor.getState()
-    const el = findEl(elId)
-    if (!asset || el?.type !== 'image') return
-    s.updateElement(elId, { assetId: asset.id, crop: null, height: Math.round((el.width * asset.height) / asset.width) })
-    s.select([elId])
-  }
-  input.click()
+  openImagePicker({ kind: 'image', id: elId })
 }
 
+/** Imagen para una viñeta: abre el selector (subir o galería). */
 export function pickImageFor(panelId: string) {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/*'
-  input.onchange = async () => {
-    if (!input.files?.length) return
-    const [asset] = await importFiles(input.files)
-    if (asset) {
-      useEditor.getState().select([panelId])
-      placeAsset(asset)
-    }
-  }
-  input.click()
+  useEditor.getState().select([panelId])
+  openImagePicker({ kind: 'panel', id: panelId })
+}
+
+/** Botón "Agregar imagen" sobre la viñeta vacía seleccionada. */
+function EmptyPanelAction({ panel, zoom, pan }: { panel: ComicElement; zoom: number; pan: { x: number; y: number } }) {
+  const cx = pan.x + (panel.x + panel.width / 2) * zoom
+  const cy = pan.y + (panel.y + panel.height / 2) * zoom
+  if (panel.width * zoom < 90 || panel.height * zoom < 60) return null
+  return (
+    <button
+      onClick={() => pickImageFor(panel.id)}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-white pointer-coarse:py-2.5"
+      style={{ left: cx, top: cy }}
+      data-testid="agregar-imagen-vineta"
+    >
+      <ImagePlus size={14} /> Agregar imagen
+    </button>
+  )
 }
 
 /** Textarea HTML encima del texto de Konva para editar en el lugar. */

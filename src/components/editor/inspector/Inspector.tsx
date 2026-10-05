@@ -369,6 +369,15 @@ function PanelProps({ el }: { el: PanelElement }) {
   const setFilters = (f: Partial<ImageFilters>) => s.updateElement(el.id, (d) => void (d.type === 'panel' && d.image && Object.assign(d.image.filters, f)), 'panel-filter')
   const shape = detectShape(el)
   const fit = (mode: 'cover' | 'contain') => asset && el.image && patch({ image: fitPanelImage(el, asset, mode, el.image) })
+  const setImage = (p: Partial<NonNullable<PanelElement['image']>>) => s.updateElement(el.id, (d) => void (d.type === 'panel' && d.image && Object.assign(d.image, p)))
+  // Al girar 90° se vuelve a llenar el marco con la imagen en su nueva orientación.
+  const turnImage = (deg: number) => {
+    if (!el.image) return
+    const rotation = ((((el.image.rotation ?? 0) + deg) % 360) + 360) % 360
+    const next = { ...el.image, rotation }
+    patch({ image: asset ? fitPanelImage(el, asset, 'cover', next) : next })
+  }
+  const resetImage = () => asset && el.image && patch({ image: fitPanelImage(el, asset, 'cover', { ...el.image, rotation: 0, flipX: false, flipY: false }) })
   return (
     <>
       <Section title="Imagen">
@@ -388,9 +397,28 @@ function PanelProps({ el }: { el: PanelElement }) {
                 Ajustar
               </Button>
             </div>
-            <Button size="sm" variant="ghost" className="w-full" onClick={() => patch({ image: null })}>
-              Quitar imagen
-            </Button>
+            <div className="grid grid-cols-4 gap-1">
+              <IconButton label="Girar la imagen 90° a la izquierda" className="w-full" onClick={() => turnImage(-90)}>
+                <RotateCcw size={14} />
+              </IconButton>
+              <IconButton label="Girar la imagen 90° a la derecha" className="w-full" onClick={() => turnImage(90)}>
+                <RotateCw size={14} />
+              </IconButton>
+              <IconButton label="Espejo horizontal de la imagen" className="w-full" active={!!el.image.flipX} onClick={() => setImage({ flipX: !el.image!.flipX })}>
+                <FlipHorizontal2 size={14} />
+              </IconButton>
+              <IconButton label="Espejo vertical de la imagen" className="w-full" active={!!el.image.flipY} onClick={() => setImage({ flipY: !el.image!.flipY })}>
+                <FlipVertical2 size={14} />
+              </IconButton>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="ghost" disabled={!asset} onClick={resetImage} title="Sin giro ni espejos y llenando el marco">
+                Restablecer
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => patch({ image: null })}>
+                Quitar imagen
+              </Button>
+            </div>
             <FilterControls filters={el.image.filters} onChange={setFilters} />
           </>
         ) : (

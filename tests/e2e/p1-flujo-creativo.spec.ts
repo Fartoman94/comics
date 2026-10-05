@@ -97,7 +97,7 @@ test('plantilla propia: guardar, borrar el proyecto original y reutilizarla con 
   await openProject(page, a)
   await inApp(page, 's.setPage(s.project.pages[1].id)')
   await page.getByRole('tab', { name: 'Biblioteca' }).click()
-  await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + 'foto-a.png')
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles(FIXTURES + 'foto-a.png')
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
   await inApp(page, `const pan = s.project.pages[1].elements.find(e => e.type === 'panel'); m.placement.fillPanel(pan.id, s.project.assets[0])`)
   await page.getByRole('tab', { name: 'Plantillas' }).click()
@@ -128,7 +128,7 @@ test('duplicar página con imágenes y exportar/importar el proyecto', async ({ 
   const id = await createProjectInDb(page, 'Duplicar', 'comic', 2)
   await openProject(page, id)
   await page.getByRole('tab', { name: 'Biblioteca' }).click()
-  await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + 'foto-b.png')
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles(FIXTURES + 'foto-b.png')
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
   await inApp(page, `s.setPage(s.project.pages[1].id); const pan = s.project.pages[1].elements.find(e => e.type === 'panel'); m.placement.fillPanel(pan.id, s.project.assets[0]); m.store.useEditor.getState().duplicatePage(s.project.pages[1].id)`)
   const dl = await exportPreset(page, /Archivo editable/)
@@ -195,7 +195,9 @@ test.describe('celular sin modo estudio', () => {
     await expect.poll(() => inApp<number>(page, 'return s.project.pages[1].elements.filter(e => e.type === "panel").length')).toBe(4)
     // Foto en la primera viñeta.
     await inApp(page, 's.select([s.project.pages[1].elements.find(e => e.type === "panel").id])')
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Poner foto' }).tap()])
+    // "Poner foto" abre el selector (Subir / Galería); sin imágenes en el proyecto arranca en Subir.
+    await page.getByRole('button', { name: 'Poner foto' }).tap()
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('dialog').getByRole('button', { name: /Elegí o soltá una imagen/ }).tap()])
     await chooser.setFiles(FIXTURES + 'foto-a.png')
     await expect.poll(() => inApp<boolean>(page, 'return !!s.project.pages[1].elements.find(e => e.type === "panel").image')).toBe(true)
     // Globo escrito con el botón +.

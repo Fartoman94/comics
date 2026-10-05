@@ -222,6 +222,9 @@ function element(v: unknown, p: string, budget: { points: number }): ComicElemen
           y: num(im.y, `${p}.image.y`, -C, C),
           scale: num(im.scale, `${p}.image.scale`, 0.0001, 1000),
           filters: im.filters === undefined ? filters({}, `${p}.image.filters`) : filters(im.filters, `${p}.image.filters`),
+          ...(im.rotation === undefined ? {} : { rotation: num(im.rotation, `${p}.image.rotation`, -3600, 3600, 0) }),
+          ...(im.flipX === undefined ? {} : { flipX: bool(im.flipX, `${p}.image.flipX`, false) }),
+          ...(im.flipY === undefined ? {} : { flipY: bool(im.flipY, `${p}.image.flipY`, false) }),
         }
       }
       return {

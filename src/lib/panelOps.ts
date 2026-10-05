@@ -2,6 +2,7 @@ import type { Asset, PanelElement, PanelImage } from '../types'
 import { DEFAULT_FILTERS } from '../types'
 import { bbox, type Pt } from './geometry'
 import { cloneElement } from './factories'
+import { containFit, coverFit } from './imageFit'
 
 /** Polígono absoluto (coordenadas de página) de una viñeta, rectangular o no. */
 export function panelPolygon(p: Pick<PanelElement, 'x' | 'y' | 'width' | 'height' | 'points'>): Pt[] {
@@ -141,18 +142,10 @@ export function detectShape(p: Pick<PanelElement, 'points' | 'cornerRadius'>): P
 
 export type ImageFit = 'cover' | 'contain'
 
-/** Imagen de viñeta encajada: 'cover' llena el marco (recorta lo que sobra), 'contain' la muestra entera. */
+/** Imagen de viñeta encajada: 'cover' llena el marco (recorta lo que sobra), 'contain' la muestra entera. Conserva filtros, giro y espejos. */
 export function fitPanelImage(panel: Pick<PanelElement, 'width' | 'height'>, asset: Pick<Asset, 'width' | 'height'>, fit: ImageFit, prev?: PanelImage | null): PanelImage {
-  const sx = panel.width / asset.width
-  const sy = panel.height / asset.height
-  const scale = fit === 'cover' ? Math.max(sx, sy) : Math.min(sx, sy)
-  return {
-    assetId: prev?.assetId ?? '',
-    x: (panel.width - asset.width * scale) / 2,
-    y: (panel.height - asset.height * scale) / 2,
-    scale,
-    filters: prev?.filters ? { ...prev.filters } : { ...DEFAULT_FILTERS },
-  }
+  const box = (fit === 'cover' ? coverFit : containFit)(panel, asset, prev?.rotation)
+  return { ...(prev ?? { assetId: '' }), ...box, filters: prev?.filters ? { ...prev.filters } : { ...DEFAULT_FILTERS } }
 }
 
 /** Recorte (en px de la imagen original) que llena una caja w×h sin deformar: "Rellenar" para imágenes libres. */

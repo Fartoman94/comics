@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ACCEPT_ATTR } from '../../../lib/imageValidation'
 import { deleteWithConfirm } from '../actions'
 import { ArrowDownToLine, ArrowUpToLine, Brush, Check, Copy, Crop, Eraser, Files, ImagePlus, Images, Layers, LayoutGrid, MessageCircle, Minus, PenLine, Plus, SlidersHorizontal, SquareDashed, Trash2, Type, Undo2 } from 'lucide-react'
 import type { ComicElement } from '../../../types'
@@ -297,7 +298,7 @@ function AddMenu({ onDone }: { onDone: () => void }) {
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={ACCEPT_ATTR}
         hidden
         data-testid="agregar-imagen"
         onChange={async (e) => {

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { ACCEPT_ATTR } from '../../../lib/imageValidation'
 import { ImagePlus, Trash2, Upload } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
 import { getAssetUrl, useAssetImage } from '../../../lib/assetCache'
@@ -76,9 +77,9 @@ function ProjectAssets() {
       >
         <Upload size={20} className="text-accent-bright" />
         <span className="text-xs font-medium text-white">{busy ? 'Subiendo…' : 'Subir imágenes o fotos'}</span>
-        <span className="text-[11px] text-ink-400">PNG, JPG, WebP o GIF · hasta 4096 px por lado (las más grandes se reducen) · arrastralas acá o al lienzo · Ctrl+V pega</span>
+        <span className="text-[11px] text-ink-400">PNG, JPG, WebP o GIF · hasta 25 MB · más de 4096 px por lado se reduce · arrastralas acá o al lienzo · Ctrl+V pega</span>
       </button>
-      <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => {
+      <input ref={inputRef} type="file" accept={ACCEPT_ATTR} multiple hidden onChange={(e) => {
           // Se copia la lista y se vacía el input: así se puede volver a elegir el mismo archivo.
           const files = e.target.files ? [...e.target.files] : []
           e.target.value = ''

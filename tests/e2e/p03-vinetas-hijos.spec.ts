@@ -100,6 +100,7 @@ test('formas y símbolos: insertar desde Elementos, cambiar tipo y colores, caja
     const st = [...Konva.stages].find((x) => document.querySelector('[data-tour=canvas]')!.contains(x.container()))
     return st.findOne('.selection-tag')?.findOne('Text')?.text()
   })).toBe('Forma · Corazón')
+  // (Una viñeta no repite el tipo: "Viñeta 1", no "Viñeta · Viñeta 1".)
 
   // Un efecto también tiene caja de selección real.
   await page.getByRole('button', { name: /Líneas de impacto/ }).click()

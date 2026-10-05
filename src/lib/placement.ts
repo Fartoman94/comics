@@ -1,20 +1,13 @@
 import type { Asset, ComicElement, PanelElement } from '../types'
 import { DEFAULT_FILTERS } from '../types'
+import { coverFit } from './imageFit'
 import { createImage } from './factories'
 import { pointInPolygon, rotatePoint, type Pt } from './geometry'
 import { addLibraryImage, findLibraryImageByHash, getAssetBlob, hashBlob, importImageFile, updateLibraryItem } from './storage'
 import { currentPage, useEditor } from '../store/editor'
+import { validateImageFile } from './imageValidation'
 
-/** Encaje "cover": la imagen llena la viñeta sin deformarse. */
-export function coverFit(panel: { width: number; height: number }, asset: { width: number; height: number }) {
-  const scale = Math.max(panel.width / asset.width, panel.height / asset.height)
-  return { x: (panel.width - asset.width * scale) / 2, y: (panel.height - asset.height * scale) / 2, scale }
-}
-
-export function containFit(panel: { width: number; height: number }, asset: { width: number; height: number }) {
-  const scale = Math.min(panel.width / asset.width, panel.height / asset.height)
-  return { x: (panel.width - asset.width * scale) / 2, y: (panel.height - asset.height * scale) / 2, scale }
-}
+export { containFit, coverFit } from './imageFit'
 
 export function hitsElement(el: ComicElement, p: Pt): boolean {
   // Pasamos el punto al sistema local del elemento (deshaciendo la rotación).
@@ -44,10 +37,19 @@ export function fillPanel(panelId: string, asset: Asset) {
   const s = useEditor.getState()
   const panel = currentPage()?.elements.find((e) => e.id === panelId)
   if (!panel || panel.type !== 'panel') return
-  const fit = coverFit(panel, asset)
+  // Reemplazar conserva filtros, giro y espejos; el encuadre se recalcula para la imagen nueva.
+  const prev = panel.image
+  const fit = coverFit(panel, asset, prev?.rotation)
   s.updateElement(panelId, (el) => {
     if (el.type !== 'panel') return
-    el.image = { assetId: asset.id, ...fit, filters: el.image?.filters ?? { ...DEFAULT_FILTERS } }
+    el.image = {
+      assetId: asset.id,
+      ...fit,
+      filters: prev?.filters ? { ...prev.filters } : { ...DEFAULT_FILTERS },
+      ...(prev?.rotation ? { rotation: prev.rotation } : {}),
+      ...(prev?.flipX ? { flipX: true } : {}),
+      ...(prev?.flipY ? { flipY: true } : {}),
+    }
   })
   s.select([panelId])
 }
@@ -74,17 +76,33 @@ export function placeAsset(asset: Asset, at?: Pt, opts: { intoPanel?: boolean } 
   s.addElements([img])
 }
 
+export interface ImportProgress {
+  done: number
+  total: number
+  current?: string
+}
+
 /**
  * Suma imágenes al proyecto. Si la misma imagen (misma huella) ya está en el proyecto o en la
  * biblioteca, se reutiliza en vez de duplicarla. Las nuevas también quedan en la biblioteca.
+ * Cada archivo se valida por su contenido real (PNG, JPG, WebP o GIF) y tamaño máximo.
+ * `signal` cancela entre archivos (lo ya importado queda); `onProgress` informa el avance.
  */
-export async function importFiles(files: File[] | FileList): Promise<Asset[]> {
+export async function importFiles(
+  files: File[] | FileList,
+  opts: { onProgress?: (p: ImportProgress) => void; signal?: AbortSignal; onError?: (reason: string) => void; quiet?: boolean } = {},
+): Promise<Asset[]> {
   const s = useEditor.getState()
+  const list = Array.from(files)
   const out: Asset[] = []
   let reused = 0
-  for (const f of Array.from(files)) {
-    if (!f.type.startsWith('image/')) {
-      s.toast(`"${f.name}" no es una imagen`, 'error')
+  const fail = (reason: string) => (opts.onError ? opts.onError(reason) : s.toast(reason, 'error'))
+  for (const [i, f] of list.entries()) {
+    if (opts.signal?.aborted) break
+    opts.onProgress?.({ done: i, total: list.length, current: f.name })
+    const check = await validateImageFile(f)
+    if (!check.ok) {
+      fail(check.reason)
       continue
     }
     try {
@@ -105,15 +123,20 @@ export async function importFiles(files: File[] | FileList): Promise<Asset[]> {
         out.push(asset)
         continue
       }
-      const asset = await importImageFile(f, f.name, hash)
+      // Se usa el tipo real (un .png que en realidad es JPG se trata como JPG).
+      const real = f.type === check.mime ? f : new Blob([f], { type: check.mime })
+      const asset = await importImageFile(real, f.name, hash)
+      if (opts.signal?.aborted) break
       s.addAsset(asset)
       if (project) void addLibraryImage(asset, { id: project.id, title: project.title }).catch(() => undefined)
       out.push(asset)
     } catch (e) {
       console.error(e)
-      s.toast(`No se pudo leer "${f.name}"`, 'error')
+      fail(`No se pudo leer "${f.name}" (¿está dañada?)`)
     }
   }
+  opts.onProgress?.({ done: list.length, total: list.length })
+  if (opts.quiet) return out
   if (reused) s.toast(reused === 1 ? 'Esa imagen ya estaba: se reutilizó sin duplicarla' : `${reused} imágenes ya estaban: se reutilizaron`, 'info')
   else if (out.length) s.toast(out.length === 1 ? 'Imagen agregada a Recursos' : `${out.length} imágenes agregadas a Recursos`, 'success')
   return out
