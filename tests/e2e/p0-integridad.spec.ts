@@ -13,7 +13,7 @@ test('A1 · duplicar y borrar el original: la copia conserva sus fotos después 
   await gotoHome(page)
   const id = await createProjectInDb(page, 'Mis fotos')
   await openProject(page, id)
-  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Biblioteca' }).click()
   await page.locator('input[type=file][accept="image/*"]').setInputFiles([FIXTURES + 'foto-a.png', FIXTURES + 'foto-b.png'])
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(2)
   await inApp(page, `const pan = s.project.pages[0].elements.filter(e => e.type === 'panel'); m.placement.fillPanel(pan[0].id, s.project.assets[0]); m.placement.placeAsset(s.project.assets[1], { x: 40, y: 40 })`)

@@ -788,6 +788,27 @@ function isTyping(e: KeyboardEvent) {
   return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable
 }
 
+/**
+ * Reemplaza la imagen de una imagen libre por otra que se sube ahora. Conserva posición, ancho,
+ * giro, espejos, filtros y opacidad; el alto se adapta a la proporción de la nueva y el recorte se
+ * descarta (era en píxeles de la imagen vieja).
+ */
+export function replaceImageFor(elId: string) {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  input.onchange = async () => {
+    if (!input.files?.length) return
+    const [asset] = await importFiles(input.files)
+    const s = useEditor.getState()
+    const el = findEl(elId)
+    if (!asset || el?.type !== 'image') return
+    s.updateElement(elId, { assetId: asset.id, crop: null, height: Math.round((el.width * asset.height) / asset.width) })
+    s.select([elId])
+  }
+  input.click()
+}
+
 export function pickImageFor(panelId: string) {
   const input = document.createElement('input')
   input.type = 'file'

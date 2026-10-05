@@ -11,6 +11,7 @@ import { forgetAsset } from '../lib/assetCache'
 import { referencedAssetIds } from '../lib/projectSchema'
 import { uid } from '../lib/id'
 import { findFreeSpot, intersect } from '../lib/freeSpot'
+import { splitPanel as splitPanelGeometry, type SplitDirection } from '../lib/panelOps'
 
 const HISTORY_LIMIT = 120
 const TEXT_KEYS = ['text', 'fontSize', 'fontFamily', 'fontStyle', 'lineHeight', 'letterSpacing', 'width', 'uppercase']
@@ -120,6 +121,8 @@ interface EditorState {
   syncScriptBlock(pageId: string, blockId: string, from: 'page' | 'script'): void
   pastePages(afterId?: string): Promise<void>
   arrange(dir: 'front' | 'back' | 'forward' | 'backward'): void
+  /** Divide una viñeta en dos (con medianil). Devuelve false si quedaría demasiado chica o está bloqueada. */
+  splitPanel(id: string, dir: SplitDirection): boolean
   reorderElement(id: string, toIndex: number): void
 
   addPage(templateId?: string, afterId?: string): void
@@ -559,6 +562,29 @@ export const useEditor = create<EditorState>()((set, get) => ({
       const page = d.pages.find((p) => p.id === pageId)
       if (page) page.elements = ids.map((id) => page.elements.find((e) => e.id === id)!)
     })
+  },
+
+  splitPanel: (id, dir) => {
+    const { project, pageId } = get()
+    const panel = currentPage()?.elements.find((e) => e.id === id)
+    if (!project || !panel || panel.type !== 'panel') return false
+    if (panel.locked) {
+      notifyLocked(1)
+      return false
+    }
+    const halves = splitPanelGeometry(panel, dir, Math.round(project.format.width * 0.018))
+    if (!halves) {
+      get().toast('La viñeta es demasiado chica para dividirla', 'error')
+      return false
+    }
+    get().mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      const i = page?.elements.findIndex((e) => e.id === id) ?? -1
+      if (!page || i < 0) return
+      page.elements.splice(i, 1, ...(halves as Draft<ComicElement>[]))
+    })
+    set({ selection: [halves[0].id] })
+    return true
   },
 
   reorderElement: (id, toIndex) =>

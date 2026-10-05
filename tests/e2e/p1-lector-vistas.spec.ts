@@ -217,7 +217,7 @@ test.describe('vista general', () => {
     await gotoHome(page)
     const a = await createProjectInDb(page, 'Origen página', 'libre', 1)
     await openProject(page, a)
-    await page.getByRole('tab', { name: 'Imágenes' }).click()
+    await page.getByRole('tab', { name: 'Biblioteca' }).click()
     await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + 'foto-a.png')
     await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
     await inApp(page, `const pan = s.project.pages[0].elements.find(e => e.type === 'panel'); m.placement.fillPanel(pan.id, s.project.assets[0])`)

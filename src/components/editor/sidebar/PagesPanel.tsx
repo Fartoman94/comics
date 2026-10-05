@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from 'react'
+import { plural } from '../../../lib/plural'
 import { ArrowDown, ArrowUp, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
 import { cx, IconButton } from '../../ui/controls'
@@ -26,7 +27,7 @@ export function PagesPanel() {
     <div className="p-3">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs text-ink-400">
-          {project.pages.length} páginas{rtl && ' · lectura →←'}
+          {plural(project.pages.length, 'página', 'páginas')}{rtl && ' · lectura →←'}
         </span>
         <button onClick={() => s.addPage(undefined, pageId)} className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-accent-bright hover:bg-accent-soft">
           <Plus size={14} /> Página

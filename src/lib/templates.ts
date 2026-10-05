@@ -33,10 +33,12 @@ export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
   webtoon: 'Webtoon',
 }
 
-/** Organización de las 18 plantillas (no cambia sus viñetas). */
+/** Organización de las plantillas (no cambia sus viñetas). */
 export const TEMPLATE_META: Record<string, TemplateMeta> = {
   splash: { categories: ['splash', 'portada'], style: 'neutral', shape: 'vertical', use: 'Una sola imagen a página completa: portadas y momentos clave.' },
   'two-rows': { categories: ['dialogo'], style: 'neutral', shape: 'vertical', use: 'Dos bandas anchas para paisajes o conversaciones.' },
+  'two-cols': { categories: ['dialogo', 'accion'], style: 'neutral', shape: 'vertical', use: 'Dos columnas altas: personajes de cuerpo entero o un antes y después.' },
+  'three-mixed': { categories: ['dialogo', 'portada'], style: 'neutral', shape: 'vertical', use: 'Una viñeta ancha arriba y dos abajo: presentar y reaccionar.' },
   'three-rows': { categories: ['dialogo'], style: 'neutral', shape: 'vertical', use: 'Tres bandas: ritmo pausado, ideal para diálogo.' },
   'grid-2x2': { categories: ['dialogo'], style: 'neutral', shape: 'vertical', use: 'Cuatro viñetas iguales para un intercambio parejo.' },
   'classic-6': { categories: ['dialogo'], style: 'occidental', shape: 'vertical', use: 'La página clásica de cómic: seis viñetas de lectura clara.' },
@@ -99,6 +101,8 @@ const q = (...c: number[]): Pt[] => {
 export const TEMPLATES: PanelTemplate[] = [
   { id: 'splash', name: 'Splash (1)', group: 'Clásicos', polys: grid([{ h: 1, cols: [1] }]) },
   { id: 'two-rows', name: '2 filas', group: 'Clásicos', polys: grid([{ h: 1, cols: [1] }, { h: 1, cols: [1] }]) },
+  { id: 'two-cols', name: '2 columnas', group: 'Clásicos', polys: grid([{ h: 1, cols: [1, 1] }]) },
+  { id: 'three-mixed', name: '3 viñetas', group: 'Clásicos', polys: grid([{ h: 1.2, cols: [1] }, { h: 1, cols: [1, 1] }]) },
   { id: 'three-rows', name: '3 filas', group: 'Clásicos', polys: grid([{ h: 1, cols: [1] }, { h: 1, cols: [1] }, { h: 1, cols: [1] }]) },
   { id: 'grid-2x2', name: 'Cuadrícula 4', group: 'Clásicos', polys: grid([{ h: 1, cols: [1, 1] }, { h: 1, cols: [1, 1] }]) },
   { id: 'classic-6', name: 'Clásica 6', group: 'Clásicos', polys: grid([{ h: 1, cols: [1, 1] }, { h: 1, cols: [1, 1] }, { h: 1, cols: [1, 1] }]) },
@@ -199,3 +203,14 @@ export function buildTemplatePanels(tpl: PanelTemplate, format: PageFormat, marg
     return panel
   })
 }
+
+/** Accesos rápidos para empezar una página (estado vacío y barra de plantillas). `null` = página libre. */
+export const QUICK_LAYOUTS: { id: string | null; label: string }[] = [
+  { id: 'splash', label: '1 viñeta' },
+  { id: 'two-cols', label: '2 verticales' },
+  { id: 'two-rows', label: '2 horizontales' },
+  { id: 'three-mixed', label: '3 viñetas' },
+  { id: 'grid-2x2', label: '4 clásico' },
+  { id: 'classic-6', label: '6 clásico' },
+  { id: null, label: 'Página libre' },
+]

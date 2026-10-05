@@ -15,6 +15,11 @@ import {
   FlipVertical2,
   ImagePlus,
   Lock,
+  RotateCcw,
+  RotateCw,
+  SplitSquareHorizontal,
+  SplitSquareVertical,
+  Slash,
   Trash2,
   Unlock,
 } from 'lucide-react'
@@ -22,9 +27,12 @@ import type { Page, BlendMode, BubbleElement, BubbleShape, ComicElement, Drawing
 import { DEFAULT_FILTERS } from '../../../types'
 import { notifyLocked, useCurrentPage, useEditor, useSelectedElements } from '../../../store/editor'
 import { FONTS, ensureGlyphs } from '../../../lib/fonts'
-import { Button, ColorInput, Field, IconButton, NumberInput, Section, Segmented, Select, Slider, TextArea, TextInput, Toggle } from '../../ui/controls'
+import { Button, ColorInput, cx, Field, IconButton, NumberInput, Section, Segmented, Select, Slider, TextArea, TextInput, Toggle } from '../../ui/controls'
 import { MadeByMateLabs } from '../../ui/Brand'
-import { pickImageFor } from '../CanvasStage'
+import { pickImageFor, replaceImageFor } from '../CanvasStage'
+import { coverCrop, detectShape, fitPanelImage, PANEL_SHAPES, shapeGeometry, type PanelShape } from '../../../lib/panelOps'
+import { TYPE_LABEL } from '../../../lib/hierarchy'
+import { deleteWithConfirm } from '../actions'
 
 export function Inspector() {
   return (
@@ -98,10 +106,10 @@ function PagePanel() {
       </Section>
       <Section title="Primeros pasos">
         <ul className="list-disc space-y-1.5 pl-4 text-[11px] leading-relaxed text-ink-400">
-          <li>Elegí una plantilla en la pestaña Viñetas.</li>
-          <li>Subí fotos o dibujos en Imágenes y arrastralos a cada viñeta.</li>
+          <li>Elegí una plantilla en la pestaña Plantillas.</li>
+          <li>Subí fotos o dibujos en Biblioteca y arrastralos a cada viñeta.</li>
           <li>Doble clic en una viñeta con imagen para encuadrarla; en una imagen libre, para recortarla.</li>
-          <li>Agregá globos (G) y onomatopeyas desde Insertar.</li>
+          <li>Agregá globos (G) y onomatopeyas desde Elementos.</li>
           <li>Pulsá Leer para ver cómo queda como libro.</li>
         </ul>
       </Section>
@@ -189,7 +197,7 @@ function MultiPanel({ els }: { els: ComicElement[] }) {
           <Button size="sm" onClick={s.duplicateSelection} className="flex-1">
             <Copy size={13} /> Duplicar
           </Button>
-          <Button size="sm" variant="danger" onClick={s.deleteSelection} className="flex-1">
+          <Button size="sm" variant="danger" onClick={() => void deleteWithConfirm()} className="flex-1">
             <Trash2 size={13} /> Eliminar
           </Button>
         </div>
@@ -268,14 +276,6 @@ function ArrangeSection() {
 
 // ---------- Elemento ----------
 
-const TYPE_LABEL: Record<ComicElement['type'], string> = {
-  panel: 'Viñeta',
-  image: 'Imagen',
-  bubble: 'Globo',
-  text: 'Texto',
-  effect: 'Efecto',
-  drawing: 'Capa de dibujo',
-}
 
 const BLEND_OPTIONS: { value: BlendMode; label: string }[] = [
   { value: 'source-over', label: 'Normal' },
@@ -309,7 +309,7 @@ function ElementPanel({ el }: { el: ComicElement }) {
           <IconButton label="Duplicar (Ctrl+D)" onClick={s.duplicateSelection}>
             <Copy size={15} />
           </IconButton>
-          <IconButton label="Eliminar (Supr)" onClick={s.deleteSelection} className="hover:text-red-300">
+          <IconButton label="Eliminar (Supr)" onClick={() => void deleteWithConfirm()} className="hover:text-red-300">
             <Trash2 size={15} />
           </IconButton>
         </div>
@@ -357,23 +357,27 @@ function ElementPanel({ el }: { el: ComicElement }) {
 function PanelProps({ el }: { el: PanelElement }) {
   const patch = usePatch(el)
   const s = useEditor.getState()
+  const asset = useEditor((st) => (el.image ? st.project?.assets.find((a) => a.id === el.image!.assetId) : undefined))
   const setFilters = (f: Partial<ImageFilters>) => s.updateElement(el.id, (d) => void (d.type === 'panel' && d.image && Object.assign(d.image.filters, f)), 'panel-filter')
+  const shape = detectShape(el)
+  const fit = (mode: 'cover' | 'contain') => asset && el.image && patch({ image: fitPanelImage(el, asset, mode, el.image) })
   return (
     <>
-      <Section title="Escena">
-        <Button size="sm" className="w-full" onClick={() => s.duplicatePanelWithContent(el.id)}>
-          Duplicar viñeta con su contenido
-        </Button>
-      </Section>
-      <Section title="Imagen de la viñeta">
+      <Section title="Imagen">
         {el.image ? (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" onClick={() => s.setCropping(el.id)}>
+              <Button size="sm" onClick={() => s.setCropping(el.id)} title="Mover y acercar la imagen dentro del marco (doble clic)">
                 <Crop size={13} /> Encuadrar
               </Button>
-              <Button size="sm" onClick={() => pickImageFor(el.id)}>
-                <ImagePlus size={13} /> Cambiar
+              <Button size="sm" onClick={() => pickImageFor(el.id)} title="Subir otra imagen para esta viñeta">
+                <ImagePlus size={13} /> Reemplazar
+              </Button>
+              <Button size="sm" onClick={() => fit('cover')} disabled={!asset} title="La imagen llena todo el marco (puede recortarse)">
+                Rellenar
+              </Button>
+              <Button size="sm" onClick={() => fit('contain')} disabled={!asset} title="La imagen se ve entera dentro del marco">
+                Ajustar
               </Button>
             </div>
             <Button size="sm" variant="ghost" className="w-full" onClick={() => patch({ image: null })}>
@@ -387,22 +391,67 @@ function PanelProps({ el }: { el: PanelElement }) {
           </Button>
         )}
       </Section>
-      <Section title="Borde y fondo">
+      <Section title="Fondo y borde">
+        <Field label="Fondo" inline={false}>
+          <ColorInput value={el.fill} onChange={(fill) => patch({ fill }, 'fill')} />
+        </Field>
         <Slider label="Grosor del borde" value={el.strokeWidth} min={0} max={30} onChange={(strokeWidth) => patch({ strokeWidth }, 'sw')} format={(v) => `${v}px`} />
         <Field label="Color del borde" inline={false}>
           <ColorInput value={el.stroke} onChange={(stroke) => patch({ stroke }, 'stroke')} swatches />
         </Field>
-        <Field label="Fondo" inline={false}>
-          <ColorInput value={el.fill} onChange={(fill) => patch({ fill }, 'fill')} />
-        </Field>
-        {!el.points && <Slider label="Esquinas redondeadas" value={el.cornerRadius} min={0} max={80} onChange={(cornerRadius) => patch({ cornerRadius }, 'cr')} format={(v) => `${v}px`} />}
-        {el.points && (
-          <Button size="sm" variant="ghost" className="w-full" onClick={() => patch({ points: null })}>
-            Convertir en rectángulo
+        {!el.points && <Slider label="Radio de las esquinas" value={el.cornerRadius} min={0} max={80} onChange={(cornerRadius) => patch({ cornerRadius }, 'cr')} format={(v) => `${v}px`} />}
+      </Section>
+      <Section title="Forma">
+        <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Forma de la viñeta">
+          {PANEL_SHAPES.map((sh) => (
+            <button
+              key={sh.id}
+              role="radio"
+              aria-checked={shape === sh.id}
+              onClick={() => patch(shapeGeometry(sh.id as PanelShape, el.width))}
+              className={cx('flex flex-col items-center gap-1 rounded-md px-1 py-1.5 text-[10px] ring-1 transition-colors', shape === sh.id ? 'bg-accent-soft text-white ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800 hover:text-white')}
+            >
+              <ShapeIcon shape={sh.id} />
+              {sh.label}
+            </button>
+          ))}
+        </div>
+        {shape === null && <p className="text-[11px] text-ink-500">Forma propia (de una plantilla o una división en diagonal).</p>}
+      </Section>
+      <Section title="Dividir">
+        <div className="grid grid-cols-3 gap-1">
+          <Button size="sm" onClick={() => s.splitPanel(el.id, 'horizontal')} title="Una arriba y otra abajo">
+            <SplitSquareVertical size={13} /> Horiz.
           </Button>
-        )}
+          <Button size="sm" onClick={() => s.splitPanel(el.id, 'vertical')} title="Una a la izquierda y otra a la derecha">
+            <SplitSquareHorizontal size={13} /> Vert.
+          </Button>
+          <Button size="sm" onClick={() => s.splitPanel(el.id, 'diagonal')} title="Corte inclinado, estilo manga">
+            <Slash size={13} /> Diag.
+          </Button>
+        </div>
+        <p className="text-[11px] text-ink-500">Deja el medianil entre las dos partes. La imagen queda en la primera.</p>
+      </Section>
+      <Section title="Escena">
+        <Button size="sm" className="w-full" onClick={() => s.duplicatePanelWithContent(el.id)}>
+          Duplicar viñeta con su contenido
+        </Button>
       </Section>
     </>
+  )
+}
+
+function ShapeIcon({ shape }: { shape: PanelShape }) {
+  const pts = shapeGeometry(shape, 100)
+  const poly = pts.points ?? [0, 0, 1, 0, 1, 1, 0, 1]
+  return (
+    <svg viewBox="-2 -2 28 22" className="h-4 w-6" aria-hidden>
+      {shape === 'rounded' ? (
+        <rect x={0} y={0} width={24} height={18} rx={5} fill="none" stroke="currentColor" strokeWidth={2} />
+      ) : (
+        <polygon points={poly.map((v, i) => (i % 2 ? v * 18 : v * 24)).join(' ')} fill="none" stroke="currentColor" strokeWidth={2} />
+      )}
+    </svg>
   )
 }
 
@@ -442,14 +491,20 @@ function ImageProps({ el }: { el: ImageElement }) {
   const patch = usePatch(el)
   const s = useEditor.getState()
   const asset = useEditor((st) => st.project?.assets.find((a) => a.id === el.assetId))
+  const rotate = (deg: number) => patch({ rotation: (((el.rotation + deg) % 360) + 540) % 360 - 180 })
   return (
     <Section title="Imagen">
       <div className="grid grid-cols-2 gap-2">
-        <Button size="sm" onClick={() => s.setCropping(el.id)}>
+        <Button size="sm" onClick={() => replaceImageFor(el.id)} title="Subir otra imagen en el mismo lugar">
+          <ImagePlus size={13} /> Reemplazar
+        </Button>
+        <Button size="sm" onClick={() => s.setCropping(el.id)} title="Recortar (doble clic)">
           <Crop size={13} /> Recortar
         </Button>
         <Button
           size="sm"
+          disabled={!asset}
+          title="La caja toma la proporción de la imagen: se ve entera"
           onClick={() => {
             if (!asset) return
             const w = el.crop?.width ?? asset.width
@@ -457,15 +512,29 @@ function ImageProps({ el }: { el: ImageElement }) {
             patch({ height: (el.width * h) / w })
           }}
         >
-          Proporción original
+          Ajustar
         </Button>
-        <Button size="sm" onClick={() => patch({ flipX: !el.flipX })}>
+        <Button size="sm" disabled={!asset} title="La imagen llena la caja recortando lo que sobra" onClick={() => asset && patch({ crop: coverCrop(asset, el.width, el.height) })}>
+          Rellenar
+        </Button>
+        <Button size="sm" onClick={() => rotate(-90)} title="Girar 90° a la izquierda" aria-label="Girar 90° a la izquierda">
+          <RotateCcw size={13} /> 90°
+        </Button>
+        <Button size="sm" onClick={() => rotate(90)} title="Girar 90° a la derecha" aria-label="Girar 90° a la derecha">
+          <RotateCw size={13} /> 90°
+        </Button>
+        <Button size="sm" onClick={() => patch({ flipX: !el.flipX })} title="Voltear horizontal">
           <FlipHorizontal2 size={13} /> Espejo H
         </Button>
-        <Button size="sm" onClick={() => patch({ flipY: !el.flipY })}>
+        <Button size="sm" onClick={() => patch({ flipY: !el.flipY })} title="Voltear vertical">
           <FlipVertical2 size={13} /> Espejo V
         </Button>
       </div>
+      {el.crop && (
+        <Button size="sm" variant="ghost" className="w-full" onClick={() => patch({ crop: null })}>
+          Quitar recorte
+        </Button>
+      )}
       <FilterControls filters={el.filters} onChange={(f) => s.updateElement(el.id, (d) => void (d.type === 'image' && Object.assign(d.filters, f)), 'img-filter')} />
       <p className="text-[11px] leading-relaxed text-ink-500">Para superponer imágenes, ordenalas con los botones de Orden y probá los modos de Fusión (Multiplicar para tinta sobre color, Trama para luces).</p>
     </Section>

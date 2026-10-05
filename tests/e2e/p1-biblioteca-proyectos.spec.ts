@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function upload(page: Page, files: string[]) {
-  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Biblioteca' }).click()
   await page.getByRole('button', { name: 'Este proyecto' }).click()
   await page.locator('input[type=file][accept="image/*"]').setInputFiles(files.map((f) => FIXTURES + f))
 }
@@ -26,7 +26,7 @@ test('biblioteca: no duplica, busca, filtra, renombra/etiqueta, inserta con clic
   await page.getByTitle('Volver a mis proyectos').first().click()
   const b = await createProjectInDb(page, 'Proyecto B', 'comic', 1)
   await openProject(page, b)
-  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Biblioteca' }).click()
   await page.getByRole('button', { name: 'Biblioteca', exact: true }).click()
   const lib = page.getByTestId('biblioteca')
   await expect(lib.locator('[data-library-item]')).toHaveCount(2)
@@ -96,7 +96,7 @@ test('elemento reutilizable: guardar selección, borrar el proyecto de origen y 
   await inApp(page, `const p = await m.storage.loadProject(arg); await m.storage.deleteProject(p)`, a)
   const b = await createProjectInDb(page, 'Destino composición', 'manga', 1)
   await openProject(page, b)
-  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Biblioteca' }).click()
   await page.getByRole('button', { name: 'Biblioteca', exact: true }).click()
   await inApp(page, 's.select([])')
   await page.getByTestId('biblioteca').getByRole('button', { name: 'Insertar Personaje con globo' }).click()
@@ -259,7 +259,7 @@ test('se puede elegir el mismo archivo dos veces seguidas (y se reutiliza sin du
   await gotoHome(page)
   const id = await createProjectInDb(page, 'Mismo archivo', 'comic', 1)
   await openProject(page, id)
-  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Biblioteca' }).click()
   const input = page.locator('input[type=file][accept="image/*"]')
   await input.setInputFiles(FIXTURES + 'foto-a.png')
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)

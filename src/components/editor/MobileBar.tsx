@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { deleteWithConfirm } from './actions'
 import { ArrowDownToLine, ArrowUpToLine, Copy, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { cx } from '../ui/controls'
@@ -41,7 +42,7 @@ export function MobileBar() {
             <QuickBtn label="Al fondo" onClick={() => s.arrange('back')}>
               <ArrowDownToLine size={17} />
             </QuickBtn>
-            <QuickBtn label="Eliminar" onClick={s.deleteSelection} danger>
+            <QuickBtn label="Eliminar" onClick={() => void deleteWithConfirm()} danger>
               <Trash2 size={17} />
             </QuickBtn>
           </div>

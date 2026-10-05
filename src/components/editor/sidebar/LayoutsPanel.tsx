@@ -216,7 +216,7 @@ export function LayoutsPanel() {
 }
 
 /** Miniatura del layout real de la plantilla. */
-function TemplatePreview({ polys, ratio }: { polys: PanelTemplate['polys']; ratio: number }) {
+export function TemplatePreview({ polys, ratio }: { polys: PanelTemplate['polys']; ratio: number }) {
   const w = 60
   const h = Math.min(90, w / ratio)
   const vw = ratio >= 1 ? 100 : 100 * ratio

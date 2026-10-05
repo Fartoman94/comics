@@ -32,7 +32,7 @@ test('CSP: el recorrido principal no produce violaciones y la consola queda limp
   await page.getByRole('button', { name: 'Nuevo proyecto' }).first().click()
   await page.getByRole('button', { name: 'Crear rápido' }).click()
   await expect(page.locator('[data-tour=canvas]')).toBeVisible()
-  await page.getByRole('tab', { name: 'Insertar' }).click()
+  await page.getByRole('tab', { name: 'Elementos' }).click()
   await page.getByRole('button', { name: 'Diálogo', exact: true }).click()
   expect(loaded.some((u) => /jspdf/.test(u))).toBe(false)
   await page.getByRole('button', { name: /Exportar/ }).first().click()

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { plural } from '../../lib/plural'
 import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, Copy, GripVertical, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Page } from '../../types'
 import { useEditor } from '../../store/editor'
@@ -81,7 +82,7 @@ export function Overview({ onClose }: { onClose: () => void }) {
           <ArrowLeft size={16} /> Volver
         </button>
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
-          Vista general · {project.pages.length} páginas
+          Vista general · {plural(project.pages.length, 'página', 'páginas')}
         </h2>
         {hasPagesClip && (
           <button onClick={() => void s.pastePages(project.pages.at(-1)?.id)} className="flex h-9 items-center gap-1.5 rounded-lg bg-ink-700 px-3 text-xs hover:bg-ink-600">
