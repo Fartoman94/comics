@@ -27,6 +27,8 @@ import { loadProject, takeSnapshot } from '../../lib/storage'
 import { HelpGuide } from '../help/HelpGuide'
 import { ContextBar } from './context/ContextBar'
 import { deleteWithConfirm } from './actions'
+import { PageFilmstrip } from './pages/PageFilmstrip'
+import { PageDialogsHost } from './pages/PageDialogs'
 import { EmptyPageStart } from './context/EmptyPageStart'
 
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
@@ -35,7 +37,16 @@ export function Editor() {
   // Vistas: edición (por defecto), lectura, previsualización y vista general.
   const [view, setView] = useState<'edit' | 'read' | 'preview' | 'overview'>('edit')
   const pageIndex = useEditor((s) => Math.max(0, s.project?.pages.findIndex((p) => p.id === s.pageId) ?? 0))
-  const backToEdit = useCallback(() => setView('edit'), [])
+  // Quien abrió la vista recupera el foco al volver (el editor queda inerte mientras tanto y pierde el foco).
+  const opener = useRef<HTMLElement | null>(null)
+  const open = (v: 'read' | 'preview' | 'overview') => {
+    opener.current = document.activeElement as HTMLElement | null
+    setView(v)
+  }
+  const backToEdit = useCallback(() => {
+    setView('edit')
+    setTimeout(() => opener.current?.isConnected && opener.current.focus(), 0)
+  }, [])
   const [shortcuts, setShortcuts] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const openShortcuts = useCallback(() => setShortcuts(true), [])
@@ -43,9 +54,9 @@ export function Editor() {
   const projectTitle = useEditor((s) => s.project?.title ?? '')
   // Mismas acciones para los dos layouts (estudio y simple).
   const nav: EditorNav = {
-    read: () => setView('read'),
-    preview: () => setView('preview'),
-    overview: () => setView('overview'),
+    read: () => open('read'),
+    preview: () => open('preview'),
+    overview: () => open('overview'),
     exportOpen: () => setExportOpen(true),
     shortcuts: openShortcuts,
   }
@@ -62,26 +73,33 @@ export function Editor() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ink-950">
+      {/* Con el lector, la previsualización o la vista general abiertas, el editor de fondo queda inerte (ni foco ni lector de pantalla). */}
+      <div className="contents" inert={view !== 'edit'}>
       {simple ? <SimpleTopBar nav={nav} /> : <TopBar nav={nav} />}
       {tabs.banner}
       <div className="flex min-h-0 flex-1">
         {!simple && <ToolRail />}
         {!simple && <Sidebar />}
-        <main className="relative min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'} aria-label="Lienzo de la página">
+        <div className="flex min-w-0 flex-1 flex-col">
+        <main className="relative min-h-0 min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'} aria-label="Lienzo de la página">
           {!simple && <h1 className="sr-only">{projectTitle}</h1>}
           <CanvasStage />
           {!simple && <ContextBar />}
           <EmptyPageStart />
           <CropBar />
-          <PhoneFrameBar onPreview={() => setView('preview')} />
+          <PhoneFrameBar onPreview={() => open('preview')} />
         </main>
+        {!simple && <PageFilmstrip />}
+        </div>
         {!simple && <Inspector />}
       </div>
       {simple ? <SimpleBottomBar /> : <MobileBar />}
+      </div>
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       {view === 'read' && <Reader onClose={backToEdit} startPage={pageIndex} />}
       {view === 'preview' && <Preview onClose={backToEdit} />}
       {view === 'overview' && <Overview onClose={backToEdit} />}
+      <PageDialogsHost />
       <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
       <HelpGuide canTour />
       {!simple && <Tour />}

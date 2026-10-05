@@ -126,6 +126,11 @@ interface EditorState {
   reorderElement(id: string, toIndex: number): void
 
   addPage(templateId?: string, afterId?: string): void
+  renamePage(id: string, name: string): void
+  /** Copia el contenido de una página (con ids nuevos) al final de otras páginas del proyecto. */
+  copyPageContentTo(srcId: string, destIds: string[]): void
+  /** Va a la página n (0 = primera); se ajusta al rango. */
+  goToPage(index: number): void
   duplicatePage(id: string): void
   deletePage(id: string): void
   movePage(from: number, to: number): void
@@ -601,13 +606,44 @@ export const useEditor = create<EditorState>()((set, get) => ({
   addPage: (templateId, afterId) => {
     const { project } = get()
     if (!project) return
-    const page = createPage(`Página ${project.pages.length + 1}`, project.format, templateId)
+    const page = createPage(nextPageName(project.pages), project.format, templateId)
     get().mutate((d) => {
       const idx = afterId ? d.pages.findIndex((p) => p.id === afterId) : -1
       if (idx >= 0) d.pages.splice(idx + 1, 0, page)
       else d.pages.push(page)
     })
     get().setPage(page.id)
+  },
+
+  renamePage: (id, name) => {
+    const clean = name.trim().slice(0, 80)
+    if (!clean) return
+    get().mutate(
+      (d) => {
+        const pg = d.pages.find((p) => p.id === id)
+        if (pg) pg.name = clean
+      },
+      { coalesce: `page-name:${id}` },
+    )
+  },
+
+  copyPageContentTo: (srcId, destIds) => {
+    const src = get().project?.pages.find((p) => p.id === srcId)
+    const targets = destIds.filter((id) => id !== srcId)
+    if (!src || !targets.length || !src.elements.length) return
+    get().mutate((d) => {
+      for (const id of targets) {
+        const pg = d.pages.find((p) => p.id === id)
+        if (pg) pg.elements.push(...(src.elements.map((e) => cloneElement(e, 0)) as Draft<ComicElement>[]))
+      }
+    })
+    get().toast(targets.length === 1 ? 'Contenido copiado a 1 página' : `Contenido copiado a ${targets.length} páginas`, 'success')
+  },
+
+  goToPage: (index) => {
+    const pages = get().project?.pages ?? []
+    const pg = pages[Math.max(0, Math.min(pages.length - 1, Math.round(index)))]
+    if (pg && pg.id !== get().pageId) get().setPage(pg.id)
   },
 
   duplicatePage: (id) => {
@@ -668,7 +704,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const { project, pageId } = get()
     const tpl = TEMPLATES.find((t) => t.id === templateId)
     if (!project || !tpl) return
-    const page = createPage(`Página ${project.pages.length + 1}`, project.format)
+    const page = createPage(nextPageName(project.pages), project.format)
     page.elements = buildTemplatePanels(tpl, project.format, margin, gutter)
     get().mutate((d) => {
       d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, page as Draft<Page>)
@@ -779,6 +815,14 @@ async function adoptClipboardAssets(clipboard: ClipboardData, projectId: string)
     return el
   }
   return { lost, remap }
+}
+
+/** "Página N" con el primer número que no use otra página (los nombres no son ids, pero ayudan a ubicarse). */
+export function nextPageName(pages: Pick<Page, 'name'>[]) {
+  const used = new Set(pages.map((p) => p.name))
+  let n = pages.length + 1
+  while (used.has(`Página ${n}`)) n++
+  return `Página ${n}`
 }
 
 const centerIn = (e: ComicElement, box: ComicElement) => {

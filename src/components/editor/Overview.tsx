@@ -7,7 +7,7 @@ import { getThumb, setThumb, subscribeThumbs, thumbIsFresh } from '../../lib/thu
 import { renderPage } from '../../lib/render'
 import { useFocusTrap } from '../ui/useFocusTrap'
 import { cx, IconButton } from '../ui/controls'
-import { confirmDialog } from '../ui/Confirm'
+import { deletePageWithConfirm } from './pages/PageDialogs'
 import { useReadingOverlay } from './Reader'
 
 // Las miniaturas que faltan se generan a medida que aparecen en pantalla, de a una.
@@ -60,13 +60,11 @@ export function Overview({ onClose }: { onClose: () => void }) {
     focusAfter.current = project.pages[from].id
     s.movePage(from, to)
   }
-  const remove = async (p: Page) => {
-    if (await confirmDialog('Eliminar página', `Se eliminará "${p.name}". Podés deshacerlo con Ctrl+Z.`, { confirmLabel: 'Eliminar', danger: true })) s.deletePage(p.id)
-  }
+  const remove = (p: Page) => deletePageWithConfirm(p.id)
   const rename = (id: string, name: string) => {
     setRenaming(null)
     const clean = name.trim()
-    if (clean) s.mutate((d) => void (d.pages.find((p) => p.id === id)!.name = clean))
+    if (clean) s.renamePage(id, clean)
   }
 
   // Reordenar arrastrando la manija con Pointer Events: funciona igual con mouse, dedo y lápiz.
