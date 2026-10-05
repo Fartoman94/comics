@@ -36,7 +36,10 @@ const GROUPS: [string, [string, string][]][] = [
     'Vista',
     [
       ['Ctrl + / -', 'Zoom'],
-      ['Ctrl 0', 'Encajar página'],
+      ['Ctrl 0', 'Ajustar página'],
+      ['Ctrl 1', 'Tamaño real (100 %)'],
+      ['Ctrl 2', 'Ajustar ancho'],
+      ['Espacio + arrastrar', 'Mover el lienzo'],
       ['Ctrl + rueda', 'Zoom al puntero'],
       ['Re Pág / Av Pág', 'Página anterior / siguiente'],
       ['Esc', 'Salir / deseleccionar'],

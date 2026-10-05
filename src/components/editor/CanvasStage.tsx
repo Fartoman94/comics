@@ -87,10 +87,12 @@ export function CanvasStage() {
   const fit = useCallback(() => {
     if (!size.w || !size.h) return
     const pad = size.w < 640 ? 14 : PAD
-    const z = Math.min((size.w - pad * 2) / PW, (size.h - pad * 2) / PH, 2)
+    // "Ajustar ancho": la página ocupa el ancho disponible y se ve desde arriba (para leer y rotular).
+    const width = useEditor.getState().fitMode === 'width'
+    const z = width ? Math.min((size.w - pad * 2) / PW, 8) : Math.min((size.w - pad * 2) / PW, (size.h - pad * 2) / PH, 2)
     zoomRef.current = z
     useEditor.getState().setZoom(z)
-    setPan({ x: (size.w - PW * z) / 2, y: Math.max(pad / 2, (size.h - PH * z) / 2) })
+    setPan({ x: (size.w - PW * z) / 2, y: width ? pad / 2 : Math.max(pad / 2, (size.h - PH * z) / 2) })
   }, [size.w, size.h, PW, PH])
 
   const fittedFor = useRef(-1)

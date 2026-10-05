@@ -6,6 +6,7 @@ import { AppLogo } from '../ui/Brand'
 import { useUi } from '../../store/ui'
 import { useHelp } from '../help/HelpGuide'
 import { HistoryMenu } from './HistoryMenu'
+import { ZoomMenu } from './ZoomMenu'
 
 export interface EditorNav {
   read(): void
@@ -63,9 +64,7 @@ export function TopBar({ nav }: { nav: EditorNav }) {
         <IconButton label="Alejar (Ctrl -)" onClick={() => s.setZoom(Math.max(0.05, zoom / 1.25))}>
           <Minus size={14} />
         </IconButton>
-        <button className="w-14 text-center text-xs text-ink-200 tabular-nums hover:text-white" title="Encajar página (Ctrl+0)" onClick={s.requestFit}>
-          {Math.round(zoom * 100)}%
-        </button>
+        <ZoomMenu />
         <IconButton label="Acercar (Ctrl +)" onClick={() => s.setZoom(Math.min(8, zoom * 1.25))}>
           <Plus size={14} />
         </IconButton>

@@ -286,7 +286,13 @@ function useShortcuts(openHelp: () => void) {
         s.setZoom(Math.max(0.05, s.zoom / 1.25))
       } else if (mod && k === '0') {
         e.preventDefault()
-        s.requestFit()
+        s.requestFit('page')
+      } else if (mod && k === '1') {
+        e.preventDefault()
+        s.setZoom(1)
+      } else if (mod && k === '2') {
+        e.preventDefault()
+        s.requestFit('width')
       } else if (mod && k === ']') {
         e.preventDefault()
         s.arrange(e.shiftKey ? 'front' : 'forward')
