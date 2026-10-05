@@ -236,7 +236,7 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: { 
   )
 }
 
-export function Menu({ trigger, children, align = 'left' }: { trigger: (open: boolean, toggle: () => void) => ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right' }) {
+export function Menu({ trigger, children, align = 'left', placement = 'down' }: { trigger: (open: boolean, toggle: () => void) => ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right'; placement?: 'down' | 'up' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -254,7 +254,7 @@ export function Menu({ trigger, children, align = 'left' }: { trigger: (open: bo
     <div ref={ref} className="relative">
       {trigger(open, () => setOpen((o) => !o))}
       {open && (
-        <div className={cx('absolute top-full z-40 mt-1.5 min-w-56 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-2xl', align === 'right' ? 'right-0' : 'left-0')}>
+        <div className={cx('absolute z-40 min-w-56 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-2xl', placement === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1.5', align === 'right' ? 'right-0' : 'left-0')}>
           {children(() => setOpen(false))}
         </div>
       )}

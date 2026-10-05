@@ -1,9 +1,9 @@
 import { useState, useSyncExternalStore } from 'react'
 import { plural } from '../../../lib/plural'
-import { ArrowDown, ArrowUp, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ClipboardCopy, Copy, GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
 import { cx, IconButton } from '../../ui/controls'
-import { confirmDialog } from '../../ui/Confirm'
+import { deletePageWithConfirm, openCopyContent, openRenamePage } from '../pages/PageDialogs'
 import { getThumb, subscribeThumbs } from '../../../lib/thumbs'
 import { usePointerReorder } from '../usePointerReorder'
 
@@ -18,10 +18,6 @@ export function PagesPanel() {
   const rtl = project.readingDirection === 'rtl'
   // Manija para reordenar con el dedo, el lápiz, el mouse o el teclado (el arrastre HTML5 no anda con touch).
   const { drag, handleProps } = usePointerReorder((from, to) => s.movePage(from, to))
-
-  const remove = async (id: string, name: string) => {
-    if (await confirmDialog('Eliminar página', `Se eliminará "${name}". Podés deshacerlo con Ctrl+Z.`, { confirmLabel: 'Eliminar', danger: true })) s.deletePage(id)
-  }
 
   return (
     <div className="p-3">
@@ -67,7 +63,7 @@ export function PagesPanel() {
               data-reorder-index={i}
               className={cx('group relative', ((dragOver === i && dragFrom !== i) || (drag && drag.over === i && drag.from !== i)) && 'before:absolute before:-inset-1.5 before:rounded-lg before:ring-2 before:ring-accent/60', drag?.from === i && 'opacity-50')}
             >
-              <button onClick={() => s.setPage(p.id)} className="block w-full text-left">
+              <button onClick={() => s.setPage(p.id)} onDoubleClick={() => openRenamePage(p.id)} title="Doble clic para renombrar" className="block w-full text-left">
                 <div
                   className={cx('overflow-hidden rounded-md bg-white ring-offset-2 ring-offset-ink-850 transition-shadow', active ? 'ring-2 ring-accent' : 'ring-1 ring-ink-600 group-hover:ring-ink-400')}
                   style={{ aspectRatio: `${width} / ${height}`, maxHeight: 220 }}
@@ -92,7 +88,13 @@ export function PagesPanel() {
                 <IconButton label="Duplicar página" className="size-6 text-white pointer-coarse:size-10" onClick={() => s.duplicatePage(p.id)}>
                   <Copy size={12} />
                 </IconButton>
-                <IconButton label="Eliminar página" className="size-6 text-red-300 pointer-coarse:size-10" onClick={() => void remove(p.id, p.name)}>
+                <IconButton label="Renombrar página" className="size-6 text-white pointer-coarse:size-10" onClick={() => openRenamePage(p.id)}>
+                  <Pencil size={12} />
+                </IconButton>
+                <IconButton label="Copiar contenido a otras páginas" className="size-6 text-white pointer-coarse:size-10" disabled={!p.elements.length || project.pages.length < 2} onClick={() => openCopyContent(p.id)}>
+                  <ClipboardCopy size={12} />
+                </IconButton>
+                <IconButton label="Eliminar página" className="size-6 text-red-300 pointer-coarse:size-10" onClick={() => void deletePageWithConfirm(p.id)}>
                   <Trash2 size={12} />
                 </IconButton>
               </div>

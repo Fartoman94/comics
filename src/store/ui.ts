@@ -6,6 +6,7 @@ export type UiMode = 'simple' | 'studio'
 const MODE_KEY = 'vineta:modo-ui'
 const TIPS_KEY = 'vineta:ayudas-vistas'
 const TIPS_OFF_KEY = 'vineta:ayudas-apagadas'
+const FILMSTRIP_KEY = 'vineta:tira-paginas'
 
 const read = (k: string) => {
   try {
@@ -38,6 +39,9 @@ export const PHONES = [
 export type PhoneId = (typeof PHONES)[number]['id']
 
 interface UiState {
+  /** Tira de páginas bajo el lienzo (estudio): abierta o plegada, se recuerda en este dispositivo. */
+  filmstrip: boolean
+  setFilmstrip(open: boolean): void
   /** Marco de "pantalla del teléfono" sobre el lienzo (webtoon): sólo guía visual, no se exporta. */
   phoneFrame: { on: boolean; device: PhoneId; y: number }
   setPhoneFrame(p: Partial<UiState['phoneFrame']>): void
@@ -55,6 +59,11 @@ interface UiState {
 }
 
 export const useUi = create<UiState>()((set, get) => ({
+  filmstrip: read(FILMSTRIP_KEY) !== '0',
+  setFilmstrip: (open) => {
+    write(FILMSTRIP_KEY, open ? '1' : '0')
+    set({ filmstrip: open })
+  },
   mode: defaultMode(),
   setMode: (mode) => {
     write(MODE_KEY, mode)

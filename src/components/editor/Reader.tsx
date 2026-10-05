@@ -53,7 +53,8 @@ export function useReadingOverlay() {
     useEditor.getState().setReaderOpen(true)
     return () => {
       useEditor.getState().setReaderOpen(false)
-      if (opener?.isConnected) opener.focus()
+      // Después del commit: el editor deja de estar inerte recién cuando la vista se desmonta.
+      setTimeout(() => opener && opener !== document.body && opener.isConnected && opener.focus(), 0)
     }
   }, [])
 }
