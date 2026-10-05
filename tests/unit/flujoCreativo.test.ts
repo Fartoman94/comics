@@ -20,8 +20,8 @@ beforeEach(() => {
 })
 
 describe('plantillas', () => {
-  it('las 20 plantillas siguen estando y todas tienen categoría, estilo y uso', () => {
-    expect(TEMPLATES).toHaveLength(20)
+  it('las 21 plantillas siguen estando y todas tienen categoría, estilo y uso', () => {
+    expect(TEMPLATES).toHaveLength(21)
     for (const t of TEMPLATES) {
       expect(TEMPLATE_META[t.id], t.id).toBeDefined()
       expect(TEMPLATE_META[t.id].categories.length).toBeGreaterThan(0)

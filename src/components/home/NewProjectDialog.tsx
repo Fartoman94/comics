@@ -10,16 +10,20 @@ import { formatShape, TEMPLATE_META, TEMPLATES } from '../../lib/templates'
 import { useEditor } from '../../store/editor'
 import { Button, cx, Modal, NumberInput } from '../ui/controls'
 
-type KindChoice = 'comic' | 'manga' | 'tira' | 'webtoon' | 'libre'
+type KindChoice = 'comic' | 'manga' | 'webtoon' | 'storyboard' | 'tira' | 'libre'
 type Start = 'blank' | 'template' | 'example'
 
-/** Lo que se ve en el paso 1: nombre entendible, uso recomendado y valores por defecto seguros. */
-const KINDS: { id: KindChoice; name: string; use: string; kind: Project['kind']; format: string; dir: ReadingDirection; pages: number; template: string }[] = [
-  { id: 'comic', name: 'Cómic', use: 'Historieta occidental: se lee de izquierda a derecha.', kind: 'comic', format: 'us-comic', dir: 'ltr', pages: 4, template: 'classic-6' },
-  { id: 'manga', name: 'Manga', use: 'Estilo japonés: se lee de derecha a izquierda.', kind: 'manga', format: 'manga-tankobon', dir: 'rtl', pages: 4, template: 'manga-dynamic' },
-  { id: 'tira', name: 'Tira', use: 'Tira horizontal de 3 o 4 viñetas para diario o redes.', kind: 'libre', format: 'strip', dir: 'ltr', pages: 2, template: 'strip-4' },
-  { id: 'webtoon', name: 'Webtoon', use: 'Tira vertical larga para leer en el celular.', kind: 'webtoon', format: 'webtoon', dir: 'vertical', pages: 3, template: 'webtoon-stack' },
-  { id: 'libre', name: 'Libre', use: 'Ilustraciones, storyboards o lo que quieras.', kind: 'libre', format: 'square', dir: 'ltr', pages: 2, template: 'grid-2x2' },
+/**
+ * "¿Qué querés crear?": cada tipo preconfigura formato (dimensiones y orientación), sentido de
+ * lectura, plantilla y layouts sugeridos, y dice qué exportación conviene al terminar.
+ */
+export const KINDS: { id: KindChoice; name: string; use: string; kind: Project['kind']; format: string; dir: ReadingDirection; pages: number; template: string; layouts: string[]; exportHint: string }[] = [
+  { id: 'comic', name: 'Cómic', use: 'Historieta occidental: se lee de izquierda a derecha.', kind: 'comic', format: 'us-comic', dir: 'ltr', pages: 4, template: 'classic-6', layouts: ['classic-6', 'hero-top', 'mixed-5'], exportHint: 'PDF de imprenta o liviano' },
+  { id: 'manga', name: 'Manga', use: 'Estilo japonés: se lee de derecha a izquierda.', kind: 'manga', format: 'manga-tankobon', dir: 'rtl', pages: 4, template: 'manga-dynamic', layouts: ['manga-dynamic', 'manga-vertical', 'manga-4koma'], exportHint: 'PDF con lectura der → izq' },
+  { id: 'webtoon', name: 'Webtoon', use: 'Tira vertical larga para leer en el celular.', kind: 'webtoon', format: 'webtoon', dir: 'vertical', pages: 3, template: 'webtoon-stack', layouts: ['webtoon-stack', 'splash'], exportHint: 'Webtoon en segmentos JPG' },
+  { id: 'storyboard', name: 'Storyboard', use: 'Planos de cine, animación o video, con notas.', kind: 'libre', format: 'storyboard', dir: 'ltr', pages: 4, template: 'storyboard-6', layouts: ['storyboard-6', 'strip-3'], exportHint: 'PDF liviano para compartir' },
+  { id: 'tira', name: 'Tira cómica', use: 'Tira horizontal de 3 o 4 viñetas para diario o redes.', kind: 'libre', format: 'strip', dir: 'ltr', pages: 2, template: 'strip-3', layouts: ['strip-3', 'strip-4'], exportHint: 'PNG o JPG por página' },
+  { id: 'libre', name: 'Libre', use: 'Ilustraciones, pósters o lo que quieras.', kind: 'libre', format: 'square', dir: 'ltr', pages: 2, template: 'grid-2x2', layouts: ['grid-2x2', 'splash'], exportHint: 'PNG para redes' },
 ]
 
 const LAST_KEY = 'vineta:ultimo-proyecto'
@@ -53,7 +57,15 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   const [pages, setPages] = useState(def.pages)
   const format = getFormat(formatId)
   const shape = formatShape(format)
-  const templates = useMemo(() => TEMPLATES.filter((t) => TEMPLATE_META[t.id].shape === shape), [shape])
+  // Sugeridas para el tipo elegido primero, después el resto que entra en el formato.
+  const templates = useMemo(() => {
+    const fit = TEMPLATES.filter((t) => TEMPLATE_META[t.id].shape === shape)
+    const rank = (id: string) => {
+      const i = def.layouts.indexOf(id)
+      return i < 0 ? 99 : i
+    }
+    return [...fit].sort((a, b) => rank(a.id) - rank(b.id))
+  }, [shape, def.layouts])
 
   const pickKind = (k: KindChoice) => {
     const d = KINDS.find((x) => x.id === k)!
@@ -117,6 +129,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
           ))}
         </ol>
 
+        {step === 1 && <h3 className="font-comic mb-3 text-2xl tracking-wide text-white">¿Qué querés crear?</h3>}
         {step === 1 && (
           <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Tipo de obra">
             {KINDS.map((k) => {
@@ -128,8 +141,9 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
                     <span className="font-comic block text-xl tracking-wide text-white">{k.name}</span>
                     <span className="block text-[11px] leading-snug text-ink-300">{k.use}</span>
                     <span className="block text-[10px] text-ink-400">
-                      {f.name} · {f.description}
+                      {f.name} · {f.width > f.height ? 'horizontal' : 'vertical'} · {k.dir === 'rtl' ? 'der → izq' : k.dir === 'vertical' ? 'scroll vertical' : 'izq → der'}
                     </span>
+                    <span className="block text-[10px] text-ink-300">Exportar: {k.exportHint}</span>
                   </span>
                 </button>
               )
@@ -164,6 +178,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
                     <button key={t.id} role="radio" aria-checked={templateId === t.id} title={TEMPLATE_META[t.id].use} onClick={() => setTemplateId(t.id)} className={cx('flex flex-col items-center gap-1 rounded-lg p-1', templateId === t.id ? 'bg-accent-soft ring-2 ring-accent' : 'hover:bg-ink-800')}>
                       <TemplateMini polys={t.polys} w={format.width} h={format.height} />
                       <span className="w-full truncate text-center text-[10px] text-ink-300">{t.name}</span>
+                      {def.layouts.includes(t.id) && <span className="text-[9px] text-accent-bright">sugerida</span>}
                     </button>
                   ))}
                 </div>

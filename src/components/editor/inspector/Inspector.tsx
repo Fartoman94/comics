@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   AlignCenterHorizontal,
   AlignCenterVertical,
@@ -90,6 +91,7 @@ function PagePanel() {
           {project.format.name} · {project.format.width}×{project.format.height}px
         </p>
       </Section>
+      <DesignSection />
       <Section title="Obra">
         <Field label="Autor/a">
           <TextInput value={project.author} onChange={(v) => mutate((d) => void (d.author = v), { coalesce: 'author' })} className="max-w-40" />
@@ -122,6 +124,51 @@ function PagePanel() {
         <MadeByMateLabs size="sm" />
       </div>
     </>
+  )
+}
+
+/**
+ * Diseño: estilos (bordes, radio, tipografía) en bloque para la página o el proyecto. Las
+ * plantillas (estructura de viñetas) están aparte, en la pestaña Plantillas.
+ */
+function DesignSection() {
+  const [stroke, setStroke] = useState('#111111')
+  const [width, setWidth] = useState(5)
+  const [radius, setRadius] = useState(0)
+  const [font, setFont] = useState('Comic Neue')
+  const s = useEditor.getState()
+  const both = (apply: (scope: 'page' | 'project') => void) => (
+    <div className="grid grid-cols-2 gap-2">
+      <Button size="sm" onClick={() => apply('page')}>
+        A esta página
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => apply('project')}>
+        A todo el proyecto
+      </Button>
+    </div>
+  )
+  return (
+    <Section title="Diseño">
+      <p className="text-[11px] text-ink-500">Estilo en bloque. La estructura de viñetas se cambia en Plantillas.</p>
+      <div className="space-y-2 rounded-lg bg-ink-900 p-2.5 ring-1 ring-ink-700" role="group" aria-label="Bordes de viñetas">
+        <div className="text-xs text-ink-300">Bordes de viñetas</div>
+        <Slider label="Grosor" value={width} min={0} max={30} onChange={setWidth} format={(v) => `${v}px`} />
+        <Slider label="Radio" value={radius} min={0} max={60} onChange={setRadius} format={(v) => `${v}px`} />
+        <ColorInput value={stroke} onChange={setStroke} label="Color del borde de viñetas" />
+        {both((scope) => s.applyDesign({ panelStroke: stroke, panelStrokeWidth: width, panelRadius: radius }, scope))}
+      </div>
+      <div className="space-y-2 rounded-lg bg-ink-900 p-2.5 ring-1 ring-ink-700" role="group" aria-label="Tipografía de globos">
+        <div className="text-xs text-ink-300">Tipografía de globos</div>
+        <select aria-label="Fuente de los globos" value={font} onChange={(e) => setFont(e.target.value)} className="h-8 w-full rounded-md border border-ink-600 bg-ink-900 px-2 text-xs text-ink-100" style={{ fontFamily: font }}>
+          {FONTS.filter((f) => f.script === 'latin').map((f) => (
+            <option key={f.family} value={f.family}>
+              {f.label} — {f.use}
+            </option>
+          ))}
+        </select>
+        {both((scope) => s.applyDesign({ bubbleFont: font }, scope))}
+      </div>
+    </Section>
   )
 }
 

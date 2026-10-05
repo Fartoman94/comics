@@ -23,6 +23,15 @@ type Snapshot = HistorySnapshot
 
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error'
 
+/** Estilo de diseño aplicable en bloque (bordes, radio y tipografía), separado de las plantillas (estructura). */
+export interface DesignStyle {
+  panelStroke?: string
+  panelStrokeWidth?: number
+  panelRadius?: number
+  bubbleFont?: string
+  bubbleStroke?: string
+}
+
 export interface Toast {
   id: number
   message: string
@@ -135,6 +144,8 @@ interface EditorState {
 
   addPage(templateId?: string, afterId?: string): void
   renamePage(id: string, name: string): void
+  /** Diseño (no estructura): aplica estilos a las viñetas y globos de la página actual o de todo el proyecto. */
+  applyDesign(style: DesignStyle, scope: 'page' | 'project'): void
   /** Copia el contenido de una página (con ids nuevos) al final de otras páginas del proyecto. */
   copyPageContentTo(srcId: string, destIds: string[]): void
   /** Va a la página n (0 = primera); se ajusta al rango. */
@@ -636,6 +647,27 @@ export const useEditor = create<EditorState>()((set, get) => ({
       else d.pages.push(page)
     }, { urgent: true })
     get().setPage(page.id)
+  },
+
+  applyDesign: (style, scope) => {
+    const { pageId } = get()
+    get().mutate((d) => {
+      for (const pg of d.pages) {
+        if (scope === 'page' && pg.id !== pageId) continue
+        for (const el of pg.elements) {
+          if (el.locked) continue
+          if (el.type === 'panel') {
+            if (style.panelStroke !== undefined) el.stroke = style.panelStroke
+            if (style.panelStrokeWidth !== undefined) el.strokeWidth = style.panelStrokeWidth
+            if (style.panelRadius !== undefined && !el.points) el.cornerRadius = style.panelRadius
+          }
+          if (el.type === 'bubble') {
+            if (style.bubbleFont !== undefined) el.fontFamily = style.bubbleFont
+            if (style.bubbleStroke !== undefined) el.stroke = style.bubbleStroke
+          }
+        }
+      }
+    })
   },
 
   renamePage: (id, name) => {

@@ -14,6 +14,7 @@ const KINDS = [
   { name: 'Manga', kind: 'manga', format: 'manga-tankobon', dir: 'rtl' },
   { name: 'Tira', kind: 'libre', format: 'strip', dir: 'ltr' },
   { name: 'Webtoon', kind: 'webtoon', format: 'webtoon', dir: 'vertical' },
+  { name: 'Storyboard', kind: 'libre', format: 'storyboard', dir: 'ltr' },
 ]
 
 for (const k of KINDS) {
