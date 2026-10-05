@@ -1,4 +1,5 @@
-import { Brush, Eraser, Hand, MessageCircle, MousePointer2, SquareDashed, Type } from 'lucide-react'
+import { Brush, Eraser, Hand, MessageCircle, MousePointer2, PanelLeftClose, PanelLeftOpen, SquareDashed, Type } from 'lucide-react'
+import { useUi } from '../../store/ui'
 import type { Tool } from '../../types'
 import { useEditor } from '../../store/editor'
 import { cx } from '../ui/controls'
@@ -13,6 +14,21 @@ const TOOLS: { id: Tool; icon: React.ReactNode; label: string; key: string }[] =
   { id: 'brush', icon: <Brush size={18} />, label: 'Pincel', key: 'B' },
   { id: 'eraser', icon: <Eraser size={18} />, label: 'Borrador', key: 'E' },
 ]
+
+function SidebarToggle() {
+  const open = useUi((s) => s.sidebar)
+  return (
+    <button
+      onClick={() => useUi.getState().setSidebar(!open)}
+      title={open ? 'Ocultar paneles (más lugar para el lienzo)' : 'Mostrar paneles'}
+      aria-label={open ? 'Ocultar paneles' : 'Mostrar paneles'}
+      aria-pressed={open}
+      className="mb-1 hidden size-9 items-center justify-center rounded-lg text-ink-300 hover:bg-ink-700 hover:text-white md:flex"
+    >
+      {open ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+    </button>
+  )
+}
 
 export function ToolRail() {
   const tool = useEditor((s) => s.tool)
@@ -35,6 +51,7 @@ export function ToolRail() {
         </div>
       ))}
       <div className="flex-1" />
+      <SidebarToggle />
       <a href={MATELABS_URL} target="_blank" rel="noopener noreferrer" title="Creado por MateLabs" className="rounded-lg p-1.5 opacity-70 transition-opacity hover:bg-ink-700 hover:opacity-100">
         <img src="/brand/matelabs-logo.png" alt="MateLabs" className="size-6 object-contain" />
       </a>

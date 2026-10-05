@@ -86,16 +86,16 @@ export function TopBar({ nav }: { nav: EditorNav }) {
       </div>
 
       <Button variant="ghost" size="sm" onClick={() => useHelp.getState().openGuide()} data-tour="help" title="Guía de uso" aria-label="Ayuda" className="max-sm:hidden">
-        <CircleHelp size={15} /> <span className="hidden sm:inline">Ayuda</span>
+        <CircleHelp size={15} /> <span className="hidden xl:inline">Ayuda</span>
       </Button>
       <Button variant="ghost" size="sm" onClick={onOverview} title="Vista general de páginas" aria-label="Vista general" className="max-md:hidden">
         <Grid2x2 size={15} /> <span className="hidden xl:inline">Vista general</span>
       </Button>
       <Button variant="ghost" size="sm" onClick={onPreview} title="Previsualizar sin guías ni selección" aria-label="Previsualizar" className="max-sm:hidden">
-        <Eye size={15} /> <span className="hidden lg:inline">Previsualizar</span>
+        <Eye size={15} /> <span className="hidden xl:inline">Previsualizar</span>
       </Button>
       <Button variant="ghost" size="sm" onClick={onRead} data-tour="read" title="Leer como libro" aria-label="Leer" className="max-sm:hidden">
-        <BookOpenText size={15} /> <span className="hidden sm:inline">Leer</span>
+        <BookOpenText size={15} /> <span className="hidden lg:inline">Leer</span>
       </Button>
       <Menu
         align="right"

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ACCEPT_ATTR } from '../../../lib/imageValidation'
 import { deleteWithConfirm } from '../actions'
-import { ArrowDownToLine, ArrowUpToLine, Brush, Check, Copy, Crop, Eraser, Files, ImagePlus, Images, Layers, LayoutGrid, MessageCircle, Minus, PenLine, Plus, SlidersHorizontal, SquareDashed, Trash2, Type, Undo2 } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpToLine, Brush, Check, Copy, Crop, Eraser, FileText, Files, ImagePlus, Images, Layers, LayoutGrid, MessageCircle, Minus, MoreHorizontal, PenLine, Plus, Shapes, SlidersHorizontal, SquareDashed, Trash2, Type, Undo2 } from 'lucide-react'
+import { openImagePicker } from '../images/ImagePicker'
 import type { ComicElement } from '../../../types'
 import { currentPage, placementFor, useEditor, useSelectedElements } from '../../../store/editor'
 import { createBubble, createDrawing, createText, TEXT_PRESETS } from '../../../lib/factories'
@@ -19,23 +20,26 @@ import { pickImageFor } from '../CanvasStage'
 import { BottomSheet } from './BottomSheet'
 import { Tip } from './Tip'
 
-type Group = 'pages' | 'design' | 'images' | 'text' | 'layers'
-type Sheet = Group | 'props' | 'add' | 'script' | null
+type Group = 'pages' | 'design' | 'images' | 'text' | 'bubbles' | 'elements' | 'layers'
+type Sheet = Group | 'props' | 'add' | 'script' | 'more' | null
 
-const GROUPS: { id: Group; label: string; icon: React.ReactNode; title: string }[] = [
-  { id: 'pages', label: 'Páginas', icon: <Files size={20} />, title: 'Páginas' },
-  { id: 'design', label: 'Diseñar', icon: <LayoutGrid size={20} />, title: 'Diseñar la página' },
-  { id: 'images', label: 'Imágenes', icon: <Images size={20} />, title: 'Imágenes y fotos' },
-  { id: 'text', label: 'Texto', icon: <MessageCircle size={20} />, title: 'Globos, textos y onomatopeyas' },
-  { id: 'layers', label: 'Capas', icon: <Layers size={20} />, title: 'Capas' },
-]
+const GROUP_TITLES: Record<Group, string> = {
+  pages: 'Páginas',
+  design: 'Viñetas y plantillas',
+  images: 'Imágenes y biblioteca',
+  text: 'Textos y onomatopeyas',
+  bubbles: 'Globos',
+  elements: 'Formas, efectos y dibujo',
+  layers: 'Capas',
+}
 
 // Microayudas: aparecen la primera vez que se abre cada grupo.
-const TIPS: Record<Group, string> = {
+const TIPS: Partial<Record<Group, string>> = {
   pages: 'Tocá una página para editarla. Para cambiar el orden arrastrá la manija o usá los botones de mover.',
-  design: 'Tocá una plantilla para armar las viñetas de esta página. Más abajo están los efectos manga y el dibujo a mano.',
+  design: 'Tocá una plantilla para armar las viñetas de esta página, o dibujá una viñeta a mano.',
   images: 'Subí fotos o dibujos. Si tenés una viñeta seleccionada, la imagen que toques la rellena.',
-  text: 'Elegí un globo o un texto y escribí directamente. Las onomatopeyas se insertan listas.',
+  text: 'Elegí un texto o una onomatopeya: se inserta y podés escribir directamente.',
+  bubbles: 'Tocá un tipo de globo y escribí. Arrastrá el punto naranja hacia el personaje.',
   layers: 'Lo que está arriba en la lista tapa a lo de abajo. El ojo oculta y el candado bloquea.',
 }
 
@@ -48,13 +52,21 @@ export function SimpleBottomBar() {
   // El menú "⋯" puede pedir abrir una hoja (por ejemplo, el guion).
   const request = useUi((s) => s.sheetRequest)
   useEffect(() => {
-    if (request?.id === 'script') setSheet('script')
+    if (request && (request.id === 'script' || request.id in GROUP_TITLES)) setSheet(request.id as Sheet)
   }, [request])
   const selection = useEditor((s) => s.selection)
   const tool = useEditor((s) => s.tool)
   const editing = useEditor((s) => !!s.editingTextId || !!s.croppingPanelId)
   const close = () => setSheet(null)
-  const group = GROUPS.find((g) => g.id === sheet)
+  const group = sheet && sheet in GROUP_TITLES ? (sheet as Group) : null
+  // Imagen: con una viñeta seleccionada la llena; si no, se agrega a la página. Siempre por el selector (subir o galería).
+  const addImage = () => {
+    setSheet(null)
+    const st = useEditor.getState()
+    const el = currentPage()?.elements.find((e) => e.id === st.selection[0])
+    if (st.selection.length === 1 && el?.type === 'panel') pickImageFor(el.id)
+    else openImagePicker({ kind: 'insert' })
+  }
   const drawing = tool === 'brush' || tool === 'eraser'
 
   return (
@@ -63,36 +75,58 @@ export function SimpleBottomBar() {
         // Sobre el lienzo, justo encima de la barra inferior (sin taparla).
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex flex-col items-center gap-2 px-2 pb-2">
           {drawing ? <DrawingBar onSettings={() => setSheet('props')} /> : tool === 'panel' ? <PanelToolBar /> : selection.length > 0 ? <ContextBar onMore={() => setSheet('props')} /> : null}
-          {!drawing && tool !== 'panel' && selection.length === 0 && (
-            <button onClick={() => setSheet('add')} className="pointer-events-auto absolute right-3 bottom-3 flex size-14 items-center justify-center rounded-full bg-accent text-white shadow-2xl hover:bg-accent-hover" aria-label="Agregar contenido" title="Agregar">
-              <Plus size={26} />
-            </button>
-          )}
         </div>
       )}
 
       <nav className="flex shrink-0 items-stretch border-t border-ink-700 bg-ink-900 pb-[env(safe-area-inset-bottom)]" aria-label="Herramientas">
-        {GROUPS.map((g) => (
-          <button key={g.id} onClick={() => setSheet(sheet === g.id ? null : g.id)} aria-pressed={sheet === g.id} className={cx('flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px]', sheet === g.id ? 'text-accent-bright' : 'text-ink-200')}>
-            {g.icon}
-            {g.label}
-          </button>
-        ))}
+        <BarButton label="Agregar" aria="Agregar contenido" active={sheet === 'add'} onClick={() => setSheet(sheet === 'add' ? null : 'add')} accent>
+          <Plus size={22} />
+        </BarButton>
+        <BarButton label="Texto" active={sheet === 'text'} onClick={() => setSheet(sheet === 'text' ? null : 'text')}>
+          <Type size={20} />
+        </BarButton>
+        <BarButton label="Globo" active={sheet === 'bubbles'} onClick={() => setSheet(sheet === 'bubbles' ? null : 'bubbles')}>
+          <MessageCircle size={20} />
+        </BarButton>
+        <BarButton label="Imagen" onClick={addImage}>
+          <ImagePlus size={20} />
+        </BarButton>
+        <BarButton label="Viñeta" active={sheet === 'design'} onClick={() => setSheet(sheet === 'design' ? null : 'design')}>
+          <LayoutGrid size={20} />
+        </BarButton>
+        <BarButton label="Más" aria="Más herramientas" active={sheet === 'more'} onClick={() => setSheet(sheet === 'more' ? null : 'more')}>
+          <MoreHorizontal size={20} />
+        </BarButton>
       </nav>
 
       {group && (
-        <BottomSheet title={group.title} onClose={close} onBodyClick={(e) => autoClose(e, close, group.id)}>
-          <Tip id={`grupo-${group.id}`}>{TIPS[group.id]}</Tip>
-          {group.id === 'pages' && <PagesPanel />}
-          {group.id === 'design' && (
+        <BottomSheet title={GROUP_TITLES[group]} onClose={close} onBodyClick={(e) => autoClose(e, close, group)}>
+          {TIPS[group] && <Tip id={`grupo-${group}`}>{TIPS[group]}</Tip>}
+          {group === 'pages' && <PagesPanel />}
+          {group === 'design' && (
             <>
+              <div className="px-3 pt-3">
+                <button onClick={() => useEditor.getState().setTool('panel')} className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-ink-900 p-3 text-left ring-1 ring-ink-700 active:bg-ink-700">
+                  <SquareDashed size={20} className="text-accent-bright" />
+                  <span>
+                    <span className="block text-sm font-medium text-white">Dibujar viñeta a mano</span>
+                    <span className="block text-[11px] text-ink-400">Arrastrá el dedo sobre la página</span>
+                  </span>
+                </button>
+              </div>
               <LayoutsPanel />
-              <InsertPanel sections={['shapes', 'effects', 'drawing']} />
             </>
           )}
-          {group.id === 'images' && <AssetsPanel />}
-          {group.id === 'text' && <InsertPanel sections={['bubbles', 'texts', 'sfx']} editOnInsert />}
-          {group.id === 'layers' && <LayersPanel />}
+          {group === 'images' && <AssetsPanel />}
+          {group === 'text' && <InsertPanel sections={['texts', 'sfx']} editOnInsert />}
+          {group === 'bubbles' && <InsertPanel sections={['bubbles']} editOnInsert />}
+          {group === 'elements' && <InsertPanel sections={['shapes', 'effects', 'drawing']} />}
+          {group === 'layers' && <LayersPanel />}
+        </BottomSheet>
+      )}
+      {sheet === 'more' && (
+        <BottomSheet title="Más herramientas" onClose={close}>
+          <MoreMenu hasSelection={selection.length > 0} onOpen={(s2) => setSheet(s2)} />
         </BottomSheet>
       )}
       {sheet === 'props' && (
@@ -116,9 +150,45 @@ export function SimpleBottomBar() {
 
 // Al insertar algo desde la hoja, se cierra para ver el resultado en el lienzo.
 function autoClose(e: React.MouseEvent, close: () => void, group: Group) {
-  if (group !== 'text' && group !== 'images' && group !== 'design') return
+  if (group === 'pages' || group === 'layers') return
   const btn = (e.target as HTMLElement).closest('button')
   if (btn && !btn.closest('.no-autoclose') && !btn.closest('[data-tip]')) setTimeout(close, 60)
+}
+
+function BarButton({ label, aria, onClick, children, active, accent }: { label: string; aria?: string; onClick: () => void; children: React.ReactNode; active?: boolean; accent?: boolean }) {
+  return (
+    <button onClick={onClick} aria-label={aria ?? label} aria-pressed={active} className={cx('flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px]', active ? 'text-accent-bright' : 'text-ink-200')}>
+      <span className={cx(accent && 'flex size-8 items-center justify-center rounded-full bg-accent text-white')}>{children}</span>
+      {label}
+    </button>
+  )
+}
+
+/** "Más": el resto de las herramientas del modo simple, cada una en su hoja. */
+function MoreMenu({ hasSelection, onOpen }: { hasSelection: boolean; onOpen: (s: Sheet) => void }) {
+  const items: { id: Sheet; label: string; desc: string; icon: React.ReactNode; hide?: boolean }[] = [
+    { id: 'pages', label: 'Páginas', desc: 'Agregar, ordenar, duplicar', icon: <Files size={20} /> },
+    { id: 'images', label: 'Imágenes', desc: 'Subidas y biblioteca', icon: <Images size={20} /> },
+    { id: 'elements', label: 'Formas y efectos', desc: 'Símbolos, tramas, dibujo', icon: <Shapes size={20} /> },
+    { id: 'layers', label: 'Capas', desc: 'Orden, ocultar, bloquear', icon: <Layers size={20} /> },
+    { id: 'script', label: 'Guion', desc: 'Diálogos por viñeta', icon: <FileText size={20} /> },
+    { id: 'props', label: 'Todas las opciones', desc: 'Propiedades de lo seleccionado', icon: <SlidersHorizontal size={20} />, hide: !hasSelection },
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-2 p-3">
+      {items
+        .filter((i) => !i.hide)
+        .map((it) => (
+          <button key={it.label} onClick={() => onOpen(it.id)} className="flex min-h-16 items-center gap-3 rounded-xl bg-ink-900 p-3 text-left ring-1 ring-ink-700 active:bg-ink-700">
+            <span className="text-accent-bright">{it.icon}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-white">{it.label}</span>
+              <span className="block truncate text-[11px] text-ink-400">{it.desc}</span>
+            </span>
+          </button>
+        ))}
+    </div>
+  )
 }
 
 function Action({ label, onClick, children, danger, disabled }: { label: string; onClick: () => void; children: React.ReactNode; danger?: boolean; disabled?: boolean }) {
