@@ -11,6 +11,8 @@ import {
   ChevronUp,
   Copy,
   Crop,
+  Eye,
+  EyeOff,
   FlipHorizontal2,
   FlipVertical2,
   ImagePlus,
@@ -23,7 +25,8 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import type { Page, BlendMode, BubbleElement, BubbleShape, ComicElement, DrawingElement, EffectElement, ImageElement, ImageFilters, PanelElement, TextElement, TextStyle } from '../../../types'
+import type { Page, BlendMode, BubbleElement, BubbleShape, ComicElement, DrawingElement, EffectElement, ImageElement, ImageFilters, PanelElement, ShapeElement, ShapeKind, TextElement, TextStyle } from '../../../types'
+import { SHAPE_DEFS, shapeDef, shapeSvgPath } from '../../../lib/shapes'
 import { DEFAULT_FILTERS } from '../../../types'
 import { notifyLocked, useCurrentPage, useEditor, useSelectedElements } from '../../../store/editor'
 import { FONTS, ensureGlyphs } from '../../../lib/fonts'
@@ -303,6 +306,9 @@ function ElementPanel({ el }: { el: ComicElement }) {
           <div className="truncate text-sm font-medium text-white">{el.name}</div>
         </div>
         <div className="flex">
+          <IconButton label={el.hidden ? 'Mostrar' : 'Ocultar'} onClick={() => patch({ hidden: !el.hidden })} active={el.hidden}>
+            {el.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+          </IconButton>
           <IconButton label={el.locked ? 'Desbloquear' : 'Bloquear'} onClick={() => patch({ locked: !el.locked })} active={el.locked}>
             {el.locked ? <Lock size={15} /> : <Unlock size={15} />}
           </IconButton>
@@ -315,12 +321,14 @@ function ElementPanel({ el }: { el: ComicElement }) {
         </div>
       </div>
 
+      {el.hidden && <p className="border-b border-ink-700 bg-amber-950/40 px-4 py-2 text-[11px] text-amber-200">Oculto: no se ve en la página ni se exporta. Mostralo con el ojo.</p>}
       {el.type === 'panel' && <PanelProps el={el} />}
       {el.type === 'image' && <ImageProps el={el} />}
       {el.type === 'bubble' && <BubbleProps el={el} />}
       {el.type === 'text' && <TextProps el={el} />}
       {el.type === 'effect' && <EffectProps el={el} />}
       {el.type === 'drawing' && <DrawingProps el={el} />}
+      {el.type === 'shape' && <ShapeProps el={el} />}
 
       <Section title="Posición y tamaño">
         <div className="grid grid-cols-2 gap-2">
@@ -400,6 +408,7 @@ function PanelProps({ el }: { el: PanelElement }) {
           <ColorInput value={el.stroke} onChange={(stroke) => patch({ stroke }, 'stroke')} swatches />
         </Field>
         {!el.points && <Slider label="Radio de las esquinas" value={el.cornerRadius} min={0} max={80} onChange={(cornerRadius) => patch({ cornerRadius }, 'cr')} format={(v) => `${v}px`} />}
+        <Slider label="Margen interior (imagen)" value={el.padding ?? 0} min={0} max={80} onChange={(padding) => patch({ padding }, 'pad')} format={(v) => `${v}px`} />
       </Section>
       <Section title="Forma">
         <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Forma de la viñeta">
@@ -715,6 +724,41 @@ function EffectProps({ el }: { el: EffectElement }) {
           </Button>
         </>
       )}
+    </Section>
+  )
+}
+
+function ShapeProps({ el }: { el: ShapeElement }) {
+  const patch = usePatch(el)
+  const def = shapeDef(el.shape)
+  return (
+    <Section title="Forma">
+      <div className="grid grid-cols-5 gap-1" role="radiogroup" aria-label="Tipo de forma">
+        {SHAPE_DEFS.map((d) => (
+          <button
+            key={d.id}
+            role="radio"
+            aria-checked={el.shape === d.id}
+            aria-label={d.label}
+            title={d.label}
+            onClick={() => patch({ shape: d.id as ShapeKind })}
+            className={cx('flex aspect-square items-center justify-center rounded-md ring-1', el.shape === d.id ? 'bg-accent-soft ring-accent' : 'ring-ink-700 hover:bg-ink-800')}
+          >
+            <svg viewBox="-2 -2 28 28" className="size-5" aria-hidden>
+              <path d={shapeSvgPath(d.cmds)} fill={d.mode === 'fill' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={d.mode === 'fill' ? 0 : 2.4} strokeLinecap="round" className="text-ink-200" />
+            </svg>
+          </button>
+        ))}
+      </div>
+      {def.mode === 'fill' && (
+        <Field label="Relleno" inline={false}>
+          <ColorInput value={el.fill} onChange={(fill) => patch({ fill }, 'fill')} swatches />
+        </Field>
+      )}
+      <Field label={def.mode === 'fill' ? 'Contorno' : 'Color'} inline={false}>
+        <ColorInput value={el.stroke} onChange={(stroke) => patch({ stroke }, 'stroke')} swatches={def.mode === 'stroke'} />
+      </Field>
+      <Slider label={def.mode === 'fill' ? 'Grosor del contorno' : 'Grosor del trazo'} value={el.strokeWidth} min={def.mode === 'fill' ? 0 : 1} max={40} onChange={(strokeWidth) => patch({ strokeWidth }, 'sw')} format={(v) => `${v}px`} />
     </Section>
   )
 }

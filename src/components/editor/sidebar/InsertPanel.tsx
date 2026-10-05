@@ -1,7 +1,9 @@
 import { Brush, Layers } from 'lucide-react'
 import type { BubbleShape, EffectKind, TextElement } from '../../../types'
 import { currentPage, placementFor, useEditor } from '../../../store/editor'
-import { createBubble, createDrawing, createEffect, createText, TEXT_PRESETS } from '../../../lib/factories'
+import { createBubble, createDrawing, createEffect, createShape, createText, TEXT_PRESETS } from '../../../lib/factories'
+import { SHAPE_DEFS, shapeSvgPath } from '../../../lib/shapes'
+import type { ShapeKind } from '../../../types'
 import { detectScript, ensureGlyphs, requireFonts } from '../../../lib/fonts'
 import { useEffect } from 'react'
 import { Section } from '../../ui/controls'
@@ -87,7 +89,7 @@ const SFX: { lang: string; font: string; items: [string, string][] }[] = [
 ]
 
 
-export type InsertSection = 'bubbles' | 'texts' | 'sfx' | 'effects' | 'drawing'
+export type InsertSection = 'bubbles' | 'texts' | 'sfx' | 'shapes' | 'effects' | 'drawing'
 
 /**
  * `sections` permite armar los grupos del modo simple (Texto / Diseñar) con el mismo panel.
@@ -124,6 +126,11 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
     ensureGlyphs(t.fontFamily, t.text)
     add([t])
     if (editOnInsert && script === 'latin' && !patch.text) setTimeout(() => useEditor.getState().setEditingText(t.id), 120)
+  }
+  const addShape = (kind: ShapeKind) => {
+    const el = createShape(kind, 0, 0, Math.round(160 * scale))
+    Object.assign(el, center(el.width, el.height))
+    add([el])
   }
   const addEffect = (kind: EffectKind) => {
     const sel = useEditor.getState().selection
@@ -203,6 +210,32 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
             </div>
           ))}
           <p className="text-[11px] leading-relaxed text-ink-500">Podés escribir en cualquier idioma con el teclado de tu sistema (IME). En Propiedades activá "Vertical" para rotular en tategaki.</p>
+        </Section>
+      )}
+
+      {has('shapes') && (
+        <Section title="Formas y símbolos">
+          {(['Formas', 'Símbolos'] as const).map((group) => (
+            <div key={group}>
+              <div className="mb-1.5 text-[11px] text-ink-400">{group}</div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {SHAPE_DEFS.filter((d) => d.group === group).map((d) => (
+                  <button key={d.id} onClick={() => addShape(d.id)} title={d.label} aria-label={`Insertar ${d.label}`} className="flex aspect-square items-center justify-center rounded-lg bg-ink-900 ring-1 ring-ink-700 transition-colors hover:ring-accent">
+                    <svg viewBox="-2 -2 28 28" className="size-7" aria-hidden>
+                      <path
+                        d={shapeSvgPath(d.cmds)}
+                        fill={d.mode === 'fill' ? (d.fill === '#111111' ? '#e5e5e5' : d.fill) : 'none'}
+                        stroke={d.mode === 'fill' ? '#111' : d.stroke === '#111111' ? '#e5e5e5' : d.stroke}
+                        strokeWidth={d.mode === 'fill' ? 1.2 : 2.4}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </Section>
       )}
 
