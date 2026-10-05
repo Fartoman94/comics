@@ -53,13 +53,20 @@ for (const dir of ['ltr', 'rtl'] as const) {
     // Avanzar: en cómic se tira la hoja hacia la izquierda; en manga, hacia la derecha.
     const fwd = dir === 'ltr' ? [b.x + b.width - 20, b.x + 20] : [b.x + 20, b.x + b.width - 20]
     const seen = [await firstPage(page)]
+    // Bajo carga la animación de la hoja puede tardar más que la espera fija: se espera a que el
+    // número de página cambie antes del siguiente gesto (P12: test inestable en tablet).
+    const settle = async (prev: number) => {
+      await expect.poll(() => firstPage(page), { timeout: 5000 }).not.toBe(prev)
+      await page.waitForTimeout(250)
+      return firstPage(page)
+    }
     for (let i = 0; i < 4; i++) {
       await drag(page, { x: fwd[0], y }, { x: fwd[1], y })
-      seen.push(await firstPage(page))
+      seen.push(await settle(seen[seen.length - 1]))
     }
     for (let i = 0; i < 4; i++) {
       await drag(page, { x: fwd[1], y }, { x: fwd[0], y })
-      seen.push(await firstPage(page))
+      seen.push(await settle(seen[seen.length - 1]))
     }
     for (let i = 1; i <= 4; i++) expect(seen[i], `swipe ${i} hacia adelante: ${seen.join(',')}`).toBeGreaterThan(seen[i - 1])
     for (let i = 5; i <= 8; i++) expect(seen[i], `swipe ${i - 4} hacia atrás: ${seen.join(',')}`).toBeLessThan(seen[i - 1])

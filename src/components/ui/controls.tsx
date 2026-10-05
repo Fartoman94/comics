@@ -70,9 +70,10 @@ export function TextInput({ value, onChange, placeholder, className }: { value: 
   return <input className={cx(inputCls, className)} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
 }
 
-export function TextArea({ value, onChange, rows = 3, placeholder }: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
+export function TextArea({ value, onChange, rows = 3, placeholder, label }: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string; label?: string }) {
   return (
     <textarea
+      aria-label={label}
       className="w-full resize-y rounded-md border border-ink-600 bg-ink-900 p-2 text-xs leading-relaxed text-ink-100 outline-none focus:border-accent"
       rows={rows}
       value={value}

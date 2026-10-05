@@ -108,7 +108,7 @@ function PagePanel() {
           />
         </Field>
         <Field label="Sinopsis" inline={false}>
-          <TextArea value={project.synopsis} rows={4} placeholder="¿De qué trata tu historia?" onChange={(v) => mutate((d) => void (d.synopsis = v), { coalesce: 'synopsis' })} />
+          <TextArea label="Sinopsis" value={project.synopsis} rows={4} placeholder="¿De qué trata tu historia?" onChange={(v) => mutate((d) => void (d.synopsis = v), { coalesce: 'synopsis' })} />
         </Field>
       </Section>
       <Section title="Primeros pasos">
@@ -640,6 +640,7 @@ function TextStyleControls<T extends TextElement | BubbleElement>({ el, patch }:
   return (
     <>
       <TextArea
+        label="Texto"
         value={el.text}
         rows={3}
         onChange={(text) => {

@@ -255,6 +255,8 @@ function useShortcuts(openHelp: () => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return
+      // Con un diálogo abierto las teclas son del diálogo (Esc lo cierra sin deseleccionar nada del lienzo).
+      if (document.querySelector('[role=dialog][aria-modal=true]')) return
       const s = useEditor.getState()
       // Con el lector abierto las teclas son del lector: el documento no se toca.
       if (s.readerOpen) return
