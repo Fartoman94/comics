@@ -14,6 +14,7 @@ import type {
 } from '../../../types'
 import { insetConvexPolygon } from '../../../lib/geometry'
 import { shapeDef, traceShape } from '../../../lib/shapes'
+import { bubbleHasTail, isBoxBubble } from '../../../lib/factories'
 import { useAssetImage } from '../../../lib/assetCache'
 import { bubbleTextBox, drawBubble } from './bubblePath'
 import { drawEffect } from './effects'
@@ -382,15 +383,18 @@ function BubbleNode({ el, selected, interactive, textHidden, onTailChange }: Nod
   const [tail, setTail] = useState<{ x: number; y: number } | null>(null)
   const live = tail ? { ...el, tailX: tail.x, tailY: tail.y } : el
   const box = bubbleTextBox(el)
-  const showHandle = interactive && selected && el.tail && el.shape !== 'box' && el.shape !== 'cloud-box' && !el.locked
+  const showHandle = interactive && selected && el.tail && bubbleHasTail(el.shape) && !el.locked
   return (
     <>
       <Shape
+        // Sin tamaño propio el marco de selección tomaba sólo la caja del texto, más chica que el globo.
+        width={el.width}
+        height={el.height}
         sceneFunc={(ctx) => drawBubble(ctx._context, live)}
         hitFunc={(ctx, shape) => {
           ctx.beginPath()
           ctx.ellipse(el.width / 2, el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2)
-          if (el.shape === 'box') {
+          if (isBoxBubble(el.shape)) {
             ctx.beginPath()
             ctx.rect(0, 0, el.width, el.height)
           }
@@ -417,8 +421,9 @@ function BubbleNode({ el, selected, interactive, textHidden, onTailChange }: Nod
       />
       {showHandle && (
         <>
-          <Line points={[el.width / 2, el.height / 2, live.tailX, live.tailY]} stroke="#ff5a36" strokeWidth={1} dash={[4, 4]} listening={false} name="ui-only" />
+          <Line ref={outOfBounds} points={[el.width / 2, el.height / 2, live.tailX, live.tailY]} stroke="#ff5a36" strokeWidth={1} dash={[4, 4]} listening={false} name="ui-only" />
           <Circle
+            ref={outOfBounds}
             name="tail-handle ui-only"
             x={live.tailX}
             y={live.tailY}
@@ -450,6 +455,15 @@ function BubbleNode({ el, selected, interactive, textHidden, onTailChange }: Nod
       )}
     </>
   )
+}
+
+/**
+ * Ayudas de edición (manija de la cola y su guía) que no cuentan para la caja del elemento:
+ * así el marco de selección abarca el globo y no se estira hasta la punta de la cola.
+ * (Konva saltea los hijos cuya caja mide 0×0.)
+ */
+function outOfBounds(node: Konva.Node | null) {
+  if (node) node.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 })
 }
 
 // ---------- Texto / SFX ----------

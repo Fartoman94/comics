@@ -20,7 +20,7 @@ function hintFor(el: ComicElement): string {
     case 'image':
       return 'Doble clic para recortar'
     case 'bubble':
-      return 'Doble clic para escribir · arrastrá el punto naranja para mover la cola'
+      return 'Doble clic para escribir · arrastrá el punto naranja hacia el personaje · Ctrl+D duplica'
     case 'text':
       return 'Doble clic para escribir'
     case 'drawing':
@@ -43,7 +43,7 @@ export function ContextBar() {
   const selected = page.elements.filter((e) => selection.includes(e.id))
   const one = selected.length === 1 ? selected[0] : undefined
   const parent = one ? parentPanelOf(page, one) : undefined
-  const hint = TOOL_HINT[tool] ?? (editing ? 'Escribiendo: Ctrl+Enter o clic afuera para terminar' : one ? hintFor(one) : selected.length > 1 ? `${selected.length} elementos: arrastrá para moverlos juntos` : 'Hacé clic en un elemento para editarlo')
+  const hint = TOOL_HINT[tool] ?? (editing ? 'Escribiendo: Enter confirma · Shift+Enter nueva línea · Esc cancela' : one ? hintFor(one) : selected.length > 1 ? `${selected.length} elementos: arrastrá para moverlos juntos` : 'Hacé clic en un elemento para editarlo')
   const crumb = 'max-w-40 truncate rounded px-1.5 py-0.5 hover:bg-ink-700 hover:text-white'
   return (
     <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2" data-testid="contexto-edicion">

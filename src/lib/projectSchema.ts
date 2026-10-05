@@ -40,7 +40,7 @@ export const LIMITS = {
 const PROJECT_KINDS = ['comic', 'manga', 'webtoon', 'libre'] as const
 const DIRECTIONS = ['ltr', 'rtl', 'vertical'] as const
 const BLENDS: BlendMode[] = ['source-over', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'luminosity']
-const SHAPES: BubbleShape[] = ['speech', 'thought', 'shout', 'whisper', 'box', 'cloud-box']
+const SHAPES: BubbleShape[] = ['speech', 'thought', 'shout', 'whisper', 'impact', 'borderless', 'box', 'rounded-box', 'cloud-box']
 const EFFECTS: EffectKind[] = ['speedlines', 'focuslines', 'screentone', 'gradient-tone']
 const SHAPE_KINDS: ShapeKind[] = ['rect', 'ellipse', 'triangle', 'star', 'arrow', 'line', 'heart', 'anger', 'sweat', 'exclaim', 'question', 'music', 'sparkle']
 const BRUSHES: BrushKind[] = ['pen', 'ink', 'pencil', 'marker']
@@ -277,6 +277,8 @@ function element(v: unknown, p: string, budget: { points: number }): ComicElemen
         tail: bool(o.tail, `${p}.tail`, false),
         tailX: num(o.tailX, `${p}.tailX`, -C, C, 0),
         tailY: num(o.tailY, `${p}.tailY`, -C, C, 0),
+        ...(o.tailWidth === undefined ? {} : { tailWidth: num(o.tailWidth, `${p}.tailWidth`, 0.05, 10, 1) }),
+        ...(o.cornerRadius === undefined ? {} : { cornerRadius: num(o.cornerRadius, `${p}.cornerRadius`, 0, 10000, 0) }),
       }
     case 'text':
       return {

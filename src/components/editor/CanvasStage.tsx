@@ -855,6 +855,7 @@ function EmptyPanelAction({ panel, zoom, pan }: { panel: ComicElement; zoom: num
 function TextEditOverlay({ id, stage, zoom, pan }: { id: string; stage: Konva.Stage; zoom: number; pan: { x: number; y: number } }) {
   const el = findEl(id) as TextElement | BubbleElement | undefined
   const ref = useRef<HTMLTextAreaElement>(null)
+  const cancelled = useRef(false)
   const [value, setValue] = useState(el?.text ?? '')
   useEffect(() => {
     ref.current?.focus()
@@ -864,7 +865,8 @@ function TextEditOverlay({ id, stage, zoom, pan }: { id: string; stage: Konva.St
   const box = el.type === 'bubble' ? bubbleTextBox(el) : { x: 0, y: 0, width: el.width, height: el.height }
   const commit = () => {
     const s = useEditor.getState()
-    if (value !== el.text) s.updateElement(id, { text: value })
+    if (s.editingTextId !== id) return
+    if (!cancelled.current && value !== el.text) s.updateElement(id, { text: value })
     ensureGlyphs(el.fontFamily, value)
     s.setEditingText(null)
   }
@@ -882,8 +884,13 @@ function TextEditOverlay({ id, stage, zoom, pan }: { id: string; stage: Konva.St
         e.stopPropagation()
         // Durante la composición IME (japonés, coreano, chino) Esc y Enter son del IME, no del editor.
         if (e.nativeEvent.isComposing || e.keyCode === 229) return
-        if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) {
+        // Enter confirma, Shift+Enter agrega una línea, Esc cancela (vuelve al texto anterior).
+        if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()
+          commit()
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          cancelled.current = true
           commit()
         }
       }}

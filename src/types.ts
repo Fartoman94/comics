@@ -113,7 +113,7 @@ export interface ImageElement extends BaseElement {
   filters: ImageFilters
 }
 
-export type BubbleShape = 'speech' | 'thought' | 'shout' | 'whisper' | 'box' | 'cloud-box'
+export type BubbleShape = 'speech' | 'thought' | 'shout' | 'whisper' | 'impact' | 'borderless' | 'box' | 'rounded-box' | 'cloud-box'
 
 export interface TextStyle {
   text: string
@@ -140,6 +140,10 @@ export interface BubbleElement extends BaseElement, TextStyle {
   /** Punta de la cola, relativa a la esquina del globo. */
   tailX: number
   tailY: number
+  /** Ancho de la base de la cola (1 = normal). Opcional. */
+  tailWidth?: number
+  /** Radio de las esquinas de las cajas de narración. Opcional. */
+  cornerRadius?: number
 }
 
 export interface TextElement extends BaseElement, TextStyle {

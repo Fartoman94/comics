@@ -8,12 +8,15 @@ import { detectScript, ensureGlyphs, requireFonts } from '../../../lib/fonts'
 import { useEffect } from 'react'
 import { Section } from '../../ui/controls'
 
-const BUBBLES: { shape: BubbleShape; label: string; path: string; dash?: boolean }[] = [
+export const BUBBLES: { shape: BubbleShape; label: string; path: string; dash?: boolean; noStroke?: boolean; fill?: string }[] = [
   { shape: 'speech', label: 'Diálogo', path: 'M24 6c11 0 20 6 20 14s-9 14-20 14c-2 0-4 0-6-1l-9 6 3-8c-5-3-8-7-8-11C4 12 13 6 24 6z' },
   { shape: 'thought', label: 'Pensamiento', path: 'M14 10a8 8 0 0114-3 8 8 0 0112 4 7 7 0 012 13 8 8 0 01-11 6 9 9 0 01-13 0 7 7 0 01-9-9 7 7 0 015-11zM9 36a3 3 0 110 .1M4 42a2 2 0 110 .1' },
   { shape: 'shout', label: 'Grito', path: 'M24 2l4 8 8-5-1 9 10-1-6 7 8 5-9 3 5 8-9-2 0 9-6-6-5 8-3-9-8 4 3-8-9-2 7-5-7-6 9-1-3-8 8 4z' },
   { shape: 'whisper', label: 'Susurro', dash: true, path: 'M24 6c11 0 20 6 20 14s-9 14-20 14c-2 0-4 0-6-1l-9 6 3-8c-5-3-8-7-8-11C4 12 13 6 24 6z' },
-  { shape: 'box', label: 'Narración', path: 'M5 10h38v24H5z' },
+  { shape: 'impact', label: 'Impacto', fill: '#ffd23f', path: 'M24 1l3 11 9-8-2 11 12-3-8 9 10 5-11 3 6 10-11-4-1 11-6-9-7 8-1-11-11 3 7-9-10-6 11-2-6-10 11 5z' },
+  { shape: 'borderless', label: 'Sin borde', noStroke: true, path: 'M24 8c11 0 20 5 20 12s-9 12-20 12S4 27 4 20 13 8 24 8z' },
+  { shape: 'box', label: 'Narrador', fill: '#fff6c9', path: 'M5 10h38v24H5z' },
+  { shape: 'rounded-box', label: 'Caja de narración', path: 'M10 10h28a5 5 0 015 5v14a5 5 0 01-5 5H10a5 5 0 01-5-5V15a5 5 0 015-5z' },
   { shape: 'cloud-box', label: 'Recuadro nube', path: 'M12 12a7 7 0 0112-3 7 7 0 0111 2 7 7 0 016 11 7 7 0 01-7 9 8 8 0 01-12 1 7 7 0 01-11-3 7 7 0 01-3-12 6 6 0 014-5z' },
 ]
 
@@ -25,7 +28,24 @@ const EFFECTS: { kind: EffectKind; label: string; desc: string }[] = [
 ]
 
 // Onomatopeyas listas para usar, por idioma.
-const SFX: { lang: string; font: string; items: [string, string][] }[] = [
+const SFX: { lang: string; font: string; items: [string, string][]; loud?: boolean }[] = [
+  {
+    lang: 'Clásicas',
+    font: 'Bangers',
+    loud: true,
+    items: [
+      ['BOOM', 'explosión'],
+      ['BANG', 'disparo'],
+      ['POW', 'golpe'],
+      ['CRASH', 'choque'],
+      ['WHOOSH', 'movimiento rápido'],
+      ['ZAP', 'rayo / descarga'],
+      ['PUM', 'golpe seco'],
+      ['PAM', 'golpe'],
+      ['TAC', 'toque / paso'],
+      ['BRRR', 'frío / motor'],
+    ],
+  },
   {
     lang: '日本語 · Japonés',
     font: 'Dela Gothic One',
@@ -156,9 +176,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
           <div className="grid grid-cols-3 gap-2">
             {BUBBLES.map((b) => (
               <button key={b.shape} onClick={() => addBubble(b.shape)} className="flex flex-col items-center gap-1 rounded-lg bg-ink-900 p-2 ring-1 ring-ink-700 transition-colors hover:ring-accent">
-                <svg viewBox="0 0 48 44" className="h-9 w-10">
-                  <path d={b.path} fill="#fff" stroke="#111" strokeWidth={2} strokeLinejoin="round" strokeDasharray={b.dash ? '3 2' : undefined} />
-                </svg>
+                <BubbleIcon b={b} />
                 <span className="text-[10px] text-ink-300">{b.label}</span>
               </button>
             ))}
@@ -199,7 +217,14 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
                   <button
                     key={t}
                     title={desc}
-                    onClick={() => addText({ text: t, fontFamily: g.font, fontSize: 90, textColor: '#111111', stroke: '#ffffff', strokeWidth: 6, skewX: 0, shadow: false, uppercase: false, letterSpacing: 0 }, t)}
+                    onClick={() =>
+                      addText(
+                        g.loud
+                          ? { text: t, fontFamily: g.font, fontSize: 110, textColor: '#ffd23f', stroke: '#111111', strokeWidth: 8, skewX: -0.12, shadow: true, shadowColor: '#e11d48', uppercase: true, letterSpacing: 3 }
+                          : { text: t, fontFamily: g.font, fontSize: 90, textColor: '#111111', stroke: '#ffffff', strokeWidth: 6, skewX: 0, shadow: false, uppercase: false, letterSpacing: 0 },
+                        t,
+                      )
+                    }
                     className="rounded-md bg-ink-900 px-2 py-1 text-sm text-white ring-1 ring-ink-700 transition-colors hover:ring-accent"
                     style={{ fontFamily: g.font }}
                   >
@@ -286,6 +311,14 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
         </Section>
       )}
     </div>
+  )
+}
+
+export function BubbleIcon({ b, className = 'h-9 w-10' }: { b: (typeof BUBBLES)[number]; className?: string }) {
+  return (
+    <svg viewBox="0 0 48 44" className={className} aria-hidden>
+      <path d={b.path} fill={b.fill ?? '#fff'} stroke={b.noStroke ? 'none' : '#111'} strokeWidth={2} strokeLinejoin="round" strokeDasharray={b.dash ? '3 2' : undefined} />
+    </svg>
   )
 }
 

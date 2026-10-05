@@ -27,6 +27,8 @@ import {
 } from 'lucide-react'
 import type { Page, BlendMode, BubbleElement, BubbleShape, ComicElement, DrawingElement, EffectElement, ImageElement, ImageFilters, PanelElement, ShapeElement, ShapeKind, TextElement, TextStyle } from '../../../types'
 import { SHAPE_DEFS, shapeDef, shapeSvgPath } from '../../../lib/shapes'
+import { bubbleHasTail, isBoxBubble } from '../../../lib/factories'
+import { BUBBLES, BubbleIcon } from '../sidebar/InsertPanel'
 import { DEFAULT_FILTERS } from '../../../types'
 import { notifyLocked, useCurrentPage, useEditor, useSelectedElements } from '../../../store/editor'
 import { FONTS, ensureGlyphs } from '../../../lib/fonts'
@@ -654,34 +656,54 @@ function TextStyleControls<T extends TextElement | BubbleElement>({ el, patch }:
   )
 }
 
-const SHAPES: { value: BubbleShape; label: string }[] = [
-  { value: 'speech', label: 'Diálogo' },
-  { value: 'thought', label: 'Pensamiento' },
-  { value: 'shout', label: 'Grito' },
-  { value: 'whisper', label: 'Susurro' },
-  { value: 'box', label: 'Narración' },
-  { value: 'cloud-box', label: 'Recuadro nube' },
-]
-
 function BubbleProps({ el }: { el: BubbleElement }) {
   const patch = usePatch(el)
+  const box = isBoxBubble(el.shape)
+  const setShape = (shape: BubbleShape) => {
+    // Cambiar de forma conserva texto y estilo; "sin borde" apaga el contorno y las cajas lo vuelven a tener.
+    const extra: Partial<BubbleElement> = {}
+    if (shape === 'borderless') extra.strokeWidth = 0
+    else if (el.shape === 'borderless' && el.strokeWidth === 0) extra.strokeWidth = 3
+    if (isBoxBubble(shape) && el.cornerRadius === undefined && shape === 'rounded-box') extra.cornerRadius = 18
+    if (!bubbleHasTail(shape)) extra.tail = false
+    patch({ shape, ...extra })
+  }
   return (
     <>
       <Section title="Globo">
-        <Field label="Forma" inline={false}>
-          <Select value={el.shape} onChange={(shape) => patch({ shape })} options={SHAPES} />
-        </Field>
-        {el.shape !== 'box' && el.shape !== 'cloud-box' && <Toggle label="Cola (arrastrá el punto naranja)" checked={el.tail} onChange={(tail) => patch({ tail })} />}
+        <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Tipo de globo">
+          {BUBBLES.map((b) => (
+            <button
+              key={b.shape}
+              role="radio"
+              aria-checked={el.shape === b.shape}
+              onClick={() => setShape(b.shape)}
+              className={cx('flex flex-col items-center gap-0.5 rounded-md px-1 py-1 text-[10px] ring-1 transition-colors', el.shape === b.shape ? 'bg-accent-soft text-white ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800')}
+            >
+              <BubbleIcon b={b} className="h-6 w-7" />
+              {b.label}
+            </button>
+          ))}
+        </div>
+        {bubbleHasTail(el.shape) && (
+          <>
+            <Toggle label="Cola (arrastrá el punto naranja hacia el personaje)" checked={el.tail} onChange={(tail) => patch({ tail })} />
+            {el.tail && <Slider label="Ancho de la cola" value={el.tailWidth ?? 1} min={0.4} max={2.5} step={0.05} onChange={(tailWidth) => patch({ tailWidth }, 'tw')} format={(v) => `${Math.round(v * 100)}%`} />}
+          </>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Field label="Fondo" inline={false}>
             <ColorInput value={el.fill} onChange={(fill) => patch({ fill }, 'fill')} />
           </Field>
-          <Field label="Borde" inline={false}>
-            <ColorInput value={el.stroke} onChange={(stroke) => patch({ stroke }, 'stroke')} />
-          </Field>
+          {el.shape !== 'borderless' && (
+            <Field label="Borde" inline={false}>
+              <ColorInput value={el.stroke} onChange={(stroke) => patch({ stroke }, 'stroke')} />
+            </Field>
+          )}
         </div>
-        <Slider label="Grosor del borde" value={el.strokeWidth} min={0} max={14} step={0.5} onChange={(strokeWidth) => patch({ strokeWidth }, 'sw')} />
+        {el.shape !== 'borderless' && <Slider label="Grosor del borde" value={el.strokeWidth} min={0} max={14} step={0.5} onChange={(strokeWidth) => patch({ strokeWidth }, 'sw')} />}
         <Slider label="Margen interior" value={el.padding} min={0} max={80} onChange={(padding) => patch({ padding }, 'pad')} />
+        {box && <Slider label="Radio de las esquinas" value={el.cornerRadius ?? 0} min={0} max={60} onChange={(cornerRadius) => patch({ cornerRadius }, 'cr')} format={(v) => `${v}px`} />}
       </Section>
       <Section title="Texto">
         <TextStyleControls el={el} patch={patch as Patch<TextStyle>} />

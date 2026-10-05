@@ -63,34 +63,44 @@ const BUBBLE_NAMES: Record<BubbleShape, string> = {
   thought: 'Pensamiento',
   shout: 'Grito',
   whisper: 'Susurro',
-  box: 'Narración',
+  impact: 'Impacto',
+  borderless: 'Sin borde',
+  box: 'Narrador',
+  'rounded-box': 'Caja de narración',
   'cloud-box': 'Recuadro nube',
 }
 
+/** Formas de globo "caja" (rectangulares): texto a todo el ancho y sin cola. */
+export const isBoxBubble = (shape: BubbleShape) => shape === 'box' || shape === 'rounded-box'
+/** Formas que admiten cola. */
+export const bubbleHasTail = (shape: BubbleShape) => !isBoxBubble(shape) && shape !== 'cloud-box'
+
 export function createBubble(shape: BubbleShape, x: number, y: number, scale = 1): BubbleElement {
-  const isBox = shape === 'box'
-  const width = Math.round((isBox ? 320 : 280) * scale)
-  const height = Math.round((isBox ? 110 : 170) * scale)
+  const isBox = isBoxBubble(shape)
+  const loud = shape === 'shout' || shape === 'impact'
+  const width = Math.round((isBox ? 320 : shape === 'impact' ? 320 : 280) * scale)
+  const height = Math.round((isBox ? 110 : shape === 'impact' ? 220 : 170) * scale)
   return {
     ...base(BUBBLE_NAMES[shape], x, y, width, height),
     type: 'bubble',
     shape,
-    text: isBox ? 'Mientras tanto, en la ciudad...' : shape === 'shout' ? '¡¿QUÉ?!' : shape === 'thought' ? 'Hmm...' : '¡Hola! Escribí acá.',
-    fontFamily: isBox ? 'Special Elite' : shape === 'shout' ? 'Bangers' : 'Comic Neue',
-    fontSize: Math.round((shape === 'shout' ? 36 : 26) * scale),
-    fontStyle: shape === 'speech' || shape === 'whisper' ? 'bold' : 'normal',
+    text: isBox ? 'Mientras tanto, en la ciudad...' : shape === 'impact' ? '¡BOOM!' : shape === 'shout' ? '¡¿QUÉ?!' : shape === 'thought' ? 'Hmm...' : '¡Hola! Escribí acá.',
+    fontFamily: isBox ? 'Special Elite' : loud ? 'Bangers' : 'Comic Neue',
+    fontSize: Math.round((shape === 'impact' ? 48 : shape === 'shout' ? 36 : 26) * scale),
+    fontStyle: shape === 'speech' || shape === 'whisper' || shape === 'borderless' ? 'bold' : 'normal',
     align: isBox ? 'left' : 'center',
     lineHeight: 1.15,
     letterSpacing: 0,
     textColor: '#111111',
-    uppercase: shape !== 'box',
-    fill: isBox ? '#fff6c9' : '#ffffff',
+    uppercase: !isBox,
+    fill: shape === 'box' ? '#fff6c9' : shape === 'impact' ? '#ffd23f' : '#ffffff',
     stroke: '#111111',
-    strokeWidth: 3,
+    strokeWidth: shape === 'borderless' ? 0 : shape === 'impact' ? 4 : 3,
     padding: Math.round(18 * scale),
-    tail: !isBox && shape !== 'cloud-box',
+    tail: bubbleHasTail(shape) && shape !== 'impact' && shape !== 'borderless',
     tailX: width * 0.3,
     tailY: height + 70 * scale,
+    ...(shape === 'rounded-box' ? { cornerRadius: Math.round(18 * scale) } : {}),
   }
 }
 

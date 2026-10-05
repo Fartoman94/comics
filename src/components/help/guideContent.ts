@@ -63,7 +63,7 @@ export const GUIDE: GuideTopic[] = [
     summary: 'Diálogos, narración y onomatopeyas.',
     steps: [
       { title: 'Agregar un globo', body: 'Elementos → Globos, o la herramienta Globo (G) y un clic en la página.' },
-      { title: 'Escribir', body: 'Doble clic sobre el globo o texto. Ctrl+Enter o Esc para terminar.' },
+      { title: 'Escribir', body: 'Doble clic sobre el globo o texto. Enter confirma, Shift+Enter agrega una línea y Esc cancela.' },
       { title: 'Apuntar la cola', body: 'Seleccioná el globo y arrastrá el punto naranja hacia quien habla.' },
       { title: 'Cambiar la forma', body: 'En Propiedades: diálogo, pensamiento, grito, susurro, narración o recuadro nube.' },
       { title: 'Onomatopeyas', body: 'Elementos → Onomatopeyas trae SFX listos. Ajustá contorno, inclinación y sombra en Propiedades.' },
