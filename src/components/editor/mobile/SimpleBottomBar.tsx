@@ -109,7 +109,7 @@ export function SimpleBottomBar() {
                 <button onClick={() => useEditor.getState().setTool('panel')} className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-ink-900 p-3 text-left ring-1 ring-ink-700 active:bg-ink-700">
                   <SquareDashed size={20} className="text-accent-bright" />
                   <span>
-                    <span className="block text-sm font-medium text-white">Dibujar viñeta a mano</span>
+                    <span className="block text-sm font-medium text-fg">Dibujar viñeta a mano</span>
                     <span className="block text-[11px] text-ink-400">Arrastrá el dedo sobre la página</span>
                   </span>
                 </button>
@@ -182,7 +182,7 @@ function MoreMenu({ hasSelection, onOpen }: { hasSelection: boolean; onOpen: (s:
           <button key={it.label} onClick={() => onOpen(it.id)} className="flex min-h-16 items-center gap-3 rounded-xl bg-ink-900 p-3 text-left ring-1 ring-ink-700 active:bg-ink-700">
             <span className="text-accent-bright">{it.icon}</span>
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-white">{it.label}</span>
+              <span className="block text-sm font-medium text-fg">{it.label}</span>
               <span className="block truncate text-[11px] text-ink-400">{it.desc}</span>
             </span>
           </button>
@@ -360,7 +360,7 @@ function AddMenu({ onDone }: { onDone: () => void }) {
         <button key={it.label} onClick={it.run} className="flex min-h-16 items-center gap-3 rounded-xl bg-ink-900 p-3 text-left ring-1 ring-ink-700 active:bg-ink-700">
           <span className="text-accent-bright">{it.icon}</span>
           <span>
-            <span className="block text-sm font-medium text-white">{it.label}</span>
+            <span className="block text-sm font-medium text-fg">{it.label}</span>
             <span className="block text-[11px] text-ink-400">{it.desc}</span>
           </span>
         </button>

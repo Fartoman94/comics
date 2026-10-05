@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookOpenText, Check, FileText, CircleAlert, CircleHelp, Cloud, Download, Eye, Grid2x2, Home, Loader2, MonitorCog, MoreVertical, Redo2, Undo2 } from 'lucide-react'
+import { BookOpenText, Check, FileText, CircleAlert, CircleHelp, Cloud, Download, Eye, Grid2x2, Home, Loader2, MonitorCog, MoreVertical, Redo2, SunMoon, Undo2 } from 'lucide-react'
 import { useEditor } from '../../../store/editor'
 import { useUi } from '../../../store/ui'
 import { navigateToProject } from '../../../lib/nav'
@@ -38,7 +38,7 @@ export function SimpleTopBar({ nav }: { nav: EditorNav }) {
             autoFocus
             defaultValue={title}
             aria-label="Título del proyecto"
-            className="h-10 w-full rounded-md border border-accent bg-ink-950 px-2 text-sm text-white outline-none"
+            className="h-10 w-full rounded-md border border-accent bg-ink-950 px-2 text-sm text-fg outline-none"
             onBlur={(e) => {
               setEditing(false)
               const v = e.currentTarget.value.trim()
@@ -52,7 +52,7 @@ export function SimpleTopBar({ nav }: { nav: EditorNav }) {
         ) : (
           // Título completo en hasta dos líneas; tocarlo permite cambiarlo.
           <button onClick={() => setEditing(true)} className="flex min-h-11 w-full items-center rounded-md px-1 py-0.5 text-left hover:bg-ink-800" aria-label={`Título: ${title}. Tocá para cambiarlo`}>
-            <h1 className="line-clamp-2 text-[13px] leading-tight font-semibold break-words text-white">{title}</h1>
+            <h1 className="line-clamp-2 text-[13px] leading-tight font-semibold break-words text-fg">{title}</h1>
           </button>
         )}
       </div>
@@ -81,6 +81,7 @@ export function SimpleTopBar({ nav }: { nav: EditorNav }) {
             <MenuItem label="Guion" hint="Diálogos por viñeta" onClick={() => (close(), useUi.getState().requestSheet('script'))} icon={<FileText size={15} />} />
             <MenuItem label="Exportar…" hint="PDF, PNG, ZIP, libro web" onClick={() => (close(), nav.exportOpen())} icon={<Download size={15} />} />
             <MenuItem label="Ayuda" onClick={() => (close(), useHelp.getState().openGuide())} icon={<CircleHelp size={15} />} />
+            <MenuItem label={useUi.getState().theme === 'light' ? 'Modo noche' : 'Modo día'} hint="Se recuerda en este navegador" onClick={() => (close(), useUi.getState().setTheme(useUi.getState().theme === 'light' ? 'dark' : 'light'))} icon={<SunMoon size={15} />} />
             <MenuItem label="Modo estudio" hint="Todas las herramientas a la vista" onClick={() => (close(), useUi.getState().setMode('studio'))} icon={<MonitorCog size={15} />} />
           </>
         )}

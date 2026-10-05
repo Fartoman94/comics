@@ -23,7 +23,7 @@ function SidebarToggle() {
       title={open ? 'Ocultar paneles (más lugar para el lienzo)' : 'Mostrar paneles'}
       aria-label={open ? 'Ocultar paneles' : 'Mostrar paneles'}
       aria-pressed={open}
-      className="mb-1 hidden size-9 items-center justify-center rounded-lg text-ink-300 hover:bg-ink-700 hover:text-white md:flex"
+      className="mb-1 hidden size-9 items-center justify-center rounded-lg text-ink-300 hover:bg-ink-700 hover:text-fg md:flex"
     >
       {open ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
     </button>
@@ -43,7 +43,7 @@ export function ToolRail() {
             title={`${t.label} (${t.key})`}
             aria-label={t.label}
             aria-pressed={tool === t.id}
-            className={cx('group relative flex size-9 items-center justify-center rounded-lg transition-colors', tool === t.id ? 'bg-accent text-white' : 'text-ink-300 hover:bg-ink-700 hover:text-white')}
+            className={cx('group relative flex size-9 items-center justify-center rounded-lg transition-colors', tool === t.id ? 'bg-accent text-white' : 'text-ink-300 hover:bg-ink-700 hover:text-fg')}
           >
             {t.icon}
             <span className="absolute right-0.5 bottom-0 text-[8px] font-semibold opacity-50">{t.key}</span>

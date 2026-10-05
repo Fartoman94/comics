@@ -88,8 +88,8 @@ export function LibraryPanel() {
       s.toast('No se pudo guardar en la biblioteca.', 'error')
     }
   }
-  const chip = (on: boolean) => cx('min-h-8 rounded-full px-2.5 text-[11px] pointer-coarse:min-h-10', on ? 'bg-accent text-white' : 'bg-ink-900 text-ink-300 ring-1 ring-ink-700 hover:text-white')
-  const sel = 'h-8 rounded-md border border-ink-600 bg-ink-900 px-1.5 text-[11px] text-white pointer-coarse:h-10'
+  const chip = (on: boolean) => cx('min-h-8 rounded-full px-2.5 text-[11px] pointer-coarse:min-h-10', on ? 'bg-accent text-white' : 'bg-ink-900 text-ink-300 ring-1 ring-ink-700 hover:text-fg')
+  const sel = 'h-8 rounded-md border border-ink-600 bg-ink-900 px-1.5 text-[11px] text-fg pointer-coarse:h-10'
 
   return (
     <div className="space-y-3 p-3" data-testid="biblioteca">
@@ -102,7 +102,7 @@ export function LibraryPanel() {
               void saveSelection(naming)
             }}
           >
-            <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} aria-label="Nombre del elemento reutilizable" className="h-9 min-w-0 flex-1 rounded-lg border border-accent bg-ink-900 px-2 text-xs text-white outline-none" />
+            <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} aria-label="Nombre del elemento reutilizable" className="h-9 min-w-0 flex-1 rounded-lg border border-accent bg-ink-900 px-2 text-xs text-fg outline-none" />
             <button type="submit" className="h-9 rounded-lg bg-accent px-3 text-xs font-medium text-white">
               Guardar
             </button>
@@ -116,7 +116,7 @@ export function LibraryPanel() {
       <div className="no-autoclose space-y-2">
         <label className="flex items-center gap-2 rounded-lg bg-ink-900 px-2.5 ring-1 ring-ink-700 focus-within:ring-accent">
           <Search size={14} className="text-ink-400" aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o etiqueta" aria-label="Buscar en la biblioteca" className="h-9 min-w-0 flex-1 bg-transparent text-xs text-white outline-none" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o etiqueta" aria-label="Buscar en la biblioteca" className="h-9 min-w-0 flex-1 bg-transparent text-xs text-fg outline-none" />
         </label>
         <div className="flex flex-wrap gap-1" role="group" aria-label="Categoría">
           <button className={chip(cat === 'all')} aria-pressed={cat === 'all'} onClick={() => setCat('all')}>
@@ -223,7 +223,7 @@ function LibraryTile({ item, list, inProject, onInsert, onFav, onEdit, onDelete 
     <li className="flex items-center gap-2 rounded-lg bg-ink-900 p-1.5 ring-1 ring-ink-700" data-library-item={item.id}>
       {thumb}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs text-white">{item.name}</span>
+        <span className="block truncate text-xs text-fg">{item.name}</span>
         <span className="block truncate text-[10px] text-ink-400">
           {item.type === 'image' ? `${item.asset.width}×${item.asset.height}` : `${item.elements.length} elementos`} · {CATEGORIES.find((c) => c.id === item.category)?.label}
           {inProject && ' · en este proyecto'}
@@ -253,15 +253,15 @@ function ItemEditor({ item, onDone }: { item: LibraryItem; onDone: () => void })
           void updateLibraryItem(item.id, { name: name.trim() || item.name, category, tags: tags.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 20) }).then(onDone)
         }}
       >
-        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Nombre" className="h-8 w-full rounded border border-ink-600 bg-ink-950 px-2 text-xs text-white" />
-        <select value={category} onChange={(e) => setCategory(e.target.value as LibraryCategory)} aria-label="Categoría" className="h-8 w-full rounded border border-ink-600 bg-ink-950 px-1 text-xs text-white">
+        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Nombre" className="h-8 w-full rounded border border-ink-600 bg-ink-950 px-2 text-xs text-fg" />
+        <select value={category} onChange={(e) => setCategory(e.target.value as LibraryCategory)} aria-label="Categoría" className="h-8 w-full rounded border border-ink-600 bg-ink-950 px-1 text-xs text-fg">
           {CATEGORIES.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}
             </option>
           ))}
         </select>
-        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Etiquetas separadas por coma" aria-label="Etiquetas" className="h-8 w-full rounded border border-ink-600 bg-ink-950 px-2 text-xs text-white" />
+        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Etiquetas separadas por coma" aria-label="Etiquetas" className="h-8 w-full rounded border border-ink-600 bg-ink-950 px-2 text-xs text-fg" />
         <div className="flex justify-end gap-1">
           <button type="button" onClick={onDone} className="h-8 rounded px-2 text-xs text-ink-300">
             Cancelar

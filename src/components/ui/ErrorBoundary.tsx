@@ -63,7 +63,7 @@ export function CrashScreen({ onHome, projectId = projectIdFromHash(), message }
     <main className="grid h-full place-items-center bg-ink-950 p-6 text-center text-ink-100">
       <div className="max-w-md">
         <AlertTriangle className="mx-auto text-amber-400" size={36} />
-        <h1 className="mt-3 text-xl font-semibold text-white">{projectId ? 'No se pudo abrir este proyecto' : 'Algo salió mal'}</h1>
+        <h1 className="mt-3 text-xl font-semibold text-fg">{projectId ? 'No se pudo abrir este proyecto' : 'Algo salió mal'}</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-300">
           {message ?? (projectId ? 'El proyecto tiene datos dañados. Tus otros proyectos no se tocaron.' : 'Ocurrió un error inesperado. Tus proyectos siguen guardados en este navegador.')}
         </p>

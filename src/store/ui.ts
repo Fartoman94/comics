@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { applyTheme, readTheme, saveTheme, type Theme } from '../lib/theme'
 
 /** Densidad de la interfaz: misma lógica y mismas acciones, dos layouts. */
 export type UiMode = 'simple' | 'studio'
@@ -40,6 +41,9 @@ export const PHONES = [
 export type PhoneId = (typeof PHONES)[number]['id']
 
 interface UiState {
+  /** Día (claro) o noche (oscuro): se recuerda en este navegador para la próxima vez. */
+  theme: Theme
+  setTheme(t: Theme): void
   /** Sidebar de paneles (estudio): visible o plegada. En tablet arranca plegada para dar lugar al lienzo. */
   sidebar: boolean
   setSidebar(open: boolean): void
@@ -63,6 +67,12 @@ interface UiState {
 }
 
 export const useUi = create<UiState>()((set, get) => ({
+  theme: readTheme(),
+  setTheme: (theme) => {
+    saveTheme(theme)
+    applyTheme(theme)
+    set({ theme })
+  },
   sidebar: (() => {
     const saved = read(SIDEBAR_KEY)
     if (saved === '1' || saved === '0') return saved === '1'

@@ -47,7 +47,7 @@ export function BottomSheet({ title, onClose, children, onBodyClick, labelledBy 
         >
           <div className="mx-auto h-1 w-10 rounded-full bg-ink-500" aria-hidden="true" />
           <div className="flex items-center justify-between border-b border-ink-700 px-4 pt-1 pb-1">
-            <h2 className="text-sm font-semibold text-white">{title}</h2>
+            <h2 className="text-sm font-semibold text-fg">{title}</h2>
             <button onClick={onClose} onPointerDown={(e) => e.stopPropagation()} className="-mr-2 flex size-11 items-center justify-center rounded-lg text-ink-200 hover:bg-ink-700" aria-label="Cerrar">
               <X size={18} />
             </button>

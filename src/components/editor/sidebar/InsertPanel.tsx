@@ -225,7 +225,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
                         t,
                       )
                     }
-                    className="rounded-md bg-ink-900 px-2 py-1 text-sm text-white ring-1 ring-ink-700 transition-colors hover:ring-accent"
+                    className="rounded-md bg-ink-900 px-2 py-1 text-sm text-fg ring-1 ring-ink-700 transition-colors hover:ring-accent"
                     style={{ fontFamily: g.font }}
                   >
                     {t}
@@ -271,7 +271,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
               <button key={e.kind} onClick={() => addEffect(e.kind)} className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent">
                 <EffectIcon kind={e.kind} />
                 <span>
-                  <span className="block text-xs font-medium text-white">{e.label}</span>
+                  <span className="block text-xs font-medium text-fg">{e.label}</span>
                   <span className="block text-[10px] text-ink-400">{e.desc}</span>
                 </span>
               </button>
@@ -295,7 +295,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
               <Layers size={16} />
             </span>
             <span>
-              <span className="block text-xs font-medium text-white">Nueva capa de dibujo</span>
+              <span className="block text-xs font-medium text-fg">Nueva capa de dibujo</span>
               <span className="block text-[10px] text-ink-400">Bocetos, entintado y color por separado</span>
             </span>
           </button>
@@ -304,7 +304,7 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
               <Brush size={16} />
             </span>
             <span>
-              <span className="block text-xs font-medium text-white">Pincel (B)</span>
+              <span className="block text-xs font-medium text-fg">Pincel (B)</span>
               <span className="block text-[10px] text-ink-400">Sensible a la presión en tabletas y lápices</span>
             </span>
           </button>
@@ -317,7 +317,8 @@ export function InsertPanel({ sections, editOnInsert = false }: { sections?: Ins
 export function BubbleIcon({ b, className = 'h-9 w-10' }: { b: (typeof BUBBLES)[number]; className?: string }) {
   return (
     <svg viewBox="0 0 48 44" className={className} aria-hidden>
-      <path d={b.path} fill={b.fill ?? '#fff'} stroke={b.noStroke ? 'none' : '#111'} strokeWidth={2} strokeLinejoin="round" strokeDasharray={b.dash ? '3 2' : undefined} />
+      {/* "Sin borde" se insinúa con una línea punteada gris para que se vea sobre fondos claros. */}
+      <path d={b.path} fill={b.fill ?? '#fff'} stroke={b.noStroke ? '#9ca3af' : '#111'} strokeWidth={b.noStroke ? 1 : 2} strokeLinejoin="round" strokeDasharray={b.dash ? '3 2' : b.noStroke ? '2 2' : undefined} />
     </svg>
   )
 }

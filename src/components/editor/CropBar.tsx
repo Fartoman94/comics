@@ -24,7 +24,7 @@ export function CropBar() {
   }
   return (
     <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-ink-600 bg-ink-800/95 px-3 py-2 shadow-2xl backdrop-blur">
-      <span className="text-xs font-medium text-white">Encuadrar imagen</span>
+      <span className="text-xs font-medium text-fg">Encuadrar imagen</span>
       <span className="hidden text-[11px] text-ink-400 md:inline">Arrastrá para mover · rueda para zoom</span>
       <ZoomIn size={14} className="text-ink-400" />
       <input type="range" min={0.02} max={4} step={0.01} value={panel.image.scale} onChange={(e) => zoomTo(Number(e.target.value))} className="w-28" aria-label="Zoom de la imagen" />
@@ -57,7 +57,7 @@ function ImageCropBar({ id, hasCrop }: { id: string; hasCrop: boolean }) {
   }
   return (
     <div className="absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-ink-600 bg-ink-800/95 px-3 py-2 shadow-2xl backdrop-blur">
-      <span className="text-xs font-medium text-white">Recortar imagen</span>
+      <span className="text-xs font-medium text-fg">Recortar imagen</span>
       <span className="hidden text-[11px] text-ink-400 md:inline">Mové o estirá el marco naranja</span>
       <Button size="sm" variant="ghost" disabled={!hasCrop} onClick={reset}>
         Restablecer

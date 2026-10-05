@@ -113,7 +113,7 @@ function UploadTab({ multiple, onChoose }: { multiple: boolean; onChoose: (a: As
         className={cx('flex w-full flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors disabled:opacity-60', over ? 'border-accent bg-accent-soft' : 'border-ink-600 hover:border-ink-400')}
       >
         <Upload size={24} className="text-accent-bright" />
-        <span className="text-sm font-medium text-white">{multiple ? 'Elegí o soltá imágenes' : 'Elegí o soltá una imagen'}</span>
+        <span className="text-sm font-medium text-fg">{multiple ? 'Elegí o soltá imágenes' : 'Elegí o soltá una imagen'}</span>
         <span className="text-[11px] text-ink-400">PNG, JPG, WebP o GIF · hasta {Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB · las de más de 4096 px por lado se reducen</span>
       </button>
       <input
@@ -222,7 +222,7 @@ function GalleryTab({ onChoose }: { onChoose: (a: Asset) => void }) {
                   <img src={src} alt="" className="h-full w-full object-cover" />
                   {busy === b.id && (
                     <span className="absolute inset-0 flex items-center justify-center bg-black/50">
-                      <Loader2 size={16} className="animate-spin text-white" />
+                      <Loader2 size={16} className="animate-spin text-fg" />
                     </span>
                   )}
                 </span>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ThemeToggle } from '../ui/ThemeToggle'
 import { AlertTriangle, BookOpen, CircleHelp, Copy, Download, FileUp, LifeBuoy, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import type { Project } from '../../types'
 import { deleteDamagedProject, deleteForever, downloadBlob, duplicateProject, exportRawProjectFile, importProjectFile, listProjectSummaries, listTrash, loadProject, pruneSnapshots, purgeTrash, restoreProject, saveProject, storageUsage, trashProject, TRASH_DAYS, type ProjectSummary, type TrashEntry } from '../../lib/storage'
@@ -169,6 +170,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Wordmark />
           <div className="flex items-center gap-2">
+            <ThemeToggle className="size-9" />
             {/* En el celular sólo íconos: el botón principal nunca queda cortado. */}
             <Button variant="ghost" onClick={() => useHelp.getState().openGuide('start')} title="Cómo se usa" className="max-sm:px-2.5">
               <CircleHelp size={16} /> <span className="max-sm:sr-only">Cómo se usa</span>
@@ -188,7 +190,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
       <section className="halftone border-b border-ink-800">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
           <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-accent-bright uppercase">Estudio de historietas en el navegador</p>
-          <h1 className="font-comic max-w-3xl text-5xl leading-[0.95] tracking-wide text-white sm:text-7xl">
+          <h1 className="font-comic max-w-3xl text-5xl leading-[0.95] tracking-wide text-fg sm:text-7xl">
             Dibujá, rotulá y publicá tu <span className="text-accent-bright">cómic</span> o <span className="text-accent-bright">manga</span>.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-300">
@@ -209,11 +211,11 @@ export function Home({ notFound }: { notFound?: boolean }) {
         <a href="#/demo" className="group grid overflow-hidden rounded-2xl border border-ink-800 bg-ink-900 transition-colors hover:border-accent sm:grid-cols-[220px_1fr]">
           <div className="relative aspect-[3/4] overflow-hidden bg-white sm:aspect-auto sm:h-full">
             <img src="/demo/cover.webp" alt="Portada del manga de ejemplo" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-            <span className="font-comic absolute right-3 bottom-3 left-3 text-center text-2xl leading-none tracking-wide text-white [text-shadow:0_2px_0_#000,2px_0_0_#000,-2px_0_0_#000,0_-2px_0_#000]">VIENTO DE SAKURA</span>
+            <span className="font-comic absolute right-3 bottom-3 left-3 text-center text-2xl leading-none tracking-wide text-fg [text-shadow:0_2px_0_#000,2px_0_0_#000,-2px_0_0_#000,0_-2px_0_#000]">VIENTO DE SAKURA</span>
           </div>
           <div className="flex flex-col justify-center p-6">
             <span className="text-xs font-semibold tracking-[0.2em] text-accent-bright uppercase">Mirá cómo queda</span>
-            <h2 className="font-comic mt-2 text-4xl tracking-wide text-white">
+            <h2 className="font-comic mt-2 text-4xl tracking-wide text-fg">
               桜の風 <span className="text-ink-400">·</span> Viento de sakura
             </h2>
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-300">
@@ -241,7 +243,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
             <li key={title}>
               <button onClick={() => useHelp.getState().openGuide(topic)} className="group h-full w-full rounded-xl border border-ink-800 bg-ink-900 p-4 text-left transition-colors hover:border-accent">
                 <span className="font-comic text-4xl leading-none text-accent-bright">{i + 1}</span>
-                <h3 className="mt-2 text-sm font-semibold text-white">{title}</h3>
+                <h3 className="mt-2 text-sm font-semibold text-fg">{title}</h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-ink-400">{body}</p>
                 <span className="mt-2 inline-block text-xs text-ink-500 group-hover:text-accent-bright">Ver cómo →</span>
               </button>
@@ -267,9 +269,9 @@ export function Home({ notFound }: { notFound?: boolean }) {
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <label className="flex min-w-48 flex-1 items-center gap-2 rounded-lg bg-ink-900 px-2.5 ring-1 ring-ink-700 focus-within:ring-accent">
               <Search size={14} className="text-ink-400" aria-hidden="true" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar proyecto" aria-label="Buscar proyecto" className="h-9 min-w-0 flex-1 bg-transparent text-sm text-white outline-none" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar proyecto" aria-label="Buscar proyecto" className="h-9 min-w-0 flex-1 bg-transparent text-sm text-fg outline-none" />
             </label>
-            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Tipo de obra" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-white">
+            <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Tipo de obra" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-fg">
               <option value="all">Todos los tipos</option>
               {PROJECT_KINDS.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -277,12 +279,12 @@ export function Home({ notFound }: { notFound?: boolean }) {
                 </option>
               ))}
             </select>
-            <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilter)} aria-label="Fecha" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-white">
+            <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value as DateFilter)} aria-label="Fecha" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-fg">
               <option value="all">Cualquier fecha</option>
               <option value="7">Últimos 7 días</option>
               <option value="30">Últimos 30 días</option>
             </select>
-            <select value={sort} onChange={(e) => setSort(e.target.value as SortBy)} aria-label="Ordenar" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-white">
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortBy)} aria-label="Ordenar" className="h-9 rounded-lg border border-ink-700 bg-ink-900 px-2 text-xs text-fg">
               <option value="recent">Recientes primero</option>
               <option value="name">Por nombre</option>
             </select>
@@ -299,14 +301,14 @@ export function Home({ notFound }: { notFound?: boolean }) {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {PROJECT_KINDS.map((k) => (
               <button key={k.id} onClick={() => setNewOpen(true)} className="rounded-xl border border-dashed border-ink-600 p-5 text-left transition-colors hover:border-accent hover:bg-ink-850">
-                <div className="font-comic text-2xl tracking-wide text-white">{k.name}</div>
+                <div className="font-comic text-2xl tracking-wide text-fg">{k.name}</div>
                 <div className="mt-1 text-sm text-ink-400">{k.description}</div>
               </button>
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" data-testid="lista-proyectos">
-            <button onClick={() => setNewOpen(true)} className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-ink-600 text-ink-300 transition-colors hover:border-accent hover:text-white">
+            <button onClick={() => setNewOpen(true)} className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-ink-600 text-ink-300 transition-colors hover:border-accent hover:text-fg">
               <Plus size={28} />
               <span className="text-sm font-medium">Nuevo proyecto</span>
             </button>
@@ -398,7 +400,7 @@ export function Home({ notFound }: { notFound?: boolean }) {
         <section className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-ink-800 bg-ink-800 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
             <div key={t} className="bg-ink-950 p-5">
-              <h3 className="text-sm font-semibold text-white">{t}</h3>
+              <h3 className="text-sm font-semibold text-fg">{t}</h3>
               <p className="mt-1 text-sm leading-relaxed text-ink-400">{d}</p>
             </div>
           ))}

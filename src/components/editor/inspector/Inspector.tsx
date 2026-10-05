@@ -212,7 +212,7 @@ function BrushPanel() {
       <Section title="Capa de destino">
         {target ? (
           <p className="text-xs text-ink-200">
-            Pintando en <strong className="text-white">{target.name}</strong> ({target.strokes.length} trazos)
+            Pintando en <strong className="text-fg">{target.name}</strong> ({target.strokes.length} trazos)
           </p>
         ) : (
           <p className="text-xs text-ink-400">Se creará una capa de dibujo nueva al primer trazo.</p>
@@ -352,7 +352,7 @@ function ElementPanel({ el }: { el: ComicElement }) {
       <div className="flex items-center justify-between border-b border-ink-700 px-4 py-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold tracking-wider text-accent-bright uppercase">{TYPE_LABEL[el.type]}</div>
-          <div className="truncate text-sm font-medium text-white">{el.name}</div>
+          <div className="truncate text-sm font-medium text-fg">{el.name}</div>
         </div>
         <div className="flex">
           <IconButton label={el.hidden ? 'Mostrar' : 'Ocultar'} onClick={() => patch({ hidden: !el.hidden })} active={el.hidden}>
@@ -495,7 +495,7 @@ function PanelProps({ el }: { el: PanelElement }) {
               role="radio"
               aria-checked={shape === sh.id}
               onClick={() => patch(shapeGeometry(sh.id as PanelShape, el.width))}
-              className={cx('flex flex-col items-center gap-1 rounded-md px-1 py-1.5 text-[10px] ring-1 transition-colors', shape === sh.id ? 'bg-accent-soft text-white ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800 hover:text-white')}
+              className={cx('flex flex-col items-center gap-1 rounded-md px-1 py-1.5 text-[10px] ring-1 transition-colors', shape === sh.id ? 'bg-accent-soft text-fg ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800 hover:text-fg')}
             >
               <ShapeIcon shape={sh.id} />
               {sh.label}
@@ -555,7 +555,7 @@ function FilterControls({ filters, onChange }: { filters: ImageFilters; onChange
     <div className="space-y-2.5 rounded-lg bg-ink-900 p-2.5 ring-1 ring-ink-700">
       <div className="grid grid-cols-3 gap-1">
         {presets.map((p) => (
-          <button key={p.label} onClick={() => onChange(p.f)} className="rounded-md bg-ink-800 px-1 py-1.5 text-[10px] text-ink-200 hover:bg-ink-700 hover:text-white">
+          <button key={p.label} onClick={() => onChange(p.f)} className="rounded-md bg-ink-800 px-1 py-1.5 text-[10px] text-ink-200 hover:bg-ink-700 hover:text-fg">
             {p.label}
           </button>
         ))}
@@ -726,7 +726,7 @@ function BubbleProps({ el }: { el: BubbleElement }) {
               role="radio"
               aria-checked={el.shape === b.shape}
               onClick={() => setShape(b.shape)}
-              className={cx('flex flex-col items-center gap-0.5 rounded-md px-1 py-1 text-[10px] ring-1 transition-colors', el.shape === b.shape ? 'bg-accent-soft text-white ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800')}
+              className={cx('flex flex-col items-center gap-0.5 rounded-md px-1 py-1 text-[10px] ring-1 transition-colors', el.shape === b.shape ? 'bg-accent-soft text-fg ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800')}
             >
               <BubbleIcon b={b} className="h-6 w-7" />
               {b.label}

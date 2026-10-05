@@ -114,7 +114,7 @@ export function LayersPanel() {
           style={{ paddingLeft: 8 + depth * 18 }}
           className={cx(
             'group flex h-9 cursor-pointer items-center gap-2 rounded-md pr-1 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent',
-            sel ? 'bg-accent-soft text-white' : 'text-ink-200 hover:bg-ink-800',
+            sel ? 'bg-accent-soft text-fg' : 'text-ink-200 hover:bg-ink-800',
             drag?.over === el.id && drag.id !== el.id && 'ring-1 ring-accent',
             el.hidden && 'opacity-50',
           )}
@@ -122,7 +122,7 @@ export function LayersPanel() {
           {n.children.length ? (
             <button
               aria-label={open ? `Plegar ${el.name}` : `Desplegar ${el.name}`}
-              className="-ml-1 flex size-5 items-center justify-center rounded text-ink-400 hover:bg-ink-700 hover:text-white"
+              className="-ml-1 flex size-5 items-center justify-center rounded text-ink-400 hover:bg-ink-700 hover:text-fg"
               onClick={(e) => {
                 e.stopPropagation()
                 setCollapsed((c) => (open ? [...c, el.id] : c.filter((x) => x !== el.id)))
@@ -214,7 +214,7 @@ export function LayersPanel() {
       </div>
       <ul role="tree" aria-label="Capas de la página" className="space-y-0.5">
         <li role="treeitem" aria-selected={!hasSel} aria-level={1} aria-expanded>
-          <button onClick={() => s.select([])} className={cx('flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs font-medium', !hasSel ? 'text-white' : 'text-ink-300 hover:bg-ink-800')}>
+          <button onClick={() => s.select([])} className={cx('flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs font-medium', !hasSel ? 'text-fg' : 'text-ink-300 hover:bg-ink-800')}>
             <File size={14} className="text-ink-400" />
             <span className="truncate">
               Página {pageIndex + 1} · {page.name}

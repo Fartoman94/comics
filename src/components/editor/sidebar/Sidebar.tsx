@@ -45,7 +45,7 @@ export function SidebarTabs({ tab, onChange }: { tab: SidebarTab; onChange: (t: 
           aria-selected={tab === t.id}
           title={t.hint}
           onClick={() => onChange(t.id)}
-          className={cx('flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium tracking-tight transition-colors', tab === t.id ? 'text-white shadow-[inset_0_-2px_0_var(--color-accent)]' : 'text-ink-400 hover:text-ink-100')}
+          className={cx('flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium tracking-tight transition-colors', tab === t.id ? 'text-fg shadow-[inset_0_-2px_0_var(--color-accent)]' : 'text-ink-400 hover:text-ink-100')}
         >
           {t.icon}
           {t.label}

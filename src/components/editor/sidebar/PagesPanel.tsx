@@ -76,22 +76,22 @@ export function PagesPanel() {
                 </div>
               </button>
               <div className="absolute top-1 right-1 flex flex-col gap-0.5 rounded-md bg-black/75 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100">
-                <button aria-label={`Mover página ${i + 1} (arrastrá o usá las flechas)`} title="Arrastrá para mover" className="flex size-6 cursor-grab items-center justify-center rounded-md text-white hover:bg-ink-700 pointer-coarse:size-10" {...handleProps(i, project.pages.length)}>
+                <button aria-label={`Mover página ${i + 1} (arrastrá o usá las flechas)`} title="Arrastrá para mover" className="flex size-6 cursor-grab items-center justify-center rounded-md text-fg hover:bg-ink-700 pointer-coarse:size-10" {...handleProps(i, project.pages.length)}>
                   <GripVertical size={12} />
                 </button>
-                <IconButton label="Mover antes" className="size-6 text-white pointer-coarse:size-10" disabled={i === 0} onClick={() => s.movePage(i, i - 1)}>
+                <IconButton label="Mover antes" className="size-6 text-fg pointer-coarse:size-10" disabled={i === 0} onClick={() => s.movePage(i, i - 1)}>
                   <ArrowUp size={12} />
                 </IconButton>
-                <IconButton label="Mover después" className="size-6 text-white pointer-coarse:size-10" disabled={i === project.pages.length - 1} onClick={() => s.movePage(i, i + 1)}>
+                <IconButton label="Mover después" className="size-6 text-fg pointer-coarse:size-10" disabled={i === project.pages.length - 1} onClick={() => s.movePage(i, i + 1)}>
                   <ArrowDown size={12} />
                 </IconButton>
-                <IconButton label="Duplicar página" className="size-6 text-white pointer-coarse:size-10" onClick={() => s.duplicatePage(p.id)}>
+                <IconButton label="Duplicar página" className="size-6 text-fg pointer-coarse:size-10" onClick={() => s.duplicatePage(p.id)}>
                   <Copy size={12} />
                 </IconButton>
-                <IconButton label="Renombrar página" className="size-6 text-white pointer-coarse:size-10" onClick={() => openRenamePage(p.id)}>
+                <IconButton label="Renombrar página" className="size-6 text-fg pointer-coarse:size-10" onClick={() => openRenamePage(p.id)}>
                   <Pencil size={12} />
                 </IconButton>
-                <IconButton label="Copiar contenido a otras páginas" className="size-6 text-white pointer-coarse:size-10" disabled={!p.elements.length || project.pages.length < 2} onClick={() => openCopyContent(p.id)}>
+                <IconButton label="Copiar contenido a otras páginas" className="size-6 text-fg pointer-coarse:size-10" disabled={!p.elements.length || project.pages.length < 2} onClick={() => openCopyContent(p.id)}>
                   <ClipboardCopy size={12} />
                 </IconButton>
                 <IconButton label="Eliminar página" className="size-6 text-red-300 pointer-coarse:size-10" onClick={() => void deletePageWithConfirm(p.id)}>
@@ -104,7 +104,7 @@ export function PagesPanel() {
         <li>
           <button
             onClick={() => s.addPage()}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-ink-600 text-ink-400 transition-colors hover:border-accent hover:text-white"
+            className="flex w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed border-ink-600 text-ink-400 transition-colors hover:border-accent hover:text-fg"
             style={{ aspectRatio: `${width} / ${height}`, maxHeight: 220 }}
           >
             <Plus size={20} />

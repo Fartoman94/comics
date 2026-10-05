@@ -1,4 +1,4 @@
-import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Eye, Grid2x2, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Smartphone, Undo2 } from 'lucide-react'
+import { BookOpenText, Check, CircleHelp, ChevronDown, CircleAlert, Cloud, Download, Eye, Grid2x2, Grid3x3, Keyboard, LayoutDashboard, Loader2, Magnet, Minus, Plus, Redo2, Ruler, Smartphone, SunMoon, Undo2 } from 'lucide-react'
 import { useEditor } from '../../store/editor'
 import { navigateToProject } from '../../lib/nav'
 import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
@@ -7,6 +7,7 @@ import { useUi } from '../../store/ui'
 import { useHelp } from '../help/HelpGuide'
 import { HistoryMenu } from './HistoryMenu'
 import { ZoomMenu } from './ZoomMenu'
+import { ThemeToggle } from '../ui/ThemeToggle'
 
 export interface EditorNav {
   read(): void
@@ -41,7 +42,7 @@ export function TopBar({ nav }: { nav: EditorNav }) {
       <input
         value={title}
         onChange={(e) => s.mutate((d) => void (d.title = e.target.value), { coalesce: 'title' })}
-        className="h-8 w-24 min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 text-sm font-medium text-white outline-none hover:border-ink-600 focus:border-accent sm:w-56"
+        className="h-8 w-24 min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 text-sm font-medium text-fg outline-none hover:border-ink-600 focus:border-accent sm:w-56"
         aria-label="Título del proyecto"
       />
       <SaveBadge status={status} />
@@ -80,6 +81,7 @@ export function TopBar({ nav }: { nav: EditorNav }) {
         <IconButton label="Imanes (Alt al arrastrar para desactivar)" active={view.snap} onClick={() => s.setView({ snap: !view.snap })}>
           <Magnet size={16} />
         </IconButton>
+        <ThemeToggle />
         <IconButton label="Atajos de teclado (?)" onClick={onShortcuts}>
           <Keyboard size={16} />
         </IconButton>
@@ -112,6 +114,7 @@ export function TopBar({ nav }: { nav: EditorNav }) {
             <MenuItem label="Previsualizar" onClick={() => (close(), onPreview())} icon={<Eye size={14} />} />
             <MenuItem label="Vista general" onClick={() => (close(), onOverview())} icon={<Grid2x2 size={14} />} />
             <MenuItem label="Ayuda" hint="Guía de uso" onClick={() => (close(), useHelp.getState().openGuide())} icon={<CircleHelp size={14} />} className="sm:hidden" />
+            <MenuItem label={useUi.getState().theme === 'light' ? 'Modo noche' : 'Modo día'} hint="Se recuerda en este navegador" onClick={() => (close(), useUi.getState().setTheme(useUi.getState().theme === 'light' ? 'dark' : 'light'))} icon={<SunMoon size={14} />} className="lg:hidden" />
             <MenuItem label="Modo simple" hint="Menos botones, lienzo más grande" onClick={() => (close(), useUi.getState().setMode('simple'))} icon={<Smartphone size={14} />} />
           </>
         )}

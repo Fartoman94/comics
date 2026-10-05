@@ -122,14 +122,14 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
       <div className="p-5">
         <ol className="mb-4 flex items-center gap-2 text-[11px] text-ink-400" aria-label="Pasos">
           {['Qué vas a crear', 'Cómo empezar', 'Datos'].map((t, i) => (
-            <li key={t} className={cx('flex items-center gap-1.5', step === i + 1 && 'text-white')} aria-current={step === i + 1 ? 'step' : undefined}>
+            <li key={t} className={cx('flex items-center gap-1.5', step === i + 1 && 'text-fg')} aria-current={step === i + 1 ? 'step' : undefined}>
               <span className={cx('flex size-5 items-center justify-center rounded-full text-[10px] font-semibold', step === i + 1 ? 'bg-accent text-white' : 'bg-ink-700')}>{i + 1}</span>
               {t}
             </li>
           ))}
         </ol>
 
-        {step === 1 && <h3 className="font-comic mb-3 text-2xl tracking-wide text-white">¿Qué querés crear?</h3>}
+        {step === 1 && <h3 className="font-comic mb-3 text-2xl tracking-wide text-fg">¿Qué querés crear?</h3>}
         {step === 1 && (
           <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Tipo de obra">
             {KINDS.map((k) => {
@@ -138,7 +138,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
                 <button key={k.id} role="radio" aria-checked={choice === k.id} onClick={() => pickKind(k.id)} className={cx(card(choice === k.id), 'flex items-center gap-3')}>
                   <FormatBox w={f.width} h={f.height} size={44} />
                   <span className="min-w-0">
-                    <span className="font-comic block text-xl tracking-wide text-white">{k.name}</span>
+                    <span className="font-comic block text-xl tracking-wide text-fg">{k.name}</span>
                     <span className="block text-[11px] leading-snug text-ink-300">{k.use}</span>
                     <span className="block text-[10px] text-ink-400">
                       {f.name} · {f.width > f.height ? 'horizontal' : 'vertical'} · {k.dir === 'rtl' ? 'der → izq' : k.dir === 'vertical' ? 'scroll vertical' : 'izq → der'}
@@ -162,7 +162,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
                 ] as const
               ).map(([id, name, desc, icon]) => (
                 <button key={id} role="radio" aria-checked={start === id} onClick={() => setStart(id)} className={card(start === id)}>
-                  <span className="flex items-center gap-2 text-sm font-medium text-white">
+                  <span className="flex items-center gap-2 text-sm font-medium text-fg">
                     <span className="text-accent-bright">{icon}</span>
                     {name}
                   </span>
@@ -193,11 +193,11 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-xs text-ink-300">
                   Título
-                  <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-ink-600 bg-ink-900 px-3 text-sm text-white outline-none focus:border-accent" />
+                  <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-ink-600 bg-ink-900 px-3 text-sm text-fg outline-none focus:border-accent" />
                 </label>
                 <label className="text-xs text-ink-300">
                   Autor/a
-                  <input value={author} placeholder="Tu nombre" onChange={(e) => setAuthor(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-ink-600 bg-ink-900 px-3 text-sm text-white outline-none focus:border-accent" />
+                  <input value={author} placeholder="Tu nombre" onChange={(e) => setAuthor(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-ink-600 bg-ink-900 px-3 text-sm text-fg outline-none focus:border-accent" />
                 </label>
               </div>
               <div>
@@ -205,7 +205,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {PAGE_FORMATS.map((f) => (
                     <button key={f.id} onClick={() => setFormatId(f.id)} aria-pressed={formatId === f.id} className={cx('rounded-lg border px-3 py-2 text-left transition-colors', formatId === f.id ? 'border-accent bg-accent-soft' : 'border-ink-600 hover:border-ink-400')}>
-                      <div className="text-xs font-medium text-white">{f.name}</div>
+                      <div className="text-xs font-medium text-fg">{f.name}</div>
                       <div className="text-[10px] text-ink-400">{f.description}</div>
                     </button>
                   ))}
@@ -214,7 +214,7 @@ export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: ()
               <div className="flex flex-wrap items-center gap-4">
                 <label className="flex items-center gap-2 text-xs text-ink-300">
                   Sentido de lectura
-                  <select value={dir} onChange={(e) => setDir(e.target.value as ReadingDirection)} className="h-9 rounded-lg border border-ink-600 bg-ink-900 px-2 text-xs text-white">
+                  <select value={dir} onChange={(e) => setDir(e.target.value as ReadingDirection)} className="h-9 rounded-lg border border-ink-600 bg-ink-900 px-2 text-xs text-fg">
                     <option value="ltr">Izquierda → derecha{def.dir === 'ltr' ? ' (recomendado)' : ''}</option>
                     <option value="rtl">Derecha → izquierda{def.dir === 'rtl' ? ' (recomendado)' : ''}</option>
                     <option value="vertical">Vertical{def.dir === 'vertical' ? ' (recomendado)' : ''}</option>

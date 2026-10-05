@@ -44,7 +44,7 @@ export function ContextBar() {
   const one = selected.length === 1 ? selected[0] : undefined
   const parent = one ? parentPanelOf(page, one) : undefined
   const hint = TOOL_HINT[tool] ?? (editing ? 'Escribiendo: Enter confirma · Shift+Enter nueva línea · Esc cancela' : one ? hintFor(one) : selected.length > 1 ? `${selected.length} elementos: arrastrá para moverlos juntos` : 'Hacé clic en un elemento para editarlo')
-  const crumb = 'max-w-40 truncate rounded px-1.5 py-0.5 hover:bg-ink-700 hover:text-white'
+  const crumb = 'max-w-40 truncate rounded px-1.5 py-0.5 hover:bg-ink-700 hover:text-fg'
   return (
     <div className="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2" data-testid="contexto-edicion">
       <nav aria-label="Ubicación de la edición" className="pointer-events-auto flex items-center gap-0.5 rounded-lg border border-ink-700 bg-ink-900/90 px-1.5 py-1 text-[11px] text-ink-300 shadow-lg backdrop-blur">
@@ -62,7 +62,7 @@ export function ContextBar() {
         {one && (
           <>
             <ChevronRight size={12} className="shrink-0 text-ink-500" aria-hidden />
-            <span className="max-w-48 truncate px-1.5 py-0.5 font-medium text-white" aria-current="location">
+            <span className="max-w-48 truncate px-1.5 py-0.5 font-medium text-fg" aria-current="location">
               {one.type === 'panel' ? `Viñeta ${panelNumber(page, one)}` : TYPE_LABEL[one.type]}
               {one.type !== 'panel' && one.name !== TYPE_LABEL[one.type] && <span className="font-normal text-ink-400"> · {one.name}</span>}
             </span>
@@ -71,7 +71,7 @@ export function ContextBar() {
         {selected.length > 1 && (
           <>
             <ChevronRight size={12} className="shrink-0 text-ink-500" aria-hidden />
-            <span className="px-1.5 py-0.5 font-medium text-white">{selected.length} elementos</span>
+            <span className="px-1.5 py-0.5 font-medium text-fg">{selected.length} elementos</span>
           </>
         )}
       </nav>

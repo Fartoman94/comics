@@ -21,6 +21,43 @@
   --color-accent-bright: #ff6a48;
   --color-accent-soft: rgb(255 90 54 / 0.14);
   --color-mate: #34d399;
+  /* Texto principal (máximo contraste con el fondo): blanco en oscuro, casi negro en claro. */
+  --color-fg: #ffffff;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/*
+ * Modo claro (día). Misma escala "ink" invertida: los fondos pasan a ser claros y los textos
+ * oscuros, con contraste AA. Las salas de lectura (lector, previsualización) quedan oscuras a
+ * propósito. La elección se guarda por usuario en localStorage (ver store/ui.ts).
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-ink-950: #f4f4f7;
+  --color-ink-900: #ffffff;
+  --color-ink-850: #f9f9fb;
+  --color-ink-800: #eeeef2;
+  --color-ink-700: #e2e2e8;
+  --color-ink-600: #c9c9d3;
+  --color-ink-500: #5c5c68;
+  --color-ink-400: #53535e;
+  --color-ink-300: #42424b;
+  --color-ink-200: #2d2d34;
+  --color-ink-100: #18181c;
+  --color-fg: #0b0b0e;
+  --color-accent-bright: #b4310d;
+  --color-accent-soft: rgb(210 63 25 / 0.12);
+  --color-mate: #047857;
+}
+:root[data-theme='light'] .canvas-bg {
+  background-color: #e6e6ec;
+  background-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.08) 1px, transparent 0);
+}
+:root[data-theme='light'] .halftone {
+  background-image: radial-gradient(circle, rgb(0 0 0 / 0.07) 1.2px, transparent 1.6px);
 }
 
 html,
