@@ -29,6 +29,8 @@ export function ScriptPanel() {
   // Una sección para la página y una por viñeta, en orden de lectura (asociadas por id).
   const sections: { panelId: string | null; label: string }[] = [{ panelId: null, label: 'Página (sin viñeta)' }, ...order.map((id, i) => ({ panelId: id, label: `Viñeta ${i + 1}` }))]
 
+  const pendingCount = rows.flatMap((r) => r.blocks).filter((b) => b.kind !== 'description' && b.text.trim() && scriptStatus(page, b) === 'pendiente').length
+
   const importFile = async (f?: File) => {
     if (!f) return
     try {
@@ -46,6 +48,18 @@ export function ScriptPanel() {
     <div className="no-autoclose space-y-3 p-3" data-testid="guion">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] leading-snug text-ink-400">Guion de «{page.name}». Escribí y tocá «Colocar» para ponerlo en la viñeta.</p>
+        {pendingCount > 0 && (
+          <button
+            onClick={() => {
+              const n = s.placePageScript(page.id)
+              s.toast(n === 1 ? '1 bloque colocado' : `${n} bloques colocados`, 'success')
+            }}
+            className="flex shrink-0 items-center gap-1 rounded-md bg-accent px-2 py-1 text-[11px] font-medium text-white pointer-coarse:min-h-10"
+            title="Pone todos los diálogos, narraciones y onomatopeyas pendientes en sus viñetas, con globos ajustados al texto"
+          >
+            <MapPin size={12} /> Colocar todo ({pendingCount})
+          </button>
+        )}
         <Menu
           align="right"
           trigger={(_, toggle) => (
