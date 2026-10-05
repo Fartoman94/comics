@@ -11,13 +11,13 @@ import { ScriptPanel } from './ScriptPanel'
 
 export type SidebarTab = 'pages' | 'layouts' | 'assets' | 'insert' | 'layers' | 'script'
 
-export const SIDEBAR_TABS: { id: SidebarTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'pages', label: 'Páginas', icon: <Files size={16} /> },
-  { id: 'layouts', label: 'Viñetas', icon: <LayoutGrid size={16} /> },
-  { id: 'assets', label: 'Imágenes', icon: <Images size={16} /> },
-  { id: 'insert', label: 'Insertar', icon: <Shapes size={16} /> },
-  { id: 'layers', label: 'Capas', icon: <Layers size={16} /> },
-  { id: 'script', label: 'Guion', icon: <FileText size={16} /> },
+export const SIDEBAR_TABS: { id: SidebarTab; label: string; icon: React.ReactNode; hint: string }[] = [
+  { id: 'pages', label: 'Páginas', icon: <Files size={16} />, hint: 'Páginas del proyecto: agregar, ordenar, duplicar' },
+  { id: 'layouts', label: 'Plantillas', icon: <LayoutGrid size={16} />, hint: 'Plantillas de viñetas para la página' },
+  { id: 'insert', label: 'Elementos', icon: <Shapes size={16} />, hint: 'Globos, textos, onomatopeyas y efectos' },
+  { id: 'assets', label: 'Biblioteca', icon: <Images size={16} />, hint: 'Imágenes del proyecto y elementos guardados' },
+  { id: 'layers', label: 'Capas', icon: <Layers size={16} />, hint: 'Orden, visibilidad y bloqueo de los elementos' },
+  { id: 'script', label: 'Guion', icon: <FileText size={16} />, hint: 'Guion por página y viñeta' },
 ]
 
 export function SidebarBody({ tab }: { tab: SidebarTab }) {
@@ -42,8 +42,9 @@ export function SidebarTabs({ tab, onChange }: { tab: SidebarTab; onChange: (t: 
           data-tour={`tab-${t.id}`}
           role="tab"
           aria-selected={tab === t.id}
+          title={t.hint}
           onClick={() => onChange(t.id)}
-          className={cx('flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors', tab === t.id ? 'text-white shadow-[inset_0_-2px_0_var(--color-accent)]' : 'text-ink-400 hover:text-ink-100')}
+          className={cx('flex min-w-0 flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium tracking-tight transition-colors', tab === t.id ? 'text-white shadow-[inset_0_-2px_0_var(--color-accent)]' : 'text-ink-400 hover:text-ink-100')}
         >
           {t.icon}
           {t.label}
@@ -56,7 +57,7 @@ export function SidebarTabs({ tab, onChange }: { tab: SidebarTab; onChange: (t: 
 export function Sidebar() {
   const [tab, setTab] = useState<SidebarTab>('pages')
   return (
-    <aside aria-label="Paneles del proyecto" className="hidden w-72 shrink-0 flex-col border-r border-ink-700 bg-ink-850 lg:flex">
+    <aside aria-label="Paneles del proyecto" className="hidden w-80 shrink-0 flex-col border-r border-ink-700 bg-ink-850 lg:flex">
       <SidebarTabs tab={tab} onChange={setTab} />
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <SidebarBody tab={tab} />

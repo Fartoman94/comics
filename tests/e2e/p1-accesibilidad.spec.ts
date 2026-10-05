@@ -79,7 +79,7 @@ test('teclado: todo el recorrido sin mouse, con foco atrapado en diálogos y dev
   await page.keyboard.press('Enter')
   await expect(page.locator('[data-tour=canvas]')).toBeVisible()
   // Insertar un globo con el teclado y moverlo con flechas.
-  await page.getByRole('tab', { name: 'Insertar' }).focus()
+  await page.getByRole('tab', { name: 'Elementos' }).focus()
   await page.keyboard.press('Enter')
   await page.getByRole('button', { name: 'Diálogo', exact: true }).focus()
   await page.keyboard.press('Enter')

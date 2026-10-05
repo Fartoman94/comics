@@ -220,7 +220,9 @@ function PanelNode({ el, cropping, interactive, onCropChange }: NodeProps & { el
       {!el.image && interactive && (
         <Text
           text="Arrastrá una imagen acá"
-          width={el.width}
+          // Zona central: en viñetas cortadas en diagonal las cajas se superponen en los bordes.
+          x={el.width * 0.2}
+          width={el.width * 0.6}
           height={el.height}
           align="center"
           verticalAlign="middle"

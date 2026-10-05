@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { deleteWithConfirm } from '../actions'
 import { ArrowDownToLine, ArrowUpToLine, Brush, Check, Copy, Crop, Eraser, Files, ImagePlus, Images, Layers, LayoutGrid, MessageCircle, Minus, PenLine, Plus, SlidersHorizontal, SquareDashed, Trash2, Type, Undo2 } from 'lucide-react'
 import type { ComicElement } from '../../../types'
 import { currentPage, placementFor, useEditor, useSelectedElements } from '../../../store/editor'
@@ -141,7 +142,7 @@ function ContextBar({ onMore }: { onMore: () => void }) {
   const els = useSelectedElements()
   const s = useEditor.getState()
   const el: ComicElement | undefined = els.length === 1 ? els[0] : undefined
-  const del = <Action label="Eliminar" onClick={s.deleteSelection} danger><Trash2 size={19} /></Action>
+  const del = <Action label="Eliminar" onClick={() => void deleteWithConfirm()} danger><Trash2 size={19} /></Action>
   const dup = <Action label="Duplicar" onClick={s.duplicateSelection}><Copy size={19} /></Action>
   const more = <Action label="Más" onClick={onMore}><SlidersHorizontal size={19} /></Action>
   const font = (k: number) =>

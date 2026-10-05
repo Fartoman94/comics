@@ -38,7 +38,7 @@ test('escritorio: plantilla → fotos → viñetas → guion → capas → previ
   expect(panels.length).toBeGreaterThanOrEqual(2)
 
   // 2. Subir fotos.
-  await page.getByRole('tab', { name: 'Imágenes' }).click()
+  await page.getByRole('tab', { name: 'Biblioteca' }).click()
   await page.locator('input[type=file][accept="image/*"]').setInputFiles([FIXTURES + 'foto-a.png', FIXTURES + 'foto-b.png'])
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(2)
 

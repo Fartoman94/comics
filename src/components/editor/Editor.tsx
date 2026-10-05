@@ -25,6 +25,9 @@ import { useUi } from '../../store/ui'
 import { joinProject } from '../../lib/tabs'
 import { loadProject, takeSnapshot } from '../../lib/storage'
 import { HelpGuide } from '../help/HelpGuide'
+import { ContextBar } from './context/ContextBar'
+import { deleteWithConfirm } from './actions'
+import { EmptyPageStart } from './context/EmptyPageStart'
 
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
 
@@ -67,6 +70,8 @@ export function Editor() {
         <main className="relative min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'} aria-label="Lienzo de la página">
           {!simple && <h1 className="sr-only">{projectTitle}</h1>}
           <CanvasStage />
+          {!simple && <ContextBar />}
+          <EmptyPageStart />
           <CropBar />
           <PhoneFrameBar onPreview={() => setView('preview')} />
         </main>
@@ -250,7 +255,7 @@ function useShortcuts(openHelp: () => void) {
       } else if (k === 'delete' || k === 'backspace') {
         if (s.selection.length) {
           e.preventDefault()
-          s.deleteSelection()
+          void deleteWithConfirm()
         }
       } else if (k === 'escape') {
         if (s.croppingPanelId) s.setCropping(null)

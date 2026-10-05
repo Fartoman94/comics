@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { plural } from '../../lib/plural'
 import { ArrowLeft, BookOpen, Check, Download, Eye, FileArchive, FileImage, FileText, Package, Printer, ScrollText } from 'lucide-react'
 import { currentPage, useEditor } from '../../store/editor'
 import { ExportCancelled, ExportError, exportPagePNG, exportPDF, exportProject, exportWebtoon, exportZIP, webtoonPlan, type ExportResult, type WebtoonOptions } from '../../lib/export'
@@ -59,11 +60,11 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
     const px = (r: number) => W * r * H * r
     switch (preset) {
       case 'pantalla':
-        return { files: 1, dims: `${n} páginas de ${W}×${H}`, bytes: px(1) * n * bytesPerPixel('jpg', 0.82) }
+        return { files: 1, dims: `${plural(n, 'página', 'páginas')} de ${W}×${H}`, bytes: px(1) * n * bytesPerPixel('jpg', 0.82) }
       case 'imprenta':
-        return { files: 1, dims: `${n} páginas de ${W * 2}×${H * 2}`, bytes: px(2) * n * bytesPerPixel('jpg', 0.92) }
+        return { files: 1, dims: `${plural(n, 'página', 'páginas')} de ${W * 2}×${H * 2}`, bytes: px(2) * n * bytesPerPixel('jpg', 0.92) }
       case 'webbook':
-        return { files: 1, dims: `${n} páginas`, bytes: px(Math.min(2, 2000 / H)) * n * bytesPerPixel('jpg', 0.86) * 1.37 }
+        return { files: 1, dims: plural(n, 'página', 'páginas'), bytes: px(Math.min(2, 2000 / H)) * n * bytesPerPixel('jpg', 0.86) * 1.37 }
       case 'zip':
         return { files: n, dims: `${W * 2}×${H * 2} cada una`, bytes: px(2) * n * bytesPerPixel('png', 1) }
       case 'png':
