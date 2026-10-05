@@ -41,7 +41,7 @@ function proportions(rig: RigSpec, heads: number) {
     footY: 0.82 + 4.85 * k,
     hipW: rig.gender === 'f' ? sw * 0.92 : sw * 0.78,
     waistW: rig.gender === 'f' ? sw * 0.62 : sw * 0.74,
-    limb: (build === 'strong' ? 0.3 : build === 'slim' || build === 'small' ? 0.2 : 0.24) * (rig.gender === 'f' ? 0.9 : 1),
+    limb: (build === 'strong' ? 0.4 : build === 'slim' || build === 'small' ? 0.28 : 0.33) * (rig.gender === 'f' ? 0.9 : 1),
   }
 }
 

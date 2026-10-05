@@ -83,7 +83,7 @@ export class Painter {
   fill(hex: string, opts: { keepLight?: boolean } = {}) {
     if (this.s.color) return saturate(timeTint(hex, this.time), this.s.saturation)
     let l = luminance(hex)
-    if (this.time === 'night') l *= 0.55
+    if (this.time === 'night') l *= 0.8
     if (l > 0.78 || (opts.keepLight && l > 0.55)) return '#ffffff'
     if (l > 0.6) return 'url(#tone-light)'
     if (l > 0.4) return 'url(#tone)'

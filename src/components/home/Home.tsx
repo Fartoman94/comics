@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { SamplesGallery } from './SamplesGallery'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { AlertTriangle, BookOpen, CircleHelp, Copy, Download, FileUp, LifeBuoy, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import type { Project } from '../../types'
@@ -227,6 +228,8 @@ export function Home({ notFound }: { notFound?: boolean }) {
           </div>
         </a>
       </section>
+
+      <SamplesGallery />
 
       <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
