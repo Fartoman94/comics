@@ -10,6 +10,8 @@ import { clearSaveFailed, markSaveFailed } from '../lib/saveMarks'
 import { forgetAsset } from '../lib/assetCache'
 import { referencedAssetIds } from '../lib/projectSchema'
 import { uid } from '../lib/id'
+import type { HistorySnapshot } from '../lib/history'
+import { clearRescue } from '../lib/rescue'
 import { findFreeSpot, intersect } from '../lib/freeSpot'
 import { splitPanel as splitPanelGeometry, type SplitDirection } from '../lib/panelOps'
 
@@ -17,7 +19,7 @@ const HISTORY_LIMIT = 120
 const TEXT_KEYS = ['text', 'fontSize', 'fontFamily', 'fontStyle', 'lineHeight', 'letterSpacing', 'width', 'uppercase']
 const COALESCE_MS = 700
 
-type Snapshot = Omit<Project, 'assets' | 'thumbnail'>
+type Snapshot = HistorySnapshot
 
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error'
 
@@ -72,6 +74,8 @@ interface EditorState {
   future: Snapshot[]
   lastCoalesce: { key: string; at: number } | null
   toasts: Toast[]
+  /** Sube con cada operación crítica (borrar, páginas, plantillas): se guarda enseguida, sin esperar. */
+  urgentSave: number
   /** Cambia cada vez que el canvas pide encajar la página en pantalla. */
   fitRequest: number
   /** Parte de la página que se ve en pantalla (coordenadas de página). */
@@ -80,9 +84,11 @@ interface EditorState {
   openProject(p: Project): void
   closeProject(): void
   setPage(id: string): void
-  mutate(recipe: (d: Draft<Project>) => void, opts?: { coalesce?: string; history?: boolean }): void
+  mutate(recipe: (d: Draft<Project>) => void, opts?: { coalesce?: string; history?: boolean; urgent?: boolean }): void
   undo(): void
   redo(): void
+  /** Salta en el historial: negativo deshace n pasos, positivo rehace n. */
+  jumpHistory(steps: number): void
 
   select(ids: string[]): void
   toggleSelect(id: string): void
@@ -173,6 +179,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   future: [],
   lastCoalesce: null,
   toasts: [],
+  urgentSave: 0,
   fitRequest: 0,
   visibleRect: null,
 
@@ -221,6 +228,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       past: record && !coalesced ? [...past, snapshotOf(project)].slice(-HISTORY_LIMIT) : past,
       future: record ? [] : get().future,
       lastCoalesce: opts.coalesce ? { key: opts.coalesce, at: now } : null,
+      urgentSave: opts.urgent ? get().urgentSave + 1 : get().urgentSave,
     })
   },
 
@@ -259,6 +267,16 @@ export const useEditor = create<EditorState>()((set, get) => ({
     restoreRetiredAssets()
   },
 
+  jumpHistory: (steps) => {
+    const n = Math.abs(Math.round(steps))
+    for (let i = 0; i < n; i++) {
+      const { past, future } = get()
+      if (steps < 0 ? !past.length : !future.length) break
+      if (steps < 0) get().undo()
+      else get().redo()
+    }
+  },
+
   select: (ids) => set({ selection: ids, croppingPanelId: get().croppingPanelId && ids.includes(get().croppingPanelId!) ? get().croppingPanelId : null }),
   toggleSelect: (id) => {
     const sel = get().selection
@@ -279,6 +297,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     try {
       await enqueueSave(project, revision)
       clearSaveFailed(project.id)
+      if (get().revision === revision) clearRescue(project.id)
       // Instantánea local acotada (como mucho una cada 5 minutos por proyecto).
       void takeSnapshot(project).catch(() => undefined)
       const now = get()
@@ -339,7 +358,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     get().mutate((d) => {
       const page = d.pages.find((p) => p.id === pageId)
       if (page) page.elements = page.elements.filter((e) => !selection.includes(e.id) || e.locked)
-    })
+    }, { urgent: true })
     set({ selection: locked.map((e) => e.id), croppingPanelId: null })
   },
 
@@ -416,7 +435,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     copy.elements = copy.elements.map((e) => (e.type === 'panel' ? { ...e, image: null } : e))
     get().mutate((d) => {
       d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, copy as Draft<Page>)
-    })
+    }, { urgent: true })
     get().setPage(copy.id)
   },
 
@@ -469,7 +488,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   removeScriptBlock: (pageId, blockId) =>
     get().mutate((d) => {
       for (const row of d.script?.pages[pageId]?.panels ?? []) row.blocks = row.blocks.filter((b) => b.id !== blockId)
-    }),
+    }, { urgent: true }),
   moveScriptBlock: (pageId, blockId, dir) =>
     get().mutate((d) => {
       for (const row of d.script?.pages[pageId]?.panels ?? []) {
@@ -533,7 +552,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     get().mutate((d) => {
       const idx = afterId ? d.pages.findIndex((p) => p.id === afterId) : -1
       d.pages.splice(idx >= 0 ? idx + 1 : d.pages.length, 0, ...(pages as Draft<Page>[]))
-    })
+    }, { urgent: true })
     get().setPage(pages[0].id)
     get().toast(pages.length === 1 ? 'Página pegada' : `${pages.length} páginas pegadas`, 'success')
   },
@@ -611,7 +630,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       const idx = afterId ? d.pages.findIndex((p) => p.id === afterId) : -1
       if (idx >= 0) d.pages.splice(idx + 1, 0, page)
       else d.pages.push(page)
-    })
+    }, { urgent: true })
     get().setPage(page.id)
   },
 
@@ -636,7 +655,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
         const pg = d.pages.find((p) => p.id === id)
         if (pg) pg.elements.push(...(src.elements.map((e) => cloneElement(e, 0)) as Draft<ComicElement>[]))
       }
-    })
+    }, { urgent: true })
     get().toast(targets.length === 1 ? 'Contenido copiado a 1 página' : `Contenido copiado a ${targets.length} páginas`, 'success')
   },
 
@@ -652,7 +671,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const copy = clonePage(src)
     get().mutate((d) => {
       d.pages.splice(d.pages.findIndex((p) => p.id === id) + 1, 0, copy as Draft<Page>)
-    })
+    }, { urgent: true })
     get().setPage(copy.id)
   },
 
@@ -665,7 +684,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     const idx = project.pages.findIndex((p) => p.id === id)
     get().mutate((d) => {
       d.pages = d.pages.filter((p) => p.id !== id)
-    })
+    }, { urgent: true })
     if (pageId === id) get().setPage(get().project!.pages[Math.max(0, idx - 1)].id)
   },
 
@@ -674,7 +693,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       if (from === to || to < 0 || to >= d.pages.length) return
       const [p] = d.pages.splice(from, 1)
       d.pages.splice(to, 0, p)
-    }),
+    }, { urgent: true }),
 
   applyTemplate: (templateId, margin, gutter, mode) => {
     const { project, pageId } = get()
@@ -696,7 +715,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
       } else {
         page.elements.push(...(panels as Draft<ComicElement>[]))
       }
-    })
+    }, { urgent: true })
     set({ selection: [] })
   },
 
@@ -708,7 +727,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
     page.elements = buildTemplatePanels(tpl, project.format, margin, gutter)
     get().mutate((d) => {
       d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, page as Draft<Page>)
-    })
+    }, { urgent: true })
     get().setPage(page.id)
   },
 

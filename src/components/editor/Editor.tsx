@@ -27,6 +27,7 @@ import { loadProject, takeSnapshot } from '../../lib/storage'
 import { HelpGuide } from '../help/HelpGuide'
 import { ContextBar } from './context/ContextBar'
 import { deleteWithConfirm } from './actions'
+import { writeRescue } from '../../lib/rescue'
 import { withPanelContent } from '../../lib/hierarchy'
 import { PageFilmstrip } from './pages/PageFilmstrip'
 import { PageDialogsHost } from './pages/PageDialogs'
@@ -112,31 +113,48 @@ export function Editor() {
   )
 }
 
+/** Espera después del último cambio antes de guardar (las operaciones críticas no esperan). */
+export const AUTOSAVE_MS = 2000
+
 /**
- * Guarda en IndexedDB 800 ms después del último cambio. Además guarda enseguida cuando la pestaña
- * se oculta o se cierra y cuando el editor se desmonta (Atrás, cambio de proyecto): nunca se pierde
- * el último cambio por el debounce.
+ * Autoguardado: 2 s después del último cambio (nunca por cuadro: un arrastre es una sola
+ * operación) y enseguida tras operaciones críticas (borrar, páginas, plantillas). Al ocultar o
+ * cerrar la pestaña se guarda ya y, como IndexedDB es asíncrono, se deja además una copia de
+ * rescate síncrona en localStorage: sólo se advierte al salir si esa copia no se pudo escribir.
  */
 function useAutosave() {
   const project = useEditor((s) => s.project)
   const status = useEditor((s) => s.saveStatus)
+  const urgent = useEditor((s) => s.urgentSave)
   const timer = useRef<number>(0)
+  const lastUrgent = useRef(urgent)
   useEffect(() => {
     if (!project || status !== 'dirty') return
     clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => void useEditor.getState().saveNow(), 800)
+    const now = urgent !== lastUrgent.current
+    lastUrgent.current = urgent
+    timer.current = window.setTimeout(() => void useEditor.getState().saveNow(), now ? 0 : AUTOSAVE_MS)
     return () => clearTimeout(timer.current)
-  }, [project, status])
+  }, [project, status, urgent])
 
   useEffect(() => {
-    const flush = () => void useEditor.getState().saveNow()
+    const pending = () => {
+      const s = useEditor.getState()
+      return !!s.project && !s.readOnly && s.saveStatus !== 'saved'
+    }
+    const flush = () => {
+      if (!pending()) return
+      const s = useEditor.getState()
+      writeRescue(s.project!)
+      void s.saveNow()
+    }
     const onHidden = () => document.visibilityState === 'hidden' && flush()
     const onUnload = (e: BeforeUnloadEvent) => {
+      if (!pending()) return
       const s = useEditor.getState()
-      if (s.saveStatus === 'dirty' || s.saveStatus === 'saving' || s.saveStatus === 'error') {
-        flush()
-        e.preventDefault()
-      }
+      void s.saveNow()
+      // Si la copia de rescate quedó escrita no hace falta asustar a nadie: se recupera al volver.
+      if (!writeRescue(s.project!)) e.preventDefault()
     }
     document.addEventListener('visibilitychange', onHidden)
     window.addEventListener('pagehide', flush)
@@ -146,7 +164,7 @@ function useAutosave() {
       window.removeEventListener('pagehide', flush)
       window.removeEventListener('beforeunload', onUnload)
       // El editor se va (Atrás, otro proyecto): lo pendiente se guarda ya.
-      flush()
+      void useEditor.getState().saveNow()
     }
   }, [])
 }
