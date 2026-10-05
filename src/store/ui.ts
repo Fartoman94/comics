@@ -7,6 +7,7 @@ const MODE_KEY = 'vineta:modo-ui'
 const TIPS_KEY = 'vineta:ayudas-vistas'
 const TIPS_OFF_KEY = 'vineta:ayudas-apagadas'
 const FILMSTRIP_KEY = 'vineta:tira-paginas'
+const SIDEBAR_KEY = 'vineta:paneles'
 
 const read = (k: string) => {
   try {
@@ -39,6 +40,9 @@ export const PHONES = [
 export type PhoneId = (typeof PHONES)[number]['id']
 
 interface UiState {
+  /** Sidebar de paneles (estudio): visible o plegada. En tablet arranca plegada para dar lugar al lienzo. */
+  sidebar: boolean
+  setSidebar(open: boolean): void
   /** Tira de páginas bajo el lienzo (estudio): abierta o plegada, se recuerda en este dispositivo. */
   filmstrip: boolean
   setFilmstrip(open: boolean): void
@@ -59,6 +63,15 @@ interface UiState {
 }
 
 export const useUi = create<UiState>()((set, get) => ({
+  sidebar: (() => {
+    const saved = read(SIDEBAR_KEY)
+    if (saved === '1' || saved === '0') return saved === '1'
+    return typeof matchMedia !== 'function' || matchMedia('(min-width: 1024px)').matches
+  })(),
+  setSidebar: (open) => {
+    write(SIDEBAR_KEY, open ? '1' : '0')
+    set({ sidebar: open })
+  },
   filmstrip: read(FILMSTRIP_KEY) !== '0',
   setFilmstrip: (open) => {
     write(FILMSTRIP_KEY, open ? '1' : '0')

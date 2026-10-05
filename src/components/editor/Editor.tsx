@@ -21,6 +21,7 @@ import { ExportDialog } from './ExportDialog'
 import type { EditorNav } from './TopBar'
 import { SimpleTopBar } from './mobile/SimpleTopBar'
 import { SimpleBottomBar } from './mobile/SimpleBottomBar'
+import { PageSwitcher } from './mobile/PageSwitcher'
 import { useUi } from '../../store/ui'
 import { joinProject } from '../../lib/tabs'
 import { loadProject, takeSnapshot } from '../../lib/storage'
@@ -89,7 +90,7 @@ export function Editor() {
         <main className="relative min-h-0 min-w-0 flex-1" data-ui-mode={simple ? 'simple' : 'studio'} aria-label="Lienzo de la página">
           {!simple && <h1 className="sr-only">{projectTitle}</h1>}
           <CanvasStage />
-          {!simple && <ContextBar />}
+          {simple ? <PageSwitcher /> : <ContextBar />}
           <EmptyPageStart />
           <CropBar />
           <PhoneFrameBar onPreview={() => open('preview')} />

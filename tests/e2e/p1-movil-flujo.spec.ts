@@ -42,7 +42,7 @@ test.describe('flujo completo sólo con el dedo (390×844)', () => {
     await page.touchscreen.tap(5, 300)
     await inApp(page, 's.select([])')
     await page.getByRole('button', { name: 'Agregar contenido' }).tap()
-    await page.getByRole('button', { name: /^Globo/ }).tap()
+    await page.getByRole('dialog', { name: 'Agregar' }).getByRole('button', { name: /^Globo/ }).tap()
     await expect(page.locator('textarea')).toBeFocused()
     await page.keyboard.press('Control+a')
     await page.keyboard.type('¡Lo hice con el dedo!')
@@ -52,7 +52,7 @@ test.describe('flujo completo sólo con el dedo (390×844)', () => {
     await page.getByRole('button', { name: 'Deshacer' }).tap()
     await page.getByRole('button', { name: 'Rehacer' }).tap()
     // Reordenar: la página actual pasa a ser la primera con el botón visible.
-    await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('button', { name: 'Páginas' }).tap()
+    await page.getByTestId('selector-pagina').getByRole('button', { name: /^Páginas:/ }).tap()
     const pageId = await inApp<string>(page, 'return s.pageId')
     await page.getByRole('button', { name: 'Mover antes' }).nth(1).tap()
     expect(await inApp<string>(page, 'return s.project.pages[0].id')).toBe(pageId)

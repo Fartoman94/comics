@@ -123,6 +123,35 @@ export function CanvasStage() {
     zoomRef.current = zoom
   }, [zoom, size.w, size.h])
 
+  // ---------- Teclado del celular: lo que se escribe queda a la vista ----------
+  // Al editar un texto, si el teclado en pantalla (visualViewport) tapa el elemento, se desplaza el lienzo.
+  useEffect(() => {
+    if (!editingText) return
+    const keepVisible = () => {
+      const el = findEl(editingText)
+      const wrap = wrapRef.current
+      if (!el || !wrap) return
+      const vv = window.visualViewport
+      const top = wrap.getBoundingClientRect().top
+      const visibleBottom = (vv ? vv.height + vv.offsetTop : window.innerHeight) - top - 12
+      const { zoom: z } = useEditor.getState()
+      setPan((p) => {
+        const elTop = p.y + el.y * z
+        const elBottom = p.y + (el.y + el.height) * z
+        if (elBottom > visibleBottom) return { ...p, y: p.y - Math.min(elBottom - visibleBottom, elTop - 12) }
+        if (elTop < 12) return { ...p, y: p.y + (12 - elTop) }
+        return p
+      })
+    }
+    keepVisible()
+    window.visualViewport?.addEventListener('resize', keepVisible)
+    window.addEventListener('resize', keepVisible)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', keepVisible)
+      window.removeEventListener('resize', keepVisible)
+    }
+  }, [editingText])
+
   // ---------- Barra espaciadora = mano temporal ----------
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

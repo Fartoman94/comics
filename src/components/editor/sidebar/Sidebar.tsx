@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FileText, Files, Images, Layers, LayoutGrid, Shapes } from 'lucide-react'
 import { cx } from '../../ui/controls'
 import { MadeByMateLabs } from '../../ui/Brand'
+import { useUi } from '../../../store/ui'
 import { PagesPanel } from './PagesPanel'
 import { LayoutsPanel } from './LayoutsPanel'
 import { AssetsPanel } from './AssetsPanel'
@@ -56,8 +57,11 @@ export function SidebarTabs({ tab, onChange }: { tab: SidebarTab; onChange: (t: 
 
 export function Sidebar() {
   const [tab, setTab] = useState<SidebarTab>('pages')
+  const open = useUi((s) => s.sidebar)
+  if (!open) return null
   return (
-    <aside aria-label="Paneles del proyecto" className="hidden w-80 shrink-0 flex-col border-r border-ink-700 bg-ink-850 lg:flex">
+    // Desde tablet (768 px): plegable desde la barra de herramientas; en escritorio arranca abierta.
+    <aside aria-label="Paneles del proyecto" className="hidden w-72 shrink-0 flex-col border-r border-ink-700 bg-ink-850 md:flex xl:w-80">
       <SidebarTabs tab={tab} onChange={setTab} />
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <SidebarBody tab={tab} />

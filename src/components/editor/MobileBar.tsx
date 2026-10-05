@@ -4,6 +4,7 @@ import { ArrowDownToLine, ArrowUpToLine, Copy, SlidersHorizontal, Trash2, X } fr
 import { useEditor } from '../../store/editor'
 import { cx } from '../ui/controls'
 import { SIDEBAR_TABS, SidebarBody, type SidebarTab } from './sidebar/Sidebar'
+import { useUi } from '../../store/ui'
 import { InspectorBody } from './inspector/Inspector'
 
 type SheetId = SidebarTab | 'props' | null
@@ -14,6 +15,7 @@ type SheetId = SidebarTab | 'props' | null
  */
 export function MobileBar() {
   const [sheet, setSheet] = useState<SheetId>(null)
+  const sidebarOpen = useUi((st) => st.sidebar)
   const selection = useEditor((s) => s.selection)
   const tool = useEditor((s) => s.tool)
   const s = useEditor.getState()
@@ -55,7 +57,7 @@ export function MobileBar() {
             key={t.id}
             data-tour={`tab-${t.id}`}
             onClick={() => setSheet(sheet === t.id ? null : t.id)}
-            className={cx('flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] lg:hidden', sheet === t.id ? 'text-accent-bright' : 'text-ink-300')}
+            className={cx('flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px]', sidebarOpen && 'md:hidden', sheet === t.id ? 'text-accent-bright' : 'text-ink-300')}
           >
             {t.icon}
             {t.label}

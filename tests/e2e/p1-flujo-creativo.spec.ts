@@ -190,7 +190,7 @@ test.describe('celular sin modo estudio', () => {
     await expect(page.locator('[data-ui-mode=simple]')).toBeVisible()
     await inApp(page, 's.setPage(s.project.pages[1].id)')
     // Diseñar: plantilla.
-    await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('button', { name: 'Diseñar' }).tap()
+    await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('button', { name: 'Viñeta' }).tap()
     await page.locator('[data-template="grid-2x2"]').tap()
     await expect.poll(() => inApp<number>(page, 'return s.project.pages[1].elements.filter(e => e.type === "panel").length')).toBe(4)
     // Foto en la primera viñeta.
@@ -203,7 +203,7 @@ test.describe('celular sin modo estudio', () => {
     // Globo escrito con el botón +.
     await inApp(page, 's.select([])')
     await page.getByRole('button', { name: 'Agregar contenido' }).tap()
-    await page.getByRole('button', { name: /^Globo/ }).tap()
+    await page.getByRole('dialog', { name: 'Agregar' }).getByRole('button', { name: /^Globo/ }).tap()
     await expect(page.locator('textarea')).toBeFocused()
     await page.keyboard.press('Control+a')
     await page.keyboard.type('Mi primera página')
