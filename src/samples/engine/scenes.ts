@@ -284,7 +284,7 @@ const screensProp = (s: S, b: { x0: number; y0: number; x1: number; y1: number }
 const stairsProp = (s: S) => {
   let o = ''
   for (let i = 0; i < 9; i++) o += poly(s, [[s.W * (0.1 + i * 0.07), s.H * (0.9 - i * 0.08)], [s.W * (0.55 + i * 0.05), s.H * (0.9 - i * 0.08)], [s.W * (0.55 + i * 0.05), s.H * (0.94 - i * 0.08)], [s.W * (0.1 + i * 0.07), s.H * (0.94 - i * 0.08)]], i % 2 ? '#8d8a84' : '#a5a29b')
-  return o + line(s, s.W * 0.1, s.H * 0.7, s.W * 0.7, s.H * 0.0, 1.6)
+  return o + line(s, s.W * 0.1, s.H * 0.7, s.W * 0.7, 0, 1.6)
 }
 const lockersProp = (s: S, b: { x0: number; y0: number; x1: number; y1: number }) => {
   let o = ''
@@ -317,7 +317,7 @@ function park(s: S, flowers = false, jacaranda = false) {
 }
 
 function forest(s: S) {
-  const { W, H, hz } = s
+  const { W, hz } = s
   let o = sky(s) + ground(s, '#4f7a46', false)
   for (let l = 0; l < 3; l++)
     for (let i = 0; i < 8; i++) {
@@ -344,7 +344,7 @@ function islands(s: S) {
 }
 
 function village(s: S) {
-  const { W, H, hz } = s
+  const { W, hz } = s
   let o = sky(s) + ground(s, '#9bbf6a', false)
   for (let i = 0; i < 6; i++) {
     const x = i * (W / 5.2) - 40 + s.r() * 30
@@ -437,7 +437,7 @@ function moonTown(s: S) {
 }
 
 function powerPlant(s: S) {
-  const { W, H, hz } = s
+  const { W, hz } = s
   let o = sky(s) + ground(s, '#55575e', false)
   for (const [x, w] of [[0.1, 0.16], [0.32, 0.16]]) o += `<path d="M${n(W * x)} ${n(hz)} Q${n(W * (x + w / 2))} ${n(hz - 160)} ${n(W * x + 10)} ${n(hz - 320)} L${n(W * (x + w) - 10)} ${n(hz - 320)} Q${n(W * (x + w / 2))} ${n(hz - 160)} ${n(W * (x + w))} ${n(hz)}Z" fill="${s.p.fill('#c9c6bd')}" stroke="${s.p.ink}" stroke-width="${s.lw}"/>`
   o += rect(s, W * 0.55, hz - 180, W * 0.35, 180, '#8c8f96')
