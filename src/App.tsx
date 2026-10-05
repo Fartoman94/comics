@@ -5,7 +5,9 @@ import { lazyWithReload } from './lib/lazyWithReload'
 import { Toasts } from './components/ui/Toasts'
 import { ConfirmHost } from './components/ui/Confirm'
 import { loadProject } from './lib/storage'
-import { ProjectFileError } from './lib/projectSchema'
+import { ProjectFileError, validateProject } from './lib/projectSchema'
+import { clearRescue, readRescue } from './lib/rescue'
+import type { Project } from './types'
 import { navigateToProject } from './lib/nav'
 import { useEditor } from './store/editor'
 import { CrashScreen } from './components/ui/ErrorBoundary'
@@ -20,6 +22,19 @@ const isDemoHash = () => /^#\/demo\b/.test(location.hash)
 function projectIdFromHash() {
   const m = location.hash.match(/^#\/p\/([\w-]+)/)
   return m ? m[1] : null
+}
+
+function recoverFromRescue(stored: Project): Project | null {
+  const raw = readRescue(stored.id, stored.updatedAt)
+  if (!raw) return null
+  try {
+    const p = validateProject(raw)
+    // Las imágenes siempre son las guardadas: la copia sólo trae el documento.
+    return { ...p, assets: p.assets.length >= stored.assets.length ? p.assets : stored.assets, thumbnail: stored.thumbnail }
+  } catch {
+    clearRescue(stored.id)
+    return null
+  }
 }
 
 export function App() {
@@ -55,8 +70,14 @@ export function App() {
     loadProject(routeId)
       .then((p) => {
         if (cancelled) return
-        if (p) useEditor.getState().openProject(p)
-        else setMissing(true)
+        if (!p) return setMissing(true)
+        // Cambios que no llegaron a IndexedDB al cerrar la pestaña: se recuperan de la copia de rescate.
+        const rescued = recoverFromRescue(p)
+        useEditor.getState().openProject(rescued ?? p)
+        if (rescued) {
+          useEditor.setState({ saveStatus: 'dirty', revision: useEditor.getState().revision + 1 })
+          useEditor.getState().toast('Se recuperaron cambios que no se habían llegado a guardar.', 'success')
+        }
       })
       .catch((e) => {
         if (cancelled) return

@@ -5,6 +5,7 @@ import { Button, IconButton, Menu, MenuItem } from '../ui/controls'
 import { AppLogo } from '../ui/Brand'
 import { useUi } from '../../store/ui'
 import { useHelp } from '../help/HelpGuide'
+import { HistoryMenu } from './HistoryMenu'
 
 export interface EditorNav {
   read(): void
@@ -51,6 +52,9 @@ export function TopBar({ nav }: { nav: EditorNav }) {
         <IconButton label="Rehacer (Ctrl+Shift+Z)" disabled={!canRedo} onClick={s.redo}>
           <Redo2 size={16} />
         </IconButton>
+        <div className="max-sm:hidden">
+          <HistoryMenu />
+        </div>
       </div>
 
       <div className="flex-1" />
@@ -126,9 +130,9 @@ function SaveBadge({ status }: { status: string }) {
   } as const
   const m = map[status as keyof typeof map]
   return (
-    <span className={`hidden items-center gap-1 text-[11px] sm:flex ${m.cls}`}>
+    <span role="status" aria-live="polite" title={m.text} data-testid="estado-guardado" className={`hidden items-center gap-1 text-[11px] sm:flex ${m.cls}`}>
       {m.icon}
-      <span className="hidden xl:inline">{m.text}</span>
+      <span className="max-lg:sr-only">{m.text}</span>
     </span>
   )
 }
