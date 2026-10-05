@@ -7,6 +7,8 @@ import { getAssetBlob, putAssetBlob } from '../lib/storage'
 import { uid } from '../lib/id'
 import { rasterize } from '../demo/demoProject'
 import { shotSvg } from './engine/compose'
+import { measureTextHeight } from '../lib/textFit'
+import { bubbleTextBox } from '../components/editor/nodes/bubblePath'
 import type { Line, LineKind, PanelDef, Shot, StyleId, WorkDef } from './types'
 
 /**
@@ -110,7 +112,7 @@ function linesFor(work: WorkDef, def: PanelDef, panel: PanelElement, scale: numb
   const fonts = FONTS[work.style]
   const rtl = work.readingDirection === 'rtl'
   let y = panel.y + panel.height * 0.04
-  let lastX = panel.x
+  const placed: { x: number; y: number; w: number; h: number }[] = []
   ;(def.lines ?? []).forEach((l: Line, i) => {
     const shape = BUBBLE_OF[l.kind]
     const b = createBubble(shape, 0, 0, scale)
@@ -127,23 +129,41 @@ function linesFor(work: WorkDef, def: PanelDef, panel: PanelElement, scale: numb
     if (work.style === 'anime' && box) b.fill = '#1b1530'
     if (work.style === 'anime' && box) b.textColor = '#f4ecff'
     const maxW = panel.width * (panel.width < 400 * scale ? 0.92 : 0.62)
-    const size = estimateBubble(b.uppercase ? l.text.toUpperCase() : l.text, b.fontSize, shape, Math.max(140, maxW), b.fontFamily === 'Special Elite' || b.uppercase)
-    b.width = Math.min(size.width, Math.round(panel.width * 0.9))
-    b.height = size.height
-    b.padding = Math.round(size.pad)
-    // Alterna lados según el orden de lectura, sin salirse de la viñeta.
-    const firstSide = rtl ? 1 : 0
-    const side = (i + firstSide) % 2
-    const x = box ? (rtl ? panel.x + panel.width - b.width - panel.width * 0.03 : panel.x + panel.width * 0.03) : side === 0 ? panel.x + panel.width * 0.05 : panel.x + panel.width * 0.95 - b.width
-    b.x = Math.round(Math.max(panel.x + 4, x))
-    // Si ya no entra debajo del anterior (viñetas bajas), va arriba en la otra punta.
-    if (y + b.height > panel.y + panel.height - 8 && i > 0) {
-      y = panel.y + panel.height * 0.04
-      b.x = Math.round(lastX < panel.x + panel.width / 2 ? panel.x + panel.width * 0.97 - b.width : panel.x + panel.width * 0.03)
+    const wide = b.fontFamily === 'Special Elite' || b.uppercase
+    const sizeFor = () => {
+      const size = estimateBubble(b.uppercase ? l.text.toUpperCase() : l.text, b.fontSize, shape, Math.max(140, maxW), wide)
+      b.width = Math.min(size.width, Math.round(panel.width * 0.92))
+      b.height = size.height
+      b.padding = Math.round(size.pad)
+      // Medición real con la tipografía cargada (Konva): si el texto no entra, el globo crece.
+      const tb = bubbleTextBox(b)
+      const need = measureTextHeight({ text: b.text, width: tb.width, fontFamily: b.fontFamily, fontSize: b.fontSize, fontStyle: b.fontStyle, lineHeight: b.lineHeight, letterSpacing: b.letterSpacing, uppercase: b.uppercase })
+      if (need > tb.height) b.height = Math.round(b.height + (need - tb.height) / (shape === 'impact' ? 0.6 : box ? 1 : 0.72) + 4)
     }
-    b.y = Math.round(Math.min(y, panel.y + panel.height - b.height - 8))
-    y = b.y + b.height + panel.height * 0.025
-    lastX = b.x
+    // Busca un lugar libre dentro de la viñeta (en el orden de lectura); si no hay, achica la letra.
+    const first = rtl ? 'right' : 'left'
+    const prefer = box ? [first] : i % 2 === 0 ? [first, first === 'left' ? 'right' : 'left', 'center'] : [first === 'left' ? 'right' : 'left', first, 'center']
+    let spot: { x: number; y: number } | null = null
+    for (let attempt = 0; attempt < 5 && !spot; attempt++) {
+      sizeFor()
+      const pad = 8
+      for (let yy = panel.y + panel.height * 0.03; yy + b.height <= panel.y + panel.height - pad && !spot; yy += panel.height * 0.05) {
+        for (const side of prefer) {
+          const xx = side === 'left' ? panel.x + panel.width * 0.04 : side === 'right' ? panel.x + panel.width * 0.96 - b.width : panel.x + (panel.width - b.width) / 2
+          const r = { x: xx, y: yy, w: b.width, h: b.height }
+          if (xx < panel.x + 2 || xx + b.width > panel.x + panel.width - 2) continue
+          if (placed.every((o) => r.x >= o.x + o.w + 6 || r.x + r.w + 6 <= o.x || r.y >= o.y + o.h + 6 || r.y + r.h + 6 <= o.y)) {
+            spot = { x: xx, y: yy }
+            break
+          }
+        }
+      }
+      if (!spot) b.fontSize = Math.max(10, Math.round(b.fontSize * 0.86))
+    }
+    b.x = Math.round(spot ? spot.x : panel.x + panel.width * 0.04)
+    b.y = Math.round(spot ? spot.y : panel.y + panel.height * 0.03)
+    placed.push({ x: b.x, y: b.y, w: b.width, h: b.height })
+    y = Math.max(y, b.y + b.height)
     if (b.tail) {
       const sx = speakerX(def, l.who, panel)
       b.tailX = Math.max(-b.width * 0.2, Math.min(b.width * 1.2, sx - b.x))
@@ -182,6 +202,11 @@ function linesFor(work: WorkDef, def: PanelDef, panel: PanelElement, scale: numb
 /** Arma el proyecto completo. `onProgress` informa cuántas ilustraciones van. */
 export async function buildWorkProject(work: WorkDef, onProgress?: (p: BuildProgress) => void): Promise<Project> {
   const format = getFormat(work.formatId)
+  // Medidor de texto de Konva y tipografías de rotulado listas antes de calcular globos.
+  await import('../lib/textFitKonva')
+  const { loadFonts } = await import('../lib/fonts')
+  const f = FONTS[work.style]
+  await loadFonts([f.talk, f.caption, f.sfx, 'Luckiest Guy']).catch(() => undefined)
   const project = createProject({ title: work.subtitle ? `${work.title} — ${work.subtitle}` : work.title, author: 'Muestra de Viñeta Studio', kind: work.kind, formatId: work.formatId, pages: 1, templateId: null, readingDirection: work.readingDirection })
   project.synopsis = work.logline
   project.pages = []
@@ -222,13 +247,15 @@ export async function buildWorkProject(work: WorkDef, onProgress?: (p: BuildProg
   const cp = createPanel(0, 0, format.width, format.height)
   cp.name = 'Imagen de portada'
   cp.strokeWidth = 0
-  fill(cp, await art(work.cover.shot, format.width, format.height, 7))
+  // En la portada, los personajes en plano medio: caras grandes y legibles en miniatura.
+  const coverShot = { ...work.cover.shot, chars: work.cover.shot.chars?.map((c) => (c.framing === 'full' || !c.framing ? { ...c, framing: 'half' as const } : c)) }
+  fill(cp, await art(coverShot, format.width, format.height, 7))
   const title = createText(Math.round(format.width * 0.05), Math.round(format.height * 0.05), TEXT_PRESETS.find((p) => p.id === 'title')!)
   Object.assign(title, { name: 'Título', text: work.title.toUpperCase(), width: Math.round(format.width * 0.9), height: Math.round(format.height * 0.13), fontSize: Math.round(format.width * (work.title.length > 14 ? 0.085 : 0.12)), textColor: '#ffffff', stroke: '#111111', strokeWidth: Math.round(format.width * 0.012) })
   const sub = createText(Math.round(format.width * 0.08), Math.round(format.height * 0.18), TEXT_PRESETS.find((p) => p.id === 'caption')!)
-  Object.assign(sub, { name: 'Subtítulo', text: work.cover.subtitle ?? work.subtitle ?? '', width: Math.round(format.width * 0.84), height: Math.round(format.height * 0.05), fontSize: Math.round(format.width * 0.042), textColor: '#ffffff', stroke: '#111111', strokeWidth: Math.round(format.width * 0.006), uppercase: true })
+  Object.assign(sub, { name: 'Subtítulo', text: work.cover.subtitle ?? work.subtitle ?? '', width: Math.round(format.width * 0.84), height: Math.round(format.height * 0.1), fontSize: Math.round(format.width * ((work.cover.subtitle ?? work.subtitle ?? '').length > 28 ? 0.032 : 0.042)), textColor: '#ffffff', stroke: '#111111', strokeWidth: Math.round(format.width * 0.012), uppercase: true })
   const tag = createText(Math.round(format.width * 0.08), Math.round(format.height * 0.87), TEXT_PRESETS.find((p) => p.id === 'caption')!)
-  Object.assign(tag, { name: 'Bajada', text: work.cover.tagline, width: Math.round(format.width * 0.84), height: Math.round(format.height * 0.08), fontSize: Math.round(format.width * 0.032), textColor: '#ffffff', shadow: true, shadowColor: '#000000', strokeWidth: 0 })
+  Object.assign(tag, { name: 'Bajada', text: work.cover.tagline, width: Math.round(format.width * 0.84), height: Math.round(format.height * 0.08), fontSize: Math.round(format.width * 0.032), textColor: '#ffffff', stroke: '#111111', strokeWidth: Math.round(format.width * 0.008), shadow: true, shadowColor: '#000000' })
   coverPage.elements = [cp, title, sub, tag]
   project.pages.push(coverPage)
 

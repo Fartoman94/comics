@@ -87,7 +87,7 @@ export class Painter {
     if (l > 0.78 || (opts.keepLight && l > 0.55)) return '#ffffff'
     if (l > 0.6) return 'url(#tone-light)'
     if (l > 0.4) return 'url(#tone)'
-    if (l > 0.24) return 'url(#tone-dense)'
+    if (l > 0.13) return 'url(#tone-dense)'
     return this.s.ink
   }
 

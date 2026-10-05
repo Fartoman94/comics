@@ -21,7 +21,8 @@ export async function loadWork(id: SampleId): Promise<WorkDef> {
 /** Portada como imagen SVG (para la galería del inicio, sin rasterizar). */
 export async function coverSvg(id: SampleId): Promise<string> {
   const [work, { shotSvg }] = await Promise.all([loadWork(id), import('./engine/compose')])
-  return shotSvg(work.style, work.characters, work.cover.shot, 600, 900, 7)
+  const shot = { ...work.cover.shot, chars: work.cover.shot.chars?.map((c) => (c.framing === 'full' || !c.framing ? { ...c, framing: 'half' as const } : c)) }
+  return shotSvg(work.style, work.characters, shot, 600, 900, 7)
 }
 
 /** Crea una copia editable de la muestra en "Tus proyectos" y devuelve su id. */

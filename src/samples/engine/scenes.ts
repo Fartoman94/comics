@@ -284,7 +284,7 @@ const screensProp = (s: S, b: { x0: number; y0: number; x1: number; y1: number }
 const stairsProp = (s: S) => {
   let o = ''
   for (let i = 0; i < 9; i++) o += poly(s, [[s.W * (0.1 + i * 0.07), s.H * (0.9 - i * 0.08)], [s.W * (0.55 + i * 0.05), s.H * (0.9 - i * 0.08)], [s.W * (0.55 + i * 0.05), s.H * (0.94 - i * 0.08)], [s.W * (0.1 + i * 0.07), s.H * (0.94 - i * 0.08)]], i % 2 ? '#8d8a84' : '#a5a29b')
-  return o + line(s, s.W * 0.1, s.H * 0.7, s.W * 0.7, s.H * 0.0, 1.6)
+  return o + line(s, s.W * 0.1, s.H * 0.7, s.W * 0.7, 0, 1.6)
 }
 const lockersProp = (s: S, b: { x0: number; y0: number; x1: number; y1: number }) => {
   let o = ''

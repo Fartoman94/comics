@@ -85,7 +85,7 @@ function extraSvg(p: Painter, e: ArtExtra, W: number, H: number, r: () => number
       }
       return o
     case 'bubbles-soft':
-      for (let i = 0; i < 18; i++) o += `<circle cx="${n(r() * W)}" cy="${n(r() * H)}" r="${n(8 + r() * 30)}" fill="${col('#ffffff')}" fill-opacity="0.35" stroke="${ink}" stroke-width="1" stroke-opacity="0.5"/>`
+      for (let i = 0; i < 14; i++) o += `<circle cx="${n(r() * W)}" cy="${n(r() * H)}" r="${n(6 + r() * 16)}" fill="${col('#ffffff')}" fill-opacity="0.22" stroke="${ink}" stroke-width="1" stroke-opacity="0.35"/>`
       return o
     case 'lightning': {
       let x = W * (0.2 + r() * 0.6)
