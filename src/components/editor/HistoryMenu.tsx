@@ -66,7 +66,7 @@ function HistoryList({ onPick }: { onPick: () => void }) {
             <button
               onClick={() => jump(-(past.length - 1 - i))}
               aria-current={k === 0 ? 'step' : undefined}
-              className={cx('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-ink-700', k === 0 ? 'font-medium text-white' : 'text-ink-200')}
+              className={cx('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-ink-700', k === 0 ? 'font-medium text-fg' : 'text-ink-200')}
             >
               {k === 0 && <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />}
               {text}

@@ -16,7 +16,7 @@ export function PageSwitcher() {
         <button className={btn} aria-label="Anterior" title="Página anterior" disabled={index <= 0} onClick={() => s.goToPage(index - 1)}>
           <ChevronLeft size={18} />
         </button>
-        <button className="min-h-10 px-2 text-xs font-medium text-white tabular-nums" aria-label={`Páginas: ${index + 1} de ${total}. Tocá para verlas todas`} onClick={() => useUi.getState().requestSheet('pages')}>
+        <button className="min-h-10 px-2 text-xs font-medium text-fg tabular-nums" aria-label={`Páginas: ${index + 1} de ${total}. Tocá para verlas todas`} onClick={() => useUi.getState().requestSheet('pages')}>
           Pág. {index + 1} / {total}
         </button>
         <button className={btn} aria-label="Siguiente" title="Página siguiente" disabled={index >= total - 1} onClick={() => s.goToPage(index + 1)}>

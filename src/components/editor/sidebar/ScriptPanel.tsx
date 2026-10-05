@@ -70,7 +70,7 @@ export function ScriptPanel() {
         return (
           <section key={sec.panelId ?? 'pagina'} className="rounded-lg bg-ink-900 ring-1 ring-ink-700" aria-label={sec.label}>
             <header className="flex items-center justify-between px-2.5 py-1.5">
-              <button className="text-xs font-semibold text-white hover:text-accent-bright" onClick={() => sec.panelId && s.select([sec.panelId])} disabled={!sec.panelId}>
+              <button className="text-xs font-semibold text-fg hover:text-accent-bright" onClick={() => sec.panelId && s.select([sec.panelId])} disabled={!sec.panelId}>
                 {sec.label}
               </button>
               <Menu
@@ -97,17 +97,17 @@ export function ScriptPanel() {
                   return (
                     <li key={b.id} className="rounded-md bg-ink-850 p-2" data-block={b.id}>
                       <div className="flex items-center gap-1.5">
-                        <select value={b.kind} onChange={(e) => s.updateScriptBlock(page.id, b.id, { kind: e.target.value as ScriptKind })} aria-label="Tipo" className="h-7 rounded border border-ink-600 bg-ink-900 px-1 text-[11px] text-white">
+                        <select value={b.kind} onChange={(e) => s.updateScriptBlock(page.id, b.id, { kind: e.target.value as ScriptKind })} aria-label="Tipo" className="h-7 rounded border border-ink-600 bg-ink-900 px-1 text-[11px] text-fg">
                           {Object.entries(KIND_LABELS).map(([k, l]) => (
                             <option key={k} value={k}>
                               {l}
                             </option>
                           ))}
                         </select>
-                        {(b.kind === 'dialogue' || b.kind === 'thought') && <input value={b.character ?? ''} onChange={(e) => s.updateScriptBlock(page.id, b.id, { character: e.target.value })} placeholder="Personaje" aria-label="Personaje" className="h-7 min-w-0 flex-1 rounded border border-ink-600 bg-ink-900 px-1.5 text-[11px] text-white" />}
+                        {(b.kind === 'dialogue' || b.kind === 'thought') && <input value={b.character ?? ''} onChange={(e) => s.updateScriptBlock(page.id, b.id, { character: e.target.value })} placeholder="Personaje" aria-label="Personaje" className="h-7 min-w-0 flex-1 rounded border border-ink-600 bg-ink-900 px-1.5 text-[11px] text-fg" />}
                         {b.kind !== 'description' && <span className={cx('ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px]', STATUS[st].cls)}>{STATUS[st].label}</span>}
                       </div>
-                      <textarea value={b.text} onChange={(e) => s.updateScriptBlock(page.id, b.id, { text: e.target.value })} rows={2} aria-label={`Texto: ${KIND_LABELS[b.kind]}`} className="mt-1.5 w-full resize-y rounded border border-ink-600 bg-ink-900 p-1.5 text-xs text-white outline-none focus:border-accent" />
+                      <textarea value={b.text} onChange={(e) => s.updateScriptBlock(page.id, b.id, { text: e.target.value })} rows={2} aria-label={`Texto: ${KIND_LABELS[b.kind]}`} className="mt-1.5 w-full resize-y rounded border border-ink-600 bg-ink-900 p-1.5 text-xs text-fg outline-none focus:border-accent" />
                       {st === 'modificado' && (
                         <div className="mt-1 rounded bg-amber-950/40 p-1.5 text-[11px] text-amber-100" role="status">
                           El texto de la página cambió.

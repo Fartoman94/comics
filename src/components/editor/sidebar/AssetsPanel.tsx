@@ -76,7 +76,7 @@ function ProjectAssets() {
         className={cx('no-autoclose flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed px-3 py-5 text-center transition-colors', over ? 'border-accent bg-accent-soft' : 'border-ink-600 hover:border-ink-400')}
       >
         <Upload size={20} className="text-accent-bright" />
-        <span className="text-xs font-medium text-white">{busy ? 'Subiendo…' : 'Subir imágenes o fotos'}</span>
+        <span className="text-xs font-medium text-fg">{busy ? 'Subiendo…' : 'Subir imágenes o fotos'}</span>
         <span className="text-[11px] text-ink-400">PNG, JPG, WebP o GIF · hasta 25 MB · más de 4096 px por lado se reduce · arrastralas acá o al lienzo · Ctrl+V pega</span>
       </button>
       <input ref={inputRef} type="file" accept={ACCEPT_ATTR} multiple hidden onChange={(e) => {

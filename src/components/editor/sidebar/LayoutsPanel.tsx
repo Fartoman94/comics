@@ -120,7 +120,7 @@ export function LayoutsPanel() {
     refresh()
   }
 
-  const chip = (active: boolean) => cx('min-h-8 rounded-full px-2.5 text-[11px] transition-colors pointer-coarse:min-h-10', active ? 'bg-accent text-white' : 'bg-ink-900 text-ink-300 ring-1 ring-ink-700 hover:text-white')
+  const chip = (active: boolean) => cx('min-h-8 rounded-full px-2.5 text-[11px] transition-colors pointer-coarse:min-h-10', active ? 'bg-accent text-white' : 'bg-ink-900 text-ink-300 ring-1 ring-ink-700 hover:text-fg')
 
   return (
     <div className="space-y-4 p-3" key={pageId}>
@@ -160,7 +160,7 @@ export function LayoutsPanel() {
                     </span>
                   )}
                   <span className="min-w-0">
-                    <span className="block text-xs font-medium text-white">{st.name}</span>
+                    <span className="block text-xs font-medium text-fg">{st.name}</span>
                     <span className="block text-[11px] leading-snug text-ink-400">{st.use}</span>
                     <span className="block text-[10px] text-ink-400">{tpl ? `${tpl.polys.length} viñetas` : 'Sin viñetas'}</span>
                   </span>
@@ -174,7 +174,7 @@ export function LayoutsPanel() {
       <div className="no-autoclose space-y-2">
         <label className="flex items-center gap-2 rounded-lg bg-ink-900 px-2.5 ring-1 ring-ink-700 focus-within:ring-accent">
           <Search size={14} className="text-ink-400" aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar plantilla (acción, tira, diálogo…)" aria-label="Buscar plantilla" className="h-9 min-w-0 flex-1 bg-transparent text-xs text-white outline-none" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar plantilla (acción, tira, diálogo…)" aria-label="Buscar plantilla" className="h-9 min-w-0 flex-1 bg-transparent text-xs text-fg outline-none" />
         </label>
         <div className="flex flex-wrap gap-1" role="group" aria-label="Categoría">
           <button className={chip(cat === 'all')} aria-pressed={cat === 'all'} onClick={() => setCat('all')}>
@@ -226,7 +226,7 @@ export function LayoutsPanel() {
                 className="group flex flex-col items-center gap-1"
               >
                 <TemplatePreview polys={t.polys} ratio={format.width / format.height} />
-                <span className="w-full truncate text-center text-[10px] text-ink-300 group-hover:text-white">{t.name}</span>
+                <span className="w-full truncate text-center text-[10px] text-ink-300 group-hover:text-fg">{t.name}</span>
               </button>
             ))}
           </div>
@@ -235,7 +235,7 @@ export function LayoutsPanel() {
         <p className="mt-2 min-h-8 rounded-md bg-ink-900 px-2 py-1.5 text-[11px] text-ink-300" aria-live="polite" data-testid="detalle-plantilla">
           {focus ? (
             <>
-              <strong className="text-white">{focus.name}</strong> · {focus.polys.length} viñetas · {TEMPLATE_META[focus.id].use}
+              <strong className="text-fg">{focus.name}</strong> · {focus.polys.length} viñetas · {TEMPLATE_META[focus.id].use}
             </>
           ) : (
             'Pasá el puntero por una plantilla para ver qué incluye.'
@@ -253,13 +253,13 @@ export function LayoutsPanel() {
               void saveMine(naming)
             }}
           >
-            <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} aria-label="Nombre de la plantilla" className="h-9 min-w-0 flex-1 rounded-lg border border-accent bg-ink-900 px-2 text-xs text-white outline-none" />
+            <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} aria-label="Nombre de la plantilla" className="h-9 min-w-0 flex-1 rounded-lg border border-accent bg-ink-900 px-2 text-xs text-fg outline-none" />
             <button type="submit" className="h-9 rounded-lg bg-accent px-3 text-xs font-medium text-white">
               Guardar
             </button>
           </form>
         ) : (
-          <button onClick={() => setNaming(currentPage()?.name ?? '')} className="no-autoclose flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-ink-600 py-2 text-xs text-ink-200 hover:border-accent hover:text-white pointer-coarse:min-h-11">
+          <button onClick={() => setNaming(currentPage()?.name ?? '')} className="no-autoclose flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-ink-600 py-2 text-xs text-ink-200 hover:border-accent hover:text-fg pointer-coarse:min-h-11">
             <Save size={14} /> Guardar esta página como plantilla
           </button>
         )}

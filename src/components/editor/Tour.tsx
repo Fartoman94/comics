@@ -146,8 +146,8 @@ export function Tour() {
         style={{ left: card.left, top: card.top, width: card.width }}
       >
         <div className="mb-1 flex items-start justify-between gap-3">
-          <h3 className="text-sm font-semibold text-white">{s.title}</h3>
-          <button onClick={finish} className="-mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-md text-ink-400 hover:bg-ink-700 hover:text-white" aria-label="Cerrar tour">
+          <h3 className="text-sm font-semibold text-fg">{s.title}</h3>
+          <button onClick={finish} className="-mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-md text-ink-400 hover:bg-ink-700 hover:text-fg" aria-label="Cerrar tour">
             <X size={15} />
           </button>
         </div>

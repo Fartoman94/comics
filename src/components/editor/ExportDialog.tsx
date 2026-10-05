@@ -192,7 +192,7 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               >
                 <span className="mt-0.5 text-accent-bright">{o.icon}</span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium text-white">{o.title}</span>
+                  <span className="block text-sm font-medium text-fg">{o.title}</span>
                   <span className="block text-[11px] text-ink-300">{o.detail}</span>
                   <span className="block text-[11px] text-ink-400">{o.use}</span>
                 </span>
@@ -214,20 +214,20 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-300">
                 <label className="flex items-center gap-1.5">
                   Formato
-                  <select value={wt.format} onChange={(e) => setWt({ ...wt, format: e.target.value as 'jpg' | 'png' })} className="h-8 rounded border border-ink-600 bg-ink-950 px-1.5 text-white">
+                  <select value={wt.format} onChange={(e) => setWt({ ...wt, format: e.target.value as 'jpg' | 'png' })} className="h-8 rounded border border-ink-600 bg-ink-950 px-1.5 text-fg">
                     <option value="jpg">JPG</option>
                     <option value="png">PNG</option>
                   </select>
                 </label>
                 <label className="flex items-center gap-1.5">
                   Ancho final
-                  <input type="number" min={200} max={4000} value={wt.targetWidth} onChange={(e) => setWt({ ...wt, targetWidth: Math.max(200, Math.min(4000, Number(e.target.value) || W)) })} className="h-8 w-20 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Ancho final en píxeles" />
+                  <input type="number" min={200} max={4000} value={wt.targetWidth} onChange={(e) => setWt({ ...wt, targetWidth: Math.max(200, Math.min(4000, Number(e.target.value) || W)) })} className="h-8 w-20 rounded border border-ink-600 bg-ink-950 px-1.5 text-fg" aria-label="Ancho final en píxeles" />
                   px
                 </label>
                 <label className="flex items-center gap-1.5">
                   Páginas
-                  <input type="number" min={1} max={n} value={wt.from} onChange={(e) => setWt({ ...wt, from: Math.max(1, Math.min(n, Number(e.target.value) || 1)) })} className="h-8 w-14 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Desde la página" />–
-                  <input type="number" min={1} max={n} value={wt.to} onChange={(e) => setWt({ ...wt, to: Math.max(1, Math.min(n, Number(e.target.value) || n)) })} className="h-8 w-14 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Hasta la página" />
+                  <input type="number" min={1} max={n} value={wt.from} onChange={(e) => setWt({ ...wt, from: Math.max(1, Math.min(n, Number(e.target.value) || 1)) })} className="h-8 w-14 rounded border border-ink-600 bg-ink-950 px-1.5 text-fg" aria-label="Desde la página" />–
+                  <input type="number" min={1} max={n} value={wt.to} onChange={(e) => setWt({ ...wt, to: Math.max(1, Math.min(n, Number(e.target.value) || n)) })} className="h-8 w-14 rounded border border-ink-600 bg-ink-950 px-1.5 text-fg" aria-label="Hasta la página" />
                 </label>
               </div>
               {wt.format === 'jpg' && <Slider label="Calidad" value={wt.quality} min={0.5} max={1} step={0.01} onChange={(quality) => setWt({ ...wt, quality })} format={(v) => `${Math.round(v * 100)} %`} />}
@@ -257,9 +257,9 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
                   {scope === 'range' && (
                     <div className="flex items-center gap-1.5 text-xs text-ink-300">
                       De
-                      <input type="number" min={1} max={n} value={range.from} onChange={(e) => setRange({ ...range, from: Math.max(1, Math.min(n, Number(e.target.value) || 1)) })} className="h-8 w-16 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Desde la página" />
+                      <input type="number" min={1} max={n} value={range.from} onChange={(e) => setRange({ ...range, from: Math.max(1, Math.min(n, Number(e.target.value) || 1)) })} className="h-8 w-16 rounded border border-ink-600 bg-ink-950 px-1.5 text-fg" aria-label="Desde la página" />
                       a
-                      <input type="number" min={1} max={n} value={range.to} onChange={(e) => setRange({ ...range, to: Math.max(1, Math.min(n, Number(e.target.value) || n)) })} className="h-8 w-16 rounded border border-ink-600 bg-ink-950 px-1.5 text-white" aria-label="Hasta la página" />
+                      <input type="number" min={1} max={n} value={range.to} onChange={(e) => setRange({ ...range, to: Math.max(1, Math.min(n, Number(e.target.value) || n)) })} className="h-8 w-16 rounded border border-ink-600 bg-ink-950 px-1.5 text-fg" aria-label="Hasta la página" />
                       <span className="text-ink-500">({plural(k, 'página', 'páginas')})</span>
                     </div>
                   )}

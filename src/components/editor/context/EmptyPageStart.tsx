@@ -30,7 +30,7 @@ export function EmptyPageStart() {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4" data-testid="pagina-vacia">
       <section aria-labelledby="empeza-titulo" className="pointer-events-auto w-full max-w-xl rounded-2xl border border-ink-600 bg-ink-900/95 p-5 shadow-2xl backdrop-blur">
-        <h2 id="empeza-titulo" className="text-base font-semibold text-white">
+        <h2 id="empeza-titulo" className="text-base font-semibold text-fg">
           Empezá tu primera página
         </h2>
         <p className="mt-1 text-xs text-ink-400">Elegí cómo repartir las viñetas. Después podés dividirlas, moverlas o cambiar la plantilla.</p>
@@ -41,7 +41,7 @@ export function EmptyPageStart() {
               <li key={q.label}>
                 <button
                   onClick={() => choose(q.id)}
-                  className="group flex w-full flex-col items-center gap-1.5 rounded-xl p-2 text-[11px] text-ink-200 ring-1 ring-ink-700 transition-colors hover:bg-ink-800 hover:text-white hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
+                  className="group flex w-full flex-col items-center gap-1.5 rounded-xl p-2 text-[11px] text-ink-200 ring-1 ring-ink-700 transition-colors hover:bg-ink-800 hover:text-fg hover:ring-accent focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   {tpl ? (
                     <TemplatePreview polys={tpl.polys} ratio={ratio} />

@@ -41,7 +41,7 @@ export function RenameDialog({ project, onClose, onSave }: { project: ProjectSum
           onSave(title)
         }}
       >
-        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Nuevo nombre" className="h-10 w-full rounded-lg border border-ink-600 bg-ink-900 px-3 text-sm text-white outline-none focus:border-accent" />
+        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Nuevo nombre" className="h-10 w-full rounded-lg border border-ink-600 bg-ink-900 px-3 text-sm text-fg outline-none focus:border-accent" />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancelar
@@ -161,7 +161,7 @@ export function RecoveryCenter({ open, onClose }: { open: boolean; onClose: () =
     <Modal open={open} onClose={onClose} title="Centro de recuperación" width="max-w-2xl">
       <div className="space-y-3 p-4 text-sm" data-testid="centro-recuperacion">
         <section className={section} aria-label="Almacenamiento">
-          <h3 className="flex items-center gap-2 font-semibold text-white">
+          <h3 className="flex items-center gap-2 font-semibold text-fg">
             <HardDrive size={16} /> Almacenamiento
           </h3>
           {usage ? <StorageMeter usage={usage} /> : <p className="text-xs text-ink-400">Este navegador no informa cuánto espacio usa.</p>}
@@ -182,7 +182,7 @@ export function RecoveryCenter({ open, onClose }: { open: boolean; onClose: () =
         </section>
 
         <section className={section} aria-label="Proyectos">
-          <h3 className="font-semibold text-white">Proyectos</h3>
+          <h3 className="font-semibold text-fg">Proyectos</h3>
           <p className="text-xs text-ink-300" data-testid="recuperacion-resumen">
             {healthy.length} sanos · {damaged.length} dañados
           </p>
@@ -211,7 +211,7 @@ export function RecoveryCenter({ open, onClose }: { open: boolean; onClose: () =
         </section>
 
         <section className={section} aria-label="Instantáneas">
-          <h3 className="flex items-center gap-2 font-semibold text-white">
+          <h3 className="flex items-center gap-2 font-semibold text-fg">
             <History size={16} /> Instantáneas
           </h3>
           <p className="text-xs text-ink-400">Mientras editás se guardan hasta 3 versiones anteriores por proyecto (cada 5 minutos como mínimo), durante 7 días. Restaurar crea una copia: el original no se toca.</p>
@@ -234,7 +234,7 @@ export function RecoveryCenter({ open, onClose }: { open: boolean; onClose: () =
         </section>
 
         <section className={section} aria-label="Copia de seguridad">
-          <h3 className="font-semibold text-white">Copia de seguridad</h3>
+          <h3 className="font-semibold text-fg">Copia de seguridad</h3>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" disabled={busy} onClick={() => void backup()}>
               <Download size={14} /> Descargar todo (.zip)

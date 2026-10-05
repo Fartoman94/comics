@@ -64,7 +64,7 @@ export function PageFilmstrip() {
               }
               if (e.key === 'Escape') (e.target as HTMLInputElement).blur()
             }}
-            className="h-6 w-9 rounded border border-ink-600 bg-ink-850 text-center text-xs text-white tabular-nums outline-none focus:border-accent"
+            className="h-6 w-9 rounded border border-ink-600 bg-ink-850 text-center text-xs text-fg tabular-nums outline-none focus:border-accent"
           />
           <span className="tabular-nums text-ink-400">/ {total}</span>
         </label>
@@ -153,7 +153,7 @@ export function PageFilmstrip() {
             )
           })}
           <li className="shrink-0">
-            <button onClick={() => s.addPage()} aria-label="Agregar página al final" title="Agregar página al final" className="flex items-center justify-center rounded-sm border border-dashed border-ink-600 text-ink-400 hover:border-accent hover:text-white" style={{ height: 64, width: Math.round(64 * ratio) }}>
+            <button onClick={() => s.addPage()} aria-label="Agregar página al final" title="Agregar página al final" className="flex items-center justify-center rounded-sm border border-dashed border-ink-600 text-ink-400 hover:border-accent hover:text-fg" style={{ height: 64, width: Math.round(64 * ratio) }}>
               <Plus size={16} />
             </button>
           </li>

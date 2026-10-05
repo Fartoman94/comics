@@ -77,7 +77,7 @@ export function MobileBar() {
               <div className="mx-auto h-1 w-10 rounded-full bg-ink-600" />
             </div>
             <div className="flex items-center justify-between border-b border-ink-700 px-4 pb-2">
-              <span className="text-sm font-semibold text-white">{title}</span>
+              <span className="text-sm font-semibold text-fg">{title}</span>
               <button onClick={() => setSheet(null)} className="flex size-8 items-center justify-center rounded-md text-ink-300 hover:bg-ink-700" aria-label="Cerrar">
                 <X size={17} />
               </button>

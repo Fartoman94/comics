@@ -105,7 +105,7 @@ function CopyContentForm({ pageId, onClose }: { pageId: string; onClose: () => v
             const thumb = getThumb(p.id)
             return (
               <li key={p.id}>
-                <label className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg p-1.5 text-[11px] ring-1 ${on ? 'bg-accent-soft text-white ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800'}`}>
+                <label className={`flex cursor-pointer flex-col items-center gap-1 rounded-lg p-1.5 text-[11px] ring-1 ${on ? 'bg-accent-soft text-fg ring-accent' : 'text-ink-300 ring-ink-700 hover:bg-ink-800'}`}>
                   <span className="block h-16 w-full overflow-hidden rounded-sm bg-white">{thumb && <img src={thumb} alt="" className="h-full w-full object-contain" />}</span>
                   <span className="flex w-full items-center gap-1">
                     <input type="checkbox" checked={on} onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))} aria-label={`Página ${i + 1}: ${p.name}`} />

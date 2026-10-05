@@ -37,7 +37,7 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
             <button
               key={t.id}
               onClick={() => setTopic(t.id)}
-              className={cx('flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs whitespace-nowrap transition-colors', t.id === current.id ? 'bg-accent-soft text-white' : 'text-ink-300 hover:bg-ink-800 hover:text-white')}
+              className={cx('flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs whitespace-nowrap transition-colors', t.id === current.id ? 'bg-accent-soft text-fg' : 'text-ink-300 hover:bg-ink-800 hover:text-fg')}
             >
               <span className={cx('flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold', t.id === current.id ? 'bg-accent text-white' : 'bg-ink-700 text-ink-300')}>{i + 1}</span>
               {t.title}
@@ -53,7 +53,7 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
               useUi.getState().resetTips()
               close()
             }}
-            className={cx('flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-white', !(canTour && mode === 'studio') && 'sm:mt-auto')}
+            className={cx('flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-fg', !(canTour && mode === 'studio') && 'sm:mt-auto')}
           >
             <Lightbulb size={15} /> Volver a mostrar las ayudas
           </button>
@@ -63,21 +63,21 @@ export function HelpGuide({ canTour = false }: { canTour?: boolean }) {
               useUi.getState().requestSheet('recuperacion')
               if (!/^#\/?$/.test(location.hash)) location.hash = '/'
             }}
-            className="flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-white"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs whitespace-nowrap text-ink-300 hover:bg-ink-800 hover:text-fg"
           >
             <LifeBuoy size={15} /> Centro de recuperación
           </button>
         </nav>
 
         <article className="min-w-0 flex-1 p-5">
-          <h3 className="font-comic text-3xl tracking-wide text-white">{current.title}</h3>
+          <h3 className="font-comic text-3xl tracking-wide text-fg">{current.title}</h3>
           <p className="mt-1 text-sm text-ink-400">{current.summary}</p>
           <ol className="mt-5 space-y-4">
             {current.steps.map((s, i) => (
               <li key={s.title} className="flex gap-3">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-ink-800 text-xs font-semibold text-accent-bright ring-1 ring-ink-700">{i + 1}</span>
                 <div>
-                  <div className="text-sm font-medium text-white">{s.title}</div>
+                  <div className="text-sm font-medium text-fg">{s.title}</div>
                   <p className="mt-0.5 text-[13px] leading-relaxed text-ink-300">{s.body}</p>
                 </div>
               </li>

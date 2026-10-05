@@ -181,7 +181,7 @@ function OverviewCard(props: {
             autoFocus
             defaultValue={page.name}
             aria-label="Nombre de la página"
-            className="h-6 min-w-0 flex-1 rounded border border-accent bg-ink-900 px-1 text-[11px] text-white outline-none"
+            className="h-6 min-w-0 flex-1 rounded border border-accent bg-ink-900 px-1 text-[11px] text-fg outline-none"
             onBlur={(e) => props.onRenamed(e.currentTarget.value)}
             onKeyDown={(e) => {
               e.stopPropagation()

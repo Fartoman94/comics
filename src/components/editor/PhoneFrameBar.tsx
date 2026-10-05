@@ -30,7 +30,7 @@ export function PhoneFrameBar({ onPreview }: { onPreview: () => void }) {
   }
   return (
     <div className="absolute top-3 right-3 z-10 flex flex-wrap items-center gap-1 rounded-xl border border-ink-600 bg-ink-800/95 p-1 text-xs text-ink-100 shadow-lg backdrop-blur" role="toolbar" aria-label="Vista de pantalla del teléfono">
-      <select value={frame.device} onChange={(e) => set({ device: e.target.value as PhoneId })} aria-label="Tamaño de teléfono" className="h-8 rounded-md border border-ink-600 bg-ink-900 px-1 text-xs text-white pointer-coarse:h-11">
+      <select value={frame.device} onChange={(e) => set({ device: e.target.value as PhoneId })} aria-label="Tamaño de teléfono" className="h-8 rounded-md border border-ink-600 bg-ink-900 px-1 text-xs text-fg pointer-coarse:h-11">
         {PHONES.map((p) => (
           <option key={p.id} value={p.id}>
             {p.label}
