@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Brush, Eye, EyeOff, Image, Lock, MessageCircle, SquareDashed, Sparkles, Type, Unlock } from 'lucide-react'
+import { Brush, Eye, EyeOff, Image, Lock, MessageCircle, Shapes, SquareDashed, Sparkles, Type, Unlock } from 'lucide-react'
 import type { ComicElement } from '../../../types'
 import { useCurrentPage, useEditor } from '../../../store/editor'
 import { cx, IconButton } from '../../ui/controls'
@@ -11,6 +11,7 @@ const ICONS: Record<ComicElement['type'], React.ReactNode> = {
   text: <Type size={14} />,
   effect: <Sparkles size={14} />,
   drawing: <Brush size={14} />,
+  shape: <Shapes size={14} />,
 }
 
 export function LayersPanel() {

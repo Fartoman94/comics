@@ -16,7 +16,7 @@ function hintFor(el: ComicElement): string {
   if (el.locked) return 'Bloqueado: desbloquealo para moverlo'
   switch (el.type) {
     case 'panel':
-      return el.image ? 'Doble clic para encuadrar la imagen' : 'Soltá una imagen adentro o hacé doble clic para subirla'
+      return `${el.image ? 'Doble clic: encuadrar la imagen' : 'Doble clic: subir una imagen'} · Arrastrá para moverla con su contenido (Ctrl: sólo el marco)`
     case 'image':
       return 'Doble clic para recortar'
     case 'bubble':

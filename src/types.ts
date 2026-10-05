@@ -95,6 +95,8 @@ export interface PanelElement extends BaseElement {
   strokeWidth: number
   cornerRadius: number
   image: PanelImage | null
+  /** Margen interior entre el borde y la imagen (px). Opcional: los .vineta viejos no lo tienen. */
+  padding?: number
 }
 
 export interface ImageElement extends BaseElement {
@@ -182,8 +184,20 @@ export interface DrawingElement extends BaseElement {
   strokes: Stroke[]
 }
 
+/** Formas simples y símbolos de manga (vena de enojo, gota de sudor, nota musical…). */
+export type ShapeKind = 'rect' | 'ellipse' | 'triangle' | 'star' | 'arrow' | 'line' | 'heart' | 'anger' | 'sweat' | 'exclaim' | 'question' | 'music' | 'sparkle'
+
+export interface ShapeElement extends BaseElement {
+  type: 'shape'
+  shape: ShapeKind
+  fill: string
+  stroke: string
+  strokeWidth: number
+}
+
 export type ComicElement =
   | PanelElement
+  | ShapeElement
   | ImageElement
   | BubbleElement
   | TextElement

@@ -8,6 +8,8 @@ import type {
   Page,
   PageFormat,
   PanelElement,
+  ShapeElement,
+  ShapeKind,
   Project,
   TextElement,
 } from '../types'
@@ -15,6 +17,7 @@ import { DEFAULT_FILTERS } from '../types'
 import { uid } from './id'
 import { getFormat, PROJECT_KINDS } from './formats'
 import { buildTemplatePanels, TEMPLATES } from './templates'
+import { shapeDef } from './shapes'
 
 const base = (name: string, x: number, y: number, width: number, height: number) => ({
   id: uid('el_'),
@@ -271,5 +274,19 @@ export function clonePage(page: Page): Page {
     id: uid('pg_'),
     name: `${page.name} (copia)`,
     elements: page.elements.map((e) => cloneElement(e, 0)),
+  }
+}
+
+export function createShape(kind: ShapeKind, x: number, y: number, size: number): ShapeElement {
+  const def = shapeDef(kind)
+  const w = Math.round(def.aspect >= 1 ? size / def.aspect : size)
+  const h = Math.round(def.aspect >= 1 ? size : size * def.aspect)
+  return {
+    ...base(def.label, x, y, w, h),
+    type: 'shape',
+    shape: kind,
+    fill: def.fill,
+    stroke: def.stroke,
+    strokeWidth: def.mode === 'stroke' ? Math.max(4, Math.round(size / 18)) : Math.max(2, Math.round(size / 60)),
   }
 }

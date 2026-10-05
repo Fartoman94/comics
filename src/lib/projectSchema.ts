@@ -16,6 +16,7 @@ import type {
   Project,
   Stroke,
   TextStyle,
+  ShapeKind,
 } from '../types'
 
 export const SUPPORTED_FILE_VERSION = 1
@@ -41,6 +42,7 @@ const DIRECTIONS = ['ltr', 'rtl', 'vertical'] as const
 const BLENDS: BlendMode[] = ['source-over', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'luminosity']
 const SHAPES: BubbleShape[] = ['speech', 'thought', 'shout', 'whisper', 'box', 'cloud-box']
 const EFFECTS: EffectKind[] = ['speedlines', 'focuslines', 'screentone', 'gradient-tone']
+const SHAPE_KINDS: ShapeKind[] = ['rect', 'ellipse', 'triangle', 'star', 'arrow', 'line', 'heart', 'anger', 'sweat', 'exclaim', 'question', 'music', 'sparkle']
 const BRUSHES: BrushKind[] = ['pen', 'ink', 'pencil', 'marker']
 const FONT_STYLES: TextStyle['fontStyle'][] = ['normal', 'bold', 'italic', 'bold italic']
 const ALIGNS: TextStyle['align'][] = ['left', 'center', 'right']
@@ -231,8 +233,18 @@ function element(v: unknown, p: string, budget: { points: number }): ComicElemen
         strokeWidth: num(o.strokeWidth, `${p}.strokeWidth`, 0, 1000, 0),
         cornerRadius: num(o.cornerRadius, `${p}.cornerRadius`, 0, 10000, 0),
         image,
+        ...(o.padding === undefined ? {} : { padding: num(o.padding, `${p}.padding`, 0, 5000, 0) }),
       }
     }
+    case 'shape':
+      return {
+        ...b,
+        type: 'shape',
+        shape: oneOf(o.shape, `${p}.shape`, SHAPE_KINDS),
+        fill: color(o.fill, `${p}.fill`, '#ffffff'),
+        stroke: color(o.stroke, `${p}.stroke`, '#111111'),
+        strokeWidth: num(o.strokeWidth, `${p}.strokeWidth`, 0, 1000, 0),
+      }
     case 'image': {
       let crop = null
       if (o.crop !== null && o.crop !== undefined) {

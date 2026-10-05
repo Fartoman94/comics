@@ -27,6 +27,7 @@ import { loadProject, takeSnapshot } from '../../lib/storage'
 import { HelpGuide } from '../help/HelpGuide'
 import { ContextBar } from './context/ContextBar'
 import { deleteWithConfirm } from './actions'
+import { withPanelContent } from '../../lib/hierarchy'
 import { PageFilmstrip } from './pages/PageFilmstrip'
 import { PageDialogsHost } from './pages/PageDialogs'
 import { EmptyPageStart } from './context/EmptyPageStart'
@@ -286,11 +287,14 @@ function useShortcuts(openHelp: () => void) {
         const d = e.shiftKey ? 10 : 1
         const dx = k === 'arrowleft' ? -d : k === 'arrowright' ? d : 0
         const dy = k === 'arrowup' ? -d : k === 'arrowdown' ? d : 0
+        // Las viñetas se llevan su contenido (como al arrastrarlas).
+        const cur = s.project?.pages.find((p) => p.id === s.pageId)
+        const moving = new Set(cur ? withPanelContent(cur, s.selection) : s.selection)
         s.mutate(
           (draft) => {
             const page = draft.pages.find((p) => p.id === s.pageId)
             page?.elements.forEach((el) => {
-              if (s.selection.includes(el.id) && !el.locked) {
+              if (moving.has(el.id) && !el.locked) {
                 el.x += dx
                 el.y += dy
               }

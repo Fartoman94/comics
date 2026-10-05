@@ -9,6 +9,7 @@ export const TYPE_LABEL: Record<ComicElement['type'], string> = {
   text: 'Texto',
   effect: 'Efecto',
   drawing: 'Capa de dibujo',
+  shape: 'Forma',
 }
 
 /**
@@ -36,4 +37,18 @@ export function childrenOf(page: Page, panel: PanelElement): ComicElement[] {
 /** Número visible de una viñeta en su página (1, 2, 3…), en el orden de la pila. */
 export function panelNumber(page: Page, panel: PanelElement): number {
   return page.elements.filter((e) => e.type === 'panel').indexOf(panel) + 1
+}
+
+/**
+ * Ids a mover juntos: los pedidos más el contenido de cada viñeta pedida (globos, textos,
+ * imágenes encima). Lo bloqueado u oculto no se suma.
+ */
+export function withPanelContent(page: Page, ids: string[]): string[] {
+  const out = new Set(ids)
+  for (const id of ids) {
+    const el = page.elements.find((e) => e.id === id)
+    if (el?.type !== 'panel') continue
+    for (const c of childrenOf(page, el)) if (!c.locked && !c.hidden) out.add(c.id)
+  }
+  return [...out]
 }

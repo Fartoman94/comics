@@ -86,7 +86,7 @@ export function SimpleBottomBar() {
           {group.id === 'design' && (
             <>
               <LayoutsPanel />
-              <InsertPanel sections={['effects', 'drawing']} />
+              <InsertPanel sections={['shapes', 'effects', 'drawing']} />
             </>
           )}
           {group.id === 'images' && <AssetsPanel />}

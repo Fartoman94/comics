@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
 import '../../lib/textFitKonva'
-import { Circle, Group, Layer, Line, Rect, Shape, Stage, Transformer } from 'react-konva'
+import { Circle, Group, Label, Layer, Line, Rect, Shape, Stage, Tag, Text, Transformer } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { BubbleElement, ComicElement, DrawingElement, Stroke, TextElement } from '../../types'
 import { currentPage, findEl, notifyLocked, useCurrentPage, useEditor } from '../../store/editor'
@@ -15,6 +15,7 @@ import type { NodeProps } from './nodes/ElementNode'
 import { paintStroke } from './nodes/strokes'
 import { bubbleTextBox } from './nodes/bubblePath'
 import { PHONES, useUi } from '../../store/ui'
+import { TYPE_LABEL, withPanelContent } from '../../lib/hierarchy'
 
 Konva.dragDistance = 3
 
@@ -49,6 +50,7 @@ export function CanvasStage() {
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [draftPanel, setDraftPanel] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [spaceDown, setSpaceDown] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [fontsReady, setFontsReady] = useState(0)
 
   const { width: PW, height: PH, margin, bleed } = project.format
@@ -482,7 +484,10 @@ export function CanvasStage() {
     const skipped = wanted.filter((i) => pg?.elements.find((x) => x.id === i)?.locked).length
     if (skipped) notifyLocked(skipped)
     const stage = stageRef.current!
-    dragStart.current = new Map(ids.map((i) => [i, stage.findOne('#' + i)?.position() ?? { x: 0, y: 0 }]))
+    // Una viñeta es un contenedor: se lleva lo que tiene encima. Con Ctrl/Cmd se mueve sólo el marco.
+    const all = pg && !(e.evt.ctrlKey || e.evt.metaKey) ? withPanelContent(pg, ids) : ids
+    dragStart.current = new Map(all.map((i) => [i, stage.findOne('#' + i)?.position() ?? { x: 0, y: 0 }]))
+    setDragging(true)
   }
 
   const onDragMove = (e: KonvaEventObject<DragEvent>) => {
@@ -507,6 +512,7 @@ export function CanvasStage() {
   const onDragEnd = (e: KonvaEventObject<DragEvent>) => {
     if (!e.target.hasName('element')) return
     setGuides([])
+    setDragging(false)
     const stage = stageRef.current!
     const moved = [...dragStart.current.keys()]
     dragStart.current = new Map()
@@ -744,6 +750,7 @@ export function CanvasStage() {
               }}
             />
             <Circle ref={cursorRef} visible={false} stroke="#ff5a36" strokeWidth={1.5 / zoom} listening={false} dash={tool === 'eraser' ? [4 / zoom, 3 / zoom] : undefined} />
+            {!dragging && !editingText && !cropping && <SelectionTag els={page?.elements.filter((e) => selection.includes(e.id)) ?? []} zoom={zoom} />}
             <Transformer
               ref={trRef}
               keepRatio={keepRatio}
@@ -766,6 +773,21 @@ export function CanvasStage() {
       )}
       {editingText && stageRef.current && <TextEditOverlay id={editingText} stage={stageRef.current} zoom={zoom} pan={pan} />}
     </div>
+  )
+}
+
+/** Etiqueta con el tipo y el nombre del elemento seleccionado, arriba de su caja. */
+function SelectionTag({ els, zoom }: { els: ComicElement[]; zoom: number }) {
+  if (els.length !== 1) return null
+  const el = els[0]
+  const label = `${el.locked ? '🔒 ' : ''}${TYPE_LABEL[el.type]}${el.name && el.name !== TYPE_LABEL[el.type] ? ` · ${el.name}` : ''}`
+  const text = label.length > 36 ? label.slice(0, 35) + '…' : label
+  const k = 1 / zoom
+  return (
+    <Label x={el.x} y={el.y - 30 * k} listening={false} name="selection-tag">
+      <Tag fill="#ff5a36" cornerRadius={4 * k} />
+      <Text text={text} fontFamily="Inter" fontSize={11 * k} padding={4 * k} fill="#ffffff" />
+    </Label>
   )
 }
 

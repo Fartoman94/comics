@@ -9,8 +9,11 @@ import type {
   ImageElement,
   ImageFilters,
   PanelElement,
+  ShapeElement,
   TextElement,
 } from '../../../types'
+import { insetConvexPolygon } from '../../../lib/geometry'
+import { shapeDef, traceShape } from '../../../lib/shapes'
 import { useAssetImage } from '../../../lib/assetCache'
 import { bubbleTextBox, drawBubble } from './bubblePath'
 import { drawEffect } from './effects'
@@ -52,6 +55,7 @@ export const ElementNode = memo(function ElementNode(props: NodeProps) {
       {el.type === 'text' && <TextNode el={el} hidden={props.textHidden} />}
       {el.type === 'effect' && <EffectNode el={el} />}
       {el.type === 'drawing' && <DrawingNode el={el} />}
+      {el.type === 'shape' && <ShapeNode el={el} />}
     </Group>
   )
 })
@@ -132,6 +136,33 @@ function tracePanel(ctx: Konva.Context | CanvasRenderingContext2D, el: PanelElem
   }
 }
 
+/** Ventana de la imagen: la viñeta contraída por su margen interior (padding). */
+function traceInset(ctx: Konva.Context | CanvasRenderingContext2D, el: PanelElement, pad: number) {
+  const poly = panelPolygon(el)
+  ctx.beginPath()
+  if (poly) {
+    const pts = insetConvexPolygon(
+      Array.from({ length: poly.length / 2 }, (_, i) => ({ x: poly[i * 2], y: poly[i * 2 + 1] })),
+      pad,
+    )
+    ctx.moveTo(pts[0].x, pts[0].y)
+    for (const p of pts.slice(1)) ctx.lineTo(p.x, p.y)
+    ctx.closePath()
+    return
+  }
+  const w = Math.max(1, el.width - pad * 2)
+  const h = Math.max(1, el.height - pad * 2)
+  const r = Math.min(Math.max(0, el.cornerRadius - pad), w / 2, h / 2)
+  if (r > 0) {
+    ctx.moveTo(pad + r, pad)
+    ctx.arcTo(pad + w, pad, pad + w, pad + h, r)
+    ctx.arcTo(pad + w, pad + h, pad, pad + h, r)
+    ctx.arcTo(pad, pad + h, pad, pad, r)
+    ctx.arcTo(pad, pad, pad + w, pad, r)
+    ctx.closePath()
+  } else ctx.rect(pad, pad, w, h)
+}
+
 function PanelNode({ el, cropping, interactive, onCropChange }: NodeProps & { el: PanelElement }) {
   const image = useAssetImage(el.image?.assetId)
   const imgRef = useRef<Konva.Image>(null)
@@ -163,17 +194,19 @@ function PanelNode({ el, cropping, interactive, onCropChange }: NodeProps & { el
       <Group clipFunc={(ctx) => tracePanel(ctx, el)} onWheel={onWheel}>
         <Rect width={el.width} height={el.height} fill={el.fill} />
         {el.image && image && (
-          <KImage
-            ref={imgRef}
-            image={image}
-            x={el.image.x}
-            y={el.image.y}
-            width={image.naturalWidth}
-            height={image.naturalHeight}
-            scaleX={el.image.scale}
-            scaleY={el.image.scale}
-            listening={false}
-          />
+          <Group clipFunc={el.padding ? (ctx) => traceInset(ctx, el, el.padding!) : undefined} listening={false}>
+            <KImage
+              ref={imgRef}
+              image={image}
+              x={el.image.x}
+              y={el.image.y}
+              width={image.naturalWidth}
+              height={image.naturalHeight}
+              scaleX={el.image.scale}
+              scaleY={el.image.scale}
+              listening={false}
+            />
+          </Group>
         )}
       </Group>
       {cropping && el.image && image && interactive && (
@@ -468,7 +501,50 @@ function TextNode({ el, hidden }: { el: TextElement; hidden?: boolean }) {
 function EffectNode({ el }: { el: EffectElement }) {
   return (
     <Shape
+      width={el.width}
+      height={el.height}
       sceneFunc={(ctx) => drawEffect(ctx._context, el)}
+      hitFunc={(ctx, shape) => {
+        ctx.beginPath()
+        ctx.rect(0, 0, el.width, el.height)
+        ctx.fillStrokeShape(shape)
+      }}
+    />
+  )
+}
+
+// ---------- Formas y símbolos ----------
+
+function ShapeNode({ el }: { el: ShapeElement }) {
+  const def = shapeDef(el.shape)
+  return (
+    <Shape
+      // Sin tamaño propio Konva mide la forma como 0×0 y el transformador queda colapsado.
+      width={el.width}
+      height={el.height}
+      sceneFunc={(ctx) => {
+        const c = ctx._context
+        c.lineJoin = 'round'
+        c.lineCap = 'round'
+        if (def.mode === 'fill') {
+          traceShape(c, def.cmds, el.width, el.height)
+          c.fillStyle = el.fill
+          c.fill()
+          if (el.strokeWidth > 0) {
+            c.lineWidth = el.strokeWidth
+            c.strokeStyle = el.stroke
+            c.stroke()
+          }
+        } else {
+          traceShape(c, def.cmds, el.width, el.height, 'path')
+          c.lineWidth = Math.max(1, el.strokeWidth)
+          c.strokeStyle = el.stroke
+          c.stroke()
+          traceShape(c, def.cmds, el.width, el.height, 'dots')
+          c.fillStyle = el.stroke
+          c.fill()
+        }
+      }}
       hitFunc={(ctx, shape) => {
         ctx.beginPath()
         ctx.rect(0, 0, el.width, el.height)
@@ -485,6 +561,8 @@ const outlineCache = new WeakMap<object, number[][]>()
 function DrawingNode({ el }: { el: DrawingElement }) {
   return (
     <Shape
+      width={el.width}
+      height={el.height}
       sceneFunc={(ctx) => {
         if (!el.strokes.length) return
         ctx._context.drawImage(rasterizeDrawing(el), 0, 0, el.width, el.height)
