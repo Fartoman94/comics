@@ -1,5 +1,6 @@
 import type { BubbleElement } from '../../../types'
 import { mulberry32 } from '../../../lib/geometry'
+import { bubbleHasTail, isBoxBubble } from '../../../lib/factories'
 
 type Ctx = CanvasRenderingContext2D
 
@@ -17,7 +18,9 @@ export function drawBubble(ctx: Ctx, b: BubbleElement, mode: 'full' | 'hit' = 'f
   ctx.strokeStyle = b.stroke
   ctx.fillStyle = b.fill
 
-  const hasTail = b.tail && b.shape !== 'box' && b.shape !== 'cloud-box'
+  const hasTail = b.tail && bubbleHasTail(b.shape)
+  // "Sin borde": el contorno no se dibuja aunque tenga grosor.
+  const stroked = b.strokeWidth > 0 && b.shape !== 'borderless'
   const dashed = b.shape === 'whisper'
 
   if (mode === 'hit') {
@@ -42,11 +45,11 @@ export function drawBubble(ctx: Ctx, b: BubbleElement, mode: 'full' | 'hit' = 'f
       ctx.beginPath()
       ctx.ellipse(px, py, r * 1.25, r, 0, 0, Math.PI * 2)
       ctx.fill()
-      if (b.strokeWidth > 0) ctx.stroke()
+      if (stroked) ctx.stroke()
     }
   } else if (hasTail) {
     tailPath(ctx, b)
-    if (b.strokeWidth > 0) {
+    if (stroked) {
       ctx.setLineDash(dashed ? [8, 6] : [])
       ctx.stroke()
     }
@@ -54,7 +57,7 @@ export function drawBubble(ctx: Ctx, b: BubbleElement, mode: 'full' | 'hit' = 'f
 
   bodyPath(ctx, b)
   ctx.fill()
-  if (b.strokeWidth > 0) {
+  if (stroked) {
     ctx.setLineDash(dashed ? [8, 6] : [])
     ctx.stroke()
   }
@@ -71,8 +74,32 @@ function bodyPath(ctx: Ctx, b: BubbleElement) {
   const h = b.height
   ctx.beginPath()
   switch (b.shape) {
-    case 'box': {
-      ctx.rect(0, 0, w, h)
+    case 'box':
+    case 'rounded-box': {
+      const r = Math.min(b.cornerRadius ?? 0, w / 2, h / 2)
+      if (r > 0) {
+        ctx.moveTo(r, 0)
+        ctx.arcTo(w, 0, w, h, r)
+        ctx.arcTo(w, h, 0, h, r)
+        ctx.arcTo(0, h, 0, 0, r)
+        ctx.arcTo(0, 0, w, 0, r)
+        ctx.closePath()
+      } else ctx.rect(0, 0, w, h)
+      break
+    }
+    case 'impact': {
+      // Estallido: puntas largas y desparejas (más violento que el grito).
+      const rnd = mulberry32(Math.round(w * 11 + h * 5))
+      const spikes = Math.max(10, Math.round((w + h) / 40))
+      for (let i = 0; i <= spikes * 2; i++) {
+        const a = (i / (spikes * 2)) * Math.PI * 2
+        const k = i % 2 === 0 ? 0.92 + rnd() * 0.08 : 0.55 + rnd() * 0.12
+        const x = w / 2 + Math.cos(a) * (w / 2) * k
+        const y = h / 2 + Math.sin(a) * (h / 2) * k
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
       break
     }
     case 'shout': {
@@ -131,7 +158,7 @@ function tailPath(ctx: Ctx, b: BubbleElement, baseScale = 1) {
   const cx = b.width / 2
   const cy = b.height / 2
   const angle = Math.atan2(b.tailY - cy, b.tailX - cx)
-  const baseW = Math.min(b.width, b.height) * 0.17 * baseScale
+  const baseW = Math.min(b.width, b.height) * 0.17 * baseScale * (b.tailWidth ?? 1)
   // Base de la cola: dos puntos dentro del cuerpo, perpendiculares a la dirección.
   const inner = 0.55
   const bx = cx + Math.cos(angle) * (b.width / 2) * inner
@@ -150,9 +177,9 @@ function tailPath(ctx: Ctx, b: BubbleElement, baseScale = 1) {
 
 /** Rectángulo interior donde va el texto. */
 export function bubbleTextBox(b: BubbleElement) {
-  const isEllipse = b.shape !== 'box'
-  // En una elipse, el rectángulo inscrito ocupa ~70% del ancho/alto.
-  const k = isEllipse ? 0.72 : 1
+  const isEllipse = !isBoxBubble(b.shape)
+  // En una elipse, el rectángulo inscrito ocupa ~70% del ancho/alto (en el estallido, menos).
+  const k = b.shape === 'impact' ? 0.6 : isEllipse ? 0.72 : 1
   const w = b.width * k - b.padding * (isEllipse ? 0.6 : 2)
   const h = b.height * k - b.padding * (isEllipse ? 0.6 : 2)
   return { x: (b.width - w) / 2, y: (b.height - h) / 2, width: Math.max(10, w), height: Math.max(10, h) }

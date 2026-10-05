@@ -26,7 +26,10 @@ const GROUPS: [string, [string, string][]][] = [
       ['Flechas', 'Mover 1 px (Shift: 10 px)'],
       ['Ctrl ] / [', 'Subir / bajar capa'],
       ['Doble clic', 'Editar texto · encuadrar imagen'],
+      ['Enter / Esc', 'Al escribir: confirmar / cancelar'],
+      ['Shift Enter', 'Al escribir: nueva línea'],
       ['Alt al arrastrar', 'Sin imanes'],
+      ['Ctrl al arrastrar', 'Viñeta: mover sólo el marco'],
     ],
   ],
   [

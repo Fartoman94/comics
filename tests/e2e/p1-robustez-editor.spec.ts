@@ -144,22 +144,31 @@ test.describe('B3 · texto e IME', () => {
       await page.keyboard.press('Escape')
       expect(await inApp<string | null>(page, 'return s.editingTextId')).not.toBeNull()
       await cdp.send('Input.insertText', { text })
-      await page.keyboard.press('Escape')
+      await page.keyboard.press('Enter')
       await expect.poll(() => inApp<string | null>(page, 'return s.editingTextId')).toBeNull()
       expect((await els(page)).some((e) => e.text === text)).toBe(true)
     })
   }
 
-  test('con entrada normal Esc confirma y cierra', async ({ page }) => {
+  // P05: Enter confirma y Esc cancela (antes Esc confirmaba).
+  test('con entrada normal Enter confirma y Esc cancela', async ({ page }) => {
     await newProject(page, 'IME normal')
     await page.keyboard.press('t')
     const p = await canvasPoint(page, { x: 300, y: 500 })
     await page.mouse.click(p.x, p.y)
     await page.keyboard.press('Control+a')
     await page.keyboard.type('Hola')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => inApp<string | null>(page, 'return s.editingTextId')).toBeNull()
+    expect((await els(page)).some((e) => e.text === 'Hola')).toBe(true)
+    const id = await inApp<string>(page, 'return s.selection[0]')
+    await inApp(page, 's.setEditingText(arg)', id)
+    await page.keyboard.press('Control+a')
+    await page.keyboard.type('Chau')
     await page.keyboard.press('Escape')
     await expect.poll(() => inApp<string | null>(page, 'return s.editingTextId')).toBeNull()
     expect((await els(page)).some((e) => e.text === 'Hola')).toBe(true)
+    expect((await els(page)).some((e) => e.text === 'Chau')).toBe(false)
   })
 
   test('el globo creado con G entra en edición y la primera letra no dispara atajos', async ({ page }) => {
@@ -170,7 +179,7 @@ test.describe('B3 · texto e IME', () => {
     await expect.poll(() => inApp<string | null>(page, 'return s.editingTextId')).not.toBeNull()
     await page.keyboard.press('Control+a')
     await page.keyboard.type('hola, buen día')
-    await page.keyboard.press('Escape')
+    await page.keyboard.press('Enter')
     expect(await inApp<string>(page, 'return s.tool')).toBe('select')
     expect((await els(page)).some((e) => e.type === 'bubble' && e.text === 'hola, buen día')).toBe(true)
   })
