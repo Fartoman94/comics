@@ -9,6 +9,7 @@ export const PAGE_FORMATS: PageFormat[] = [
   { id: 'webtoon', name: 'Webtoon', description: 'Tira vertical 800 × 2400', width: 800, height: 2400, margin: 40, bleed: 0 },
   { id: 'square', name: 'Tira social', description: 'Cuadrado 1080 × 1080', width: 1080, height: 1080, margin: 40, bleed: 0 },
   { id: 'strip', name: 'Tira de periódico', description: 'Horizontal 1800 × 600', width: 1800, height: 600, margin: 30, bleed: 0 },
+  { id: 'storyboard', name: 'Storyboard', description: 'A4 horizontal · cuadros 16:9 con notas', width: 1754, height: 1240, margin: 60, bleed: 0 },
 ]
 
 export const PROJECT_KINDS: { id: Project['kind']; name: string; description: string; format: string; direction: Project['readingDirection'] }[] = [

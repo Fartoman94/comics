@@ -33,16 +33,18 @@ export function ExportDialog({ open, onClose }: { open: boolean; onClose: () => 
   const abort = useRef<AbortController | null>(null)
   const urls = useRef<string[]>([])
 
+  // Exportación recomendada según el tipo y formato (la misma que sugiere "¿Qué querés crear?").
+  const recommended: Preset = vertical ? 'webtoon' : project.format.id === 'strip' || project.format.id === 'square' ? 'png' : project.kind === 'manga' || project.kind === 'comic' ? 'imprenta' : 'pantalla'
   // Se recuerda el último preset por tipo de obra.
   useEffect(() => {
     if (!open) return
     try {
-      setPreset((localStorage.getItem(PRESET_KEY(project.kind)) as Preset | null) ?? (vertical ? 'webtoon' : 'pantalla'))
+      setPreset((localStorage.getItem(PRESET_KEY(project.kind)) as Preset | null) ?? recommended)
     } catch {
-      setPreset(vertical ? 'webtoon' : 'pantalla')
+      setPreset(recommended)
     }
     setPhase({ kind: 'choose' })
-  }, [open, project.kind, vertical])
+  }, [open, project.kind, recommended])
 
   // Al cerrar se liberan las vistas previas y se cancela lo que esté corriendo.
   const close = () => {

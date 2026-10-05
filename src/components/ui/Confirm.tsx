@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Button, Modal } from './controls'
 
 interface ConfirmState {
-  request: { title: string; message: string; confirmLabel: string; danger: boolean; resolve: (ok: boolean) => void } | null
+  request: { title: string; message: string; confirmLabel: string; danger: boolean; altLabel?: string; resolve: (ok: boolean | 'alt') => void } | null
 }
 
 const useConfirmStore = create<ConfirmState>(() => ({ request: null }))
@@ -10,13 +10,22 @@ const useConfirmStore = create<ConfirmState>(() => ({ request: null }))
 /** Reemplazo de window.confirm con el estilo de la app. */
 export function confirmDialog(title: string, message: string, opts: { confirmLabel?: string; danger?: boolean } = {}) {
   return new Promise<boolean>((resolve) => {
-    useConfirmStore.setState({ request: { title, message, confirmLabel: opts.confirmLabel ?? 'Aceptar', danger: opts.danger ?? false, resolve } })
+    useConfirmStore.setState({ request: { title, message, confirmLabel: opts.confirmLabel ?? 'Aceptar', danger: opts.danger ?? false, resolve: (v) => resolve(v === true) } })
+  })
+}
+
+/** Confirmación con una tercera opción (p. ej. "En página nueva"): devuelve 'confirm', 'alt' o 'cancel'. */
+export function confirmChoice(title: string, message: string, opts: { confirmLabel: string; altLabel: string; danger?: boolean }) {
+  return new Promise<'confirm' | 'alt' | 'cancel'>((resolve) => {
+    useConfirmStore.setState({
+      request: { title, message, confirmLabel: opts.confirmLabel, altLabel: opts.altLabel, danger: opts.danger ?? false, resolve: (v) => resolve(v === 'alt' ? 'alt' : v ? 'confirm' : 'cancel') },
+    })
   })
 }
 
 export function ConfirmHost() {
   const req = useConfirmStore((s) => s.request)
-  const close = (ok: boolean) => {
+  const close = (ok: boolean | 'alt') => {
     req?.resolve(ok)
     useConfirmStore.setState({ request: null })
   }
@@ -28,6 +37,11 @@ export function ConfirmHost() {
           <Button variant="ghost" onClick={() => close(false)}>
             Cancelar
           </Button>
+          {req?.altLabel && (
+            <Button variant="secondary" onClick={() => close('alt')}>
+              {req.altLabel}
+            </Button>
+          )}
           <Button variant={req?.danger ? 'danger' : 'primary'} onClick={() => close(true)} autoFocus>
             {req?.confirmLabel}
           </Button>

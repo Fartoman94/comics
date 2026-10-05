@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Save, Search, Trash2 } from 'lucide-react'
 import type { Page } from '../../../types'
 import { currentPage, useEditor } from '../../../store/editor'
-import { CATEGORY_LABELS, formatShape, TEMPLATE_META, TEMPLATES, type PanelTemplate, type TemplateCategory, type TemplateStyle } from '../../../lib/templates'
+import { CATEGORY_LABELS, formatShape, STARTER_TEMPLATES, TEMPLATE_META, TEMPLATES, type PanelTemplate, type TemplateCategory, type TemplateStyle } from '../../../lib/templates'
 import { deleteLocalTemplate, listLocalTemplates, saveLocalTemplate, type LocalTemplate } from '../../../lib/storage'
 import { scalePage } from '../../../lib/pageScale'
 import { cx, Segmented, Slider } from '../../ui/controls'
-import { confirmDialog } from '../../ui/Confirm'
+import { confirmChoice, confirmDialog } from '../../ui/Confirm'
 
 type Mode = 'replace' | 'new' | 'add'
 type Count = 'all' | '1' | '2-3' | '4-5' | '6+'
@@ -65,11 +65,28 @@ export function LayoutsPanel() {
     if (mode === 'add') return s.applyTemplate(tpl.id, margin, gutter, 'add')
     const { panels } = content()
     if (panels > 0) {
-      const ok = await confirmDialog('Reemplazar viñetas', `Las ${panels} viñetas actuales se reemplazan por "${tpl.name}" (${tpl.polys.length} viñetas). Las imágenes encuadradas se pasan a las nuevas viñetas en orden. Globos, textos y dibujos no se tocan.`, { confirmLabel: 'Aplicar' })
-      if (!ok) return
+      // Con contenido se pregunta, y se ofrece aplicarla en una página nueva para no tocar esta.
+      const choice = await confirmChoice('Reemplazar viñetas', `Las ${panels} viñetas actuales se reemplazan por "${tpl.name}" (${tpl.polys.length} viñetas). Las imágenes encuadradas se pasan a las nuevas viñetas en orden. Globos, textos y dibujos no se tocan.`, { confirmLabel: 'Aplicar', altLabel: 'En página nueva' })
+      if (choice === 'cancel') return
+      if (choice === 'alt') return s.addPageFromTemplate(tpl.id, margin, gutter)
     }
     s.applyTemplate(tpl.id, margin, gutter, 'replace')
   }
+
+  /** "Página libre": se quitan las viñetas (lo demás queda). */
+  const applyFree = async () => {
+    if (mode === 'new') return s.addPage(undefined, pageId)
+    const { panels } = content()
+    if (!panels) return
+    const choice = await confirmChoice('Página libre', `Se quitan las ${panels} viñetas de esta página (globos, textos e imágenes libres quedan).`, { confirmLabel: 'Quitar viñetas', altLabel: 'En página nueva', danger: true })
+    if (choice === 'cancel') return
+    if (choice === 'alt') return s.addPage(undefined, pageId)
+    s.mutate((d) => {
+      const pg = d.pages.find((p) => p.id === pageId)
+      if (pg) pg.elements = pg.elements.filter((e) => e.type !== 'panel')
+    }, { urgent: true })
+  }
+  const [focus, setFocus] = useState<PanelTemplate | null>(null)
 
   const applyMine = async (t: LocalTemplate) => {
     const project = useEditor.getState().project!
@@ -121,6 +138,39 @@ export function LayoutsPanel() {
         <Slider label="Medianil (espacio entre viñetas)" value={gutter} min={0} max={Math.round(format.width * 0.08)} onChange={setGutter} format={(v) => `${v}px`} />
       </div>
 
+      <section aria-labelledby="iniciales-titulo">
+        <h4 id="iniciales-titulo" className="mb-2 text-[11px] font-semibold tracking-wider text-ink-400 uppercase">
+          Plantillas iniciales
+        </h4>
+        <ul className="space-y-1.5">
+          {STARTER_TEMPLATES.map((st) => {
+            const tpl = st.id ? TEMPLATES.find((t) => t.id === st.id) : null
+            return (
+              <li key={st.name}>
+                <button
+                  onClick={() => void (tpl ? apply(tpl) : applyFree())}
+                  data-starter={st.id ?? 'libre'}
+                  className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent"
+                >
+                  {tpl ? (
+                    <TemplatePreview polys={tpl.polys} ratio={format.width / format.height} />
+                  ) : (
+                    <span className="flex shrink-0 items-center justify-center rounded-sm border border-dashed border-ink-500 text-[10px] text-ink-400" style={{ width: 60 * Math.min(1, format.width / format.height), height: Math.min(90, 60 / (format.width / format.height)) }}>
+                      libre
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="block text-xs font-medium text-white">{st.name}</span>
+                    <span className="block text-[11px] leading-snug text-ink-400">{st.use}</span>
+                    <span className="block text-[10px] text-ink-400">{tpl ? `${tpl.polys.length} viñetas` : 'Sin viñetas'}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+
       <div className="no-autoclose space-y-2">
         <label className="flex items-center gap-2 rounded-lg bg-ink-900 px-2.5 ring-1 ring-ink-700 focus-within:ring-accent">
           <Search size={14} className="text-ink-400" aria-hidden="true" />
@@ -165,13 +215,32 @@ export function LayoutsPanel() {
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {list.map((t) => (
-              <button key={t.id} onClick={() => void apply(t)} title={TEMPLATE_META[t.id].use} aria-label={`${t.name}: ${t.polys.length} viñetas. ${TEMPLATE_META[t.id].use}`} data-template={t.id} className="group flex flex-col items-center gap-1">
+              <button
+                key={t.id}
+                onClick={() => void apply(t)}
+                onMouseEnter={() => setFocus(t)}
+                onFocus={() => setFocus(t)}
+                title={TEMPLATE_META[t.id].use}
+                aria-label={`${t.name}: ${t.polys.length} viñetas. ${TEMPLATE_META[t.id].use}`}
+                data-template={t.id}
+                className="group flex flex-col items-center gap-1"
+              >
                 <TemplatePreview polys={t.polys} ratio={format.width / format.height} />
                 <span className="w-full truncate text-center text-[10px] text-ink-300 group-hover:text-white">{t.name}</span>
               </button>
             ))}
           </div>
         )}
+        {/* Antes de aplicar: nombre, cantidad de viñetas y para qué sirve la que está bajo el puntero o con foco. */}
+        <p className="mt-2 min-h-8 rounded-md bg-ink-900 px-2 py-1.5 text-[11px] text-ink-300" aria-live="polite" data-testid="detalle-plantilla">
+          {focus ? (
+            <>
+              <strong className="text-white">{focus.name}</strong> · {focus.polys.length} viñetas · {TEMPLATE_META[focus.id].use}
+            </>
+          ) : (
+            'Pasá el puntero por una plantilla para ver qué incluye.'
+          )}
+        </p>
       </div>
 
       <div>

@@ -2,7 +2,7 @@ import type { PageFormat, PanelElement } from '../types'
 import { bbox, insetConvexPolygon, type Pt } from './geometry'
 import { createPanel } from './factories'
 
-export type TemplateCategory = 'portada' | 'accion' | 'dialogo' | 'tira' | 'yonkoma' | 'splash' | 'webtoon'
+export type TemplateCategory = 'portada' | 'accion' | 'dialogo' | 'tira' | 'yonkoma' | 'splash' | 'webtoon' | 'storyboard'
 export type TemplateStyle = 'occidental' | 'manga' | 'neutral'
 /** Para qué formato de página está pensada: vertical (página), horizontal (tira) o tira larga (webtoon). */
 export type TemplateShape = 'vertical' | 'horizontal' | 'larga'
@@ -31,6 +31,7 @@ export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
   yonkoma: 'Yonkoma',
   splash: 'Splash',
   webtoon: 'Webtoon',
+  storyboard: 'Storyboard',
 }
 
 /** Organización de las plantillas (no cambia sus viñetas). */
@@ -55,6 +56,7 @@ export const TEMPLATE_META: Record<string, TemplateMeta> = {
   'webtoon-stack': { categories: ['webtoon'], style: 'neutral', shape: 'larga', use: 'Viñetas apiladas con aire para leer en el celular.' },
   'strip-3': { categories: ['tira'], style: 'occidental', shape: 'horizontal', use: 'Tira de diario de tres viñetas.' },
   'strip-4': { categories: ['tira'], style: 'occidental', shape: 'horizontal', use: 'Tira de cuatro viñetas para redes o diario.' },
+  'storyboard-6': { categories: ['storyboard'], style: 'neutral', shape: 'horizontal', use: 'Seis cuadros 16:9 con lugar abajo para notas de cámara y acción.' },
 }
 
 /** Forma de página para filtrar plantillas según el formato del proyecto. */
@@ -180,6 +182,13 @@ export const TEMPLATES: PanelTemplate[] = [
   },
   { id: 'strip-3', name: 'Tira 3', group: 'Webtoon / tiras', polys: grid([{ h: 1, cols: [1, 1, 1] }]) },
   { id: 'strip-4', name: 'Tira 4', group: 'Webtoon / tiras', polys: grid([{ h: 1, cols: [1, 1, 1, 1] }]) },
+  {
+    id: 'storyboard-6',
+    name: 'Storyboard 6',
+    group: 'Webtoon / tiras',
+    // Cuadros 16:9 (en A4 apaisada) con una franja libre debajo de cada fila para escribir.
+    polys: [0, 1, 2].flatMap((c) => [rect(c / 3, 0, 1 / 3, 0.28), rect(c / 3, 0.5, 1 / 3, 0.28)]),
+  },
 ]
 
 /** Convierte una plantilla en viñetas reales con margen y medianil (gutter) en px. */
@@ -203,6 +212,17 @@ export function buildTemplatePanels(tpl: PanelTemplate, format: PageFormat, marg
     return panel
   })
 }
+
+/** Plantillas iniciales destacadas (estructura completa de página). `null` = página libre (sin viñetas). */
+export const STARTER_TEMPLATES: { id: string | null; name: string; use: string }[] = [
+  { id: 'classic-6', name: 'Cómic clásico', use: 'Seis viñetas de lectura clara, izquierda a derecha.' },
+  { id: 'manga-dynamic', name: 'Manga', use: 'Cortes en diagonal y lectura de derecha a izquierda.' },
+  { id: 'webtoon-stack', name: 'Webtoon', use: 'Viñetas apiladas con aire para el scroll del celular.' },
+  { id: 'storyboard-6', name: 'Storyboard', use: 'Cuadros 16:9 con espacio para notas de cámara.' },
+  { id: 'strip-3', name: 'Tira de 3 viñetas', use: 'Planteo, desarrollo y remate, en horizontal.' },
+  { id: 'splash', name: 'Página splash', use: 'Una sola imagen a página completa.' },
+  { id: null, name: 'Página libre', use: 'Sin viñetas: dibujalas a mano o poné lo que quieras.' },
+]
 
 /** Accesos rápidos para empezar una página (estado vacío y barra de plantillas). `null` = página libre. */
 export const QUICK_LAYOUTS: { id: string | null; label: string }[] = [
