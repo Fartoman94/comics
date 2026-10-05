@@ -95,7 +95,7 @@ test('escritorio: plantilla → fotos → viñetas → guion → capas → previ
   expect(pdf.toString('latin1').match(/\/Type \/Page\b/g)).toHaveLength(expected.pages)
   await page.getByRole('button', { name: 'Listo' }).click()
 
-  const zip = await JSZip.loadAsync(readFileSync((await (await exportPreset(page, /Páginas en PNG/)).path())!))
+  const zip = await JSZip.loadAsync(readFileSync((await (await exportPreset(page, /Páginas en imágenes/)).path())!))
   const pngs = Object.keys(zip.files).filter((n) => n.endsWith('.png'))
   expect(pngs).toHaveLength(expected.pages)
   const first = Buffer.from(await zip.files[pngs.sort()[0]].async('uint8array'))
