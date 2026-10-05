@@ -143,6 +143,32 @@ export function LayoutsPanel() {
           Plantillas iniciales
         </h4>
         <ul className="space-y-1.5">
+          <li>
+            <button
+              onClick={async () => {
+                if (mode === 'new') return s.applyCoverTemplate('new')
+                const { panels, others } = content()
+                if (panels + others > 0) {
+                  const choice = await confirmChoice('Portada', 'Lo que hay en esta página se reemplaza por una portada (imagen a página completa, título, bajada y autor/a).', { confirmLabel: 'Reemplazar', altLabel: 'En página nueva', danger: true })
+                  if (choice === 'cancel') return
+                  if (choice === 'alt') return s.applyCoverTemplate('new')
+                }
+                s.applyCoverTemplate('replace')
+              }}
+              data-starter="portada"
+              className="flex w-full items-center gap-3 rounded-lg bg-ink-900 p-2 text-left ring-1 ring-ink-700 transition-colors hover:ring-accent"
+            >
+              <span className="flex shrink-0 flex-col items-center justify-center gap-1 rounded-sm bg-ink-700 p-1" style={{ width: 60 * Math.min(1, format.width / format.height), height: Math.min(90, 60 / (format.width / format.height)) }}>
+                <span className="h-1.5 w-4/5 rounded bg-accent" />
+                <span className="h-1 w-3/5 rounded bg-ink-400" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-fg">Portada</span>
+                <span className="block text-[11px] leading-snug text-ink-400">Imagen a página completa con título, bajada y autor/a listos para editar.</span>
+                <span className="block text-[10px] text-ink-400">1 imagen + 3 textos</span>
+              </span>
+            </button>
+          </li>
           {STARTER_TEMPLATES.map((st) => {
             const tpl = st.id ? TEMPLATES.find((t) => t.id === st.id) : null
             return (

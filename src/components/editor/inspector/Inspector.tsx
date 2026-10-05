@@ -751,6 +751,9 @@ function BubbleProps({ el }: { el: BubbleElement }) {
         </div>
         {el.shape !== 'borderless' && <Slider label="Grosor del borde" value={el.strokeWidth} min={0} max={14} step={0.5} onChange={(strokeWidth) => patch({ strokeWidth }, 'sw')} />}
         <Slider label="Margen interior" value={el.padding} min={0} max={80} onChange={(padding) => patch({ padding }, 'pad')} />
+        <Button size="sm" variant="ghost" className="w-full" onClick={() => useEditor.getState().fitBubbleToText(el.id)} title="Agranda o achica el globo para que el texto entre cómodo">
+          Ajustar globo al texto
+        </Button>
         {box && <Slider label="Radio de las esquinas" value={el.cornerRadius ?? 0} min={0} max={60} onChange={(cornerRadius) => patch({ cornerRadius }, 'cr')} format={(v) => `${v}px`} />}
       </Section>
       <Section title="Texto">

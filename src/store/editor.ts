@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { produce, type Draft } from 'immer'
 import type { Asset, BrushSettings, ComicElement, Page, Project, ScriptBlock, ScriptKind, Tool } from '../types'
-import { clonePage, cloneElement, createBubble, createPage, createText, TEXT_PRESETS } from '../lib/factories'
+import { clonePage, cloneElement, createBubble, createPage, createPanel, createText, TEXT_PRESETS } from '../lib/factories'
+import { fitBubbleSize } from '../lib/bubbleFit'
 import { buildTemplatePanels, TEMPLATES } from '../lib/templates'
 import { measureTextHeight } from '../lib/textFit'
 import { enqueueSave, enqueueTask } from '../lib/persistence'
@@ -134,6 +135,12 @@ interface EditorState {
   removeScriptBlock(pageId: string, blockId: string): void
   moveScriptBlock(pageId: string, blockId: string, dir: -1 | 1): void
   placeScriptBlock(pageId: string, blockId: string): void
+  /** Coloca de una vez todos los bloques pendientes del guion de la página (en sus viñetas). Devuelve cuántos. */
+  placePageScript(pageId: string): number
+  /** Agranda o achica un globo para que su texto entre cómodo. */
+  fitBubbleToText(id: string): void
+  /** Portada: imagen a página completa, título, bajada y autor/a (sobre la página actual o una nueva). */
+  applyCoverTemplate(mode: 'replace' | 'new'): void
   /** Resuelve una divergencia: 'page' = el guion toma el texto de la página; 'script' = la página toma el del guion. */
   syncScriptBlock(pageId: string, blockId: string, from: 'page' | 'script'): void
   pastePages(afterId?: string): Promise<void>
@@ -543,6 +550,60 @@ export const useEditor = create<EditorState>()((set, get) => ({
     })
     set({ selection: [el.id] })
   },
+  placePageScript: (pageId) => {
+    const pending = (get().project?.script?.pages[pageId]?.panels ?? []).flatMap((row) => row.blocks).filter((b) => b.kind !== 'description' && b.text.trim() && scriptStatus(get().project?.pages.find((p) => p.id === pageId), b) === 'pendiente')
+    for (const b of pending) get().placeScriptBlock(pageId, b.id)
+    for (const b of pending) {
+      const placed = findBlock(get().project?.script, pageId, b.id)?.placedElementId
+      const el = placed ? get().project?.pages.find((p) => p.id === pageId)?.elements.find((e) => e.id === placed) : undefined
+      if (el?.type === 'bubble') get().fitBubbleToText(el.id)
+    }
+    return pending.length
+  },
+
+  fitBubbleToText: (id) => {
+    const el = findEl(id) ?? get().project?.pages.flatMap((p) => p.elements).find((e) => e.id === id)
+    if (el?.type !== 'bubble') return
+    const size = fitBubbleSize(el, { maxWidth: get().project!.format.width * 0.6 })
+    if (!size) return
+    get().updateElement(id, (d) => {
+      if (d.type !== 'bubble') return
+      // La cola apunta al mismo lugar relativo.
+      d.tailX = (d.tailX / d.width) * size.width
+      d.tailY = d.tailY > d.height ? size.height + (d.tailY - d.height) : (d.tailY / d.height) * size.height
+      d.width = size.width
+      d.height = size.height
+    })
+  },
+
+  applyCoverTemplate: (mode) => {
+    const { project, pageId } = get()
+    if (!project) return
+    const { width: W, height: H } = project.format
+    const panel = createPanel(0, 0, W, H)
+    panel.name = 'Imagen de portada'
+    panel.strokeWidth = 0
+    panel.fill = '#1c1c22'
+    const title = createText(Math.round(W * 0.06), Math.round(H * 0.06), TEXT_PRESETS.find((p) => p.id === 'title') ?? TEXT_PRESETS[0])
+    Object.assign(title, { name: 'Título', text: project.title.toUpperCase() || 'TÍTULO', width: Math.round(W * 0.88), height: Math.round(H * 0.16), fontSize: Math.round(W * 0.11), textColor: '#ffffff', stroke: '#111111', strokeWidth: Math.round(W * 0.012) })
+    const tagline = createText(Math.round(W * 0.08), Math.round(H * 0.22), TEXT_PRESETS.find((p) => p.id === 'caption') ?? TEXT_PRESETS[0])
+    Object.assign(tagline, { name: 'Bajada', text: project.synopsis.split('.')[0] || 'Una historia original', width: Math.round(W * 0.84), height: Math.round(H * 0.06), fontSize: Math.round(W * 0.035), textColor: '#ffffff', strokeWidth: 0, shadow: true, shadowColor: '#000000' })
+    const author = createText(Math.round(W * 0.08), Math.round(H * 0.9), TEXT_PRESETS.find((p) => p.id === 'caption') ?? TEXT_PRESETS[0])
+    Object.assign(author, { name: 'Autor/a', text: project.author || 'Autor/a', width: Math.round(W * 0.84), height: Math.round(H * 0.05), fontSize: Math.round(W * 0.03), textColor: '#ffffff', strokeWidth: 0, align: 'right' as const })
+    const elements = [panel, title, tagline, author]
+    if (mode === 'new') {
+      const page = createPage('Portada', project.format)
+      page.elements = elements
+      get().mutate((d) => void d.pages.splice(d.pages.findIndex((p) => p.id === pageId) + 1, 0, page as Draft<Page>), { urgent: true })
+      get().setPage(page.id)
+    } else {
+      get().mutate((d) => {
+        const pg = d.pages.find((p) => p.id === pageId)
+        if (pg) pg.elements = elements as Draft<ComicElement>[]
+      }, { urgent: true })
+    }
+  },
+
   syncScriptBlock: (pageId, blockId, from) =>
     get().mutate((d) => {
       const b = findBlock(d.script, pageId, blockId)
