@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BookOpen, Loader2 } from 'lucide-react'
+import { BookOpen, Loader2, PenLine } from 'lucide-react'
 import { coverSvg, createSampleProject, SAMPLES, type SampleId } from '../../samples'
 import { navigateToProject } from '../../lib/nav'
 import { useEditor } from '../../store/editor'
@@ -31,21 +31,26 @@ export function SamplesGallery() {
         <h2 id="muestras-titulo" className="text-lg font-semibold">
           Muestras hechas con Viñeta Studio
         </h2>
-        <p className="text-sm text-ink-400">Seis obras originales de más de 30 páginas, cada una con su estilo. Abrí una copia editable y mirá cómo está armada.</p>
+        <p className="text-sm text-ink-400">Seis obras originales de más de 30 páginas, cada una con su estilo. Leelas directo como libro, o abrí una copia editable para ver cómo están armadas.</p>
       </div>
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {SAMPLES.map((s) => (
-          <li key={s.id}>
-            <button onClick={() => void open(s.id)} disabled={!!busy} aria-label={`Abrir la muestra ${s.title}: ${s.genre}`} className="group flex w-full flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-900 text-left transition-colors hover:border-accent disabled:opacity-60">
+          <li key={s.id} className="flex flex-col overflow-hidden rounded-xl border border-ink-800 bg-ink-900 transition-colors hover:border-accent">
+            <a href={`#/muestra/${s.id}`} aria-label={`Leer ${s.title}: ${s.genre}`} className="group block">
               <Cover id={s.id} title={s.title} accent={s.accent} />
-              <span className="p-2.5">
-                <span className="block text-[10px] font-semibold tracking-wide text-accent-bright uppercase">{s.genre.split('·')[0]}</span>
-                <span className="block text-xs leading-snug text-ink-300">{s.subtitle}</span>
-                <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-fg">
-                  <BookOpen size={12} /> Abrir muestra
-                </span>
+            </a>
+            <span className="flex flex-1 flex-col p-2.5">
+              <span className="block text-[10px] font-semibold tracking-wide text-accent-bright uppercase">{s.genre.split('·')[0]}</span>
+              <span className="block flex-1 text-xs leading-snug text-ink-300">{s.subtitle}</span>
+              <span className="mt-2 flex gap-1.5">
+                <a href={`#/muestra/${s.id}`} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-accent px-2 py-1.5 text-[11px] font-medium text-white hover:bg-accent-hover">
+                  <BookOpen size={12} /> Leer
+                </a>
+                <button onClick={() => void open(s.id)} disabled={!!busy} aria-label={`Editar una copia de ${s.title}`} title="Crea una copia editable en Tus proyectos" className="inline-flex items-center justify-center gap-1 rounded-md bg-ink-700 px-2 py-1.5 text-[11px] text-ink-100 hover:bg-ink-600 disabled:opacity-50">
+                  <PenLine size={12} /> Editar
+                </button>
               </span>
-            </button>
+            </span>
           </li>
         ))}
       </ul>

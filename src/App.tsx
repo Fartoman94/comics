@@ -8,6 +8,7 @@ import { loadProject } from './lib/storage'
 import { ProjectFileError, validateProject } from './lib/projectSchema'
 import { clearRescue, readRescue } from './lib/rescue'
 import type { Project } from './types'
+import type { SampleId } from './samples'
 import { navigateToProject } from './lib/nav'
 import { useEditor } from './store/editor'
 import { CrashScreen } from './components/ui/ErrorBoundary'
@@ -18,6 +19,9 @@ const DemoViewer = lazyWithReload(() => import('./components/demo/DemoViewer').t
 const Loading = () => <div className="grid h-full place-items-center text-sm text-ink-400" role="status">Cargando…</div>
 
 const isDemoHash = () => /^#\/demo\b/.test(location.hash)
+const SampleViewer = lazyWithReload(() => import('./components/home/SampleViewer').then((m) => ({ default: m.SampleViewer })))
+/** Lectura directa de una muestra: #/muestra/<id>. */
+const sampleFromHash = () => (location.hash.match(/^#\/muestra\/([a-z0-9-]+)/)?.[1] ?? null) as SampleId | null
 
 function projectIdFromHash() {
   const m = location.hash.match(/^#\/p\/([\w-]+)/)
@@ -40,6 +44,7 @@ function recoverFromRescue(stored: Project): Project | null {
 export function App() {
   const [routeId, setRouteId] = useState(projectIdFromHash)
   const [demo, setDemo] = useState(isDemoHash)
+  const [sample, setSample] = useState(sampleFromHash)
   const project = useEditor((s) => s.project)
   const [missing, setMissing] = useState(false)
   // Proyecto que existe pero no se puede abrir (dañado o error de lectura).
@@ -49,6 +54,7 @@ export function App() {
     const onHash = () => {
       setRouteId(projectIdFromHash())
       setDemo(isDemoHash())
+      setSample(sampleFromHash())
     }
     window.addEventListener('hashchange', onHash)
     // Pedimos almacenamiento persistente para que el navegador no borre los proyectos.
@@ -59,7 +65,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false
     const s = useEditor.getState()
-    if (demo) return
+    if (demo || sample) return
     if (!routeId) {
       if (s.project) s.closeProject()
       return
@@ -87,7 +93,7 @@ export function App() {
     return () => {
       cancelled = true
     }
-  }, [routeId, demo])
+  }, [routeId, demo, sample])
 
   useEffect(() => {
     document.title = project ? `${project.title} · Viñeta Studio` : 'Viñeta Studio'
@@ -98,6 +104,8 @@ export function App() {
       <Suspense fallback={<Loading />}>
       {demo ? (
         <DemoViewer />
+      ) : sample ? (
+        <SampleViewer key={sample} id={sample} />
       ) : routeId && broken?.id === routeId ? (
         <CrashScreen projectId={broken.id} message={broken.message} onHome={() => navigateToProject(null)} />
       ) : routeId && project?.id === routeId ? (
