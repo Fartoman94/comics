@@ -84,6 +84,10 @@ export interface PanelImage {
   /** Escala relativa al tamaño natural de la imagen. */
   scale: number
   filters: ImageFilters
+  /** Giro en grados alrededor del centro de la imagen (opcional, .vineta viejos sin giro). */
+  rotation?: number
+  flipX?: boolean
+  flipY?: boolean
 }
 
 export interface PanelElement extends BaseElement {

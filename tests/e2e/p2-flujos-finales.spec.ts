@@ -39,7 +39,7 @@ test('escritorio: plantilla → fotos → viñetas → guion → capas → previ
 
   // 2. Subir fotos.
   await page.getByRole('tab', { name: 'Biblioteca' }).click()
-  await page.locator('input[type=file][accept="image/*"]').setInputFiles([FIXTURES + 'foto-a.png', FIXTURES + 'foto-b.png'])
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles([FIXTURES + 'foto-a.png', FIXTURES + 'foto-b.png'])
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(2)
 
   // 3. Llenar viñetas: clic en la viñeta del lienzo y clic en la foto.

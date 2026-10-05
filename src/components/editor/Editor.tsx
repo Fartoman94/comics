@@ -30,6 +30,7 @@ import { deleteWithConfirm } from './actions'
 import { withPanelContent } from '../../lib/hierarchy'
 import { PageFilmstrip } from './pages/PageFilmstrip'
 import { PageDialogsHost } from './pages/PageDialogs'
+import { ImagePickerHost } from './images/ImagePicker'
 import { EmptyPageStart } from './context/EmptyPageStart'
 
 const TOOL_KEYS: Record<string, Tool> = { v: 'select', h: 'hand', p: 'panel', g: 'bubble', t: 'text', b: 'brush', e: 'eraser' }
@@ -61,11 +62,13 @@ export function Editor() {
     exportOpen: () => setExportOpen(true),
     shortcuts: openShortcuts,
   }
-  // Los avisos aparecen por encima de la barra inferior del celular.
+  // Los avisos aparecen por encima de la barra inferior del celular y de la tira de páginas.
+  const filmstrip = useUi((s) => s.filmstrip)
   useEffect(() => {
-    document.documentElement.style.setProperty('--toast-offset', simple ? '9.5rem' : '5rem')
+    const wide = typeof matchMedia === 'function' && matchMedia('(min-width: 768px)').matches
+    document.documentElement.style.setProperty('--toast-offset', simple ? '9.5rem' : wide && filmstrip ? '9rem' : wide ? '4.5rem' : '5rem')
     return () => void document.documentElement.style.removeProperty('--toast-offset')
-  }, [simple])
+  }, [simple, filmstrip])
   useAutosave()
   const tabs = useTabGuard()
   usePageThumbnails()
@@ -101,6 +104,7 @@ export function Editor() {
       {view === 'preview' && <Preview onClose={backToEdit} />}
       {view === 'overview' && <Overview onClose={backToEdit} />}
       <PageDialogsHost />
+      <ImagePickerHost />
       <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
       <HelpGuide canTour />
       {!simple && <Tour />}

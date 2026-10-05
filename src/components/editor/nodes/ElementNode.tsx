@@ -136,6 +136,24 @@ function tracePanel(ctx: Konva.Context | CanvasRenderingContext2D, el: PanelElem
   }
 }
 
+/**
+ * Transformación de la imagen de una viñeta: x/y/scale describen la imagen sin girar (esquina
+ * superior izquierda); el giro y los espejos se aplican alrededor de su centro.
+ */
+function panelImageTransform(img: NonNullable<PanelElement['image']>, w: number, h: number) {
+  return {
+    x: img.x + (w * img.scale) / 2,
+    y: img.y + (h * img.scale) / 2,
+    offsetX: w / 2,
+    offsetY: h / 2,
+    width: w,
+    height: h,
+    scaleX: img.scale * (img.flipX ? -1 : 1),
+    scaleY: img.scale * (img.flipY ? -1 : 1),
+    rotation: img.rotation ?? 0,
+  }
+}
+
 /** Ventana de la imagen: la viñeta contraída por su margen interior (padding). */
 function traceInset(ctx: Konva.Context | CanvasRenderingContext2D, el: PanelElement, pad: number) {
   const poly = panelPolygon(el)
@@ -174,7 +192,8 @@ function PanelNode({ el, cropping, interactive, onCropChange }: NodeProps & { el
   }
   const onGhostEnd = (e: KonvaEventObject<DragEvent>) => {
     e.cancelBubble = true
-    if (el.image) onCropChange?.(el.id, e.target.x(), e.target.y(), el.image.scale)
+    // El nodo se ubica por su centro; el documento guarda la esquina de la imagen sin girar.
+    if (el.image && image) onCropChange?.(el.id, e.target.x() - (image.naturalWidth * el.image.scale) / 2, e.target.y() - (image.naturalHeight * el.image.scale) / 2, el.image.scale)
   }
   const onWheel = (e: KonvaEventObject<WheelEvent>) => {
     if (!cropping || !el.image || !image) return
@@ -195,17 +214,7 @@ function PanelNode({ el, cropping, interactive, onCropChange }: NodeProps & { el
         <Rect width={el.width} height={el.height} fill={el.fill} />
         {el.image && image && (
           <Group clipFunc={el.padding ? (ctx) => traceInset(ctx, el, el.padding!) : undefined} listening={false}>
-            <KImage
-              ref={imgRef}
-              image={image}
-              x={el.image.x}
-              y={el.image.y}
-              width={image.naturalWidth}
-              height={image.naturalHeight}
-              scaleX={el.image.scale}
-              scaleY={el.image.scale}
-              listening={false}
-            />
+            <KImage ref={imgRef} image={image} {...panelImageTransform(el.image, image.naturalWidth, image.naturalHeight)} listening={false} />
           </Group>
         )}
       </Group>
@@ -213,12 +222,7 @@ function PanelNode({ el, cropping, interactive, onCropChange }: NodeProps & { el
         <KImage
           ref={ghostRef}
           image={image}
-          x={el.image.x}
-          y={el.image.y}
-          width={image.naturalWidth}
-          height={image.naturalHeight}
-          scaleX={el.image.scale}
-          scaleY={el.image.scale}
+          {...panelImageTransform(el.image, image.naturalWidth, image.naturalHeight)}
           opacity={0.35}
           draggable
           onDragMove={onGhostMove}

@@ -18,7 +18,7 @@ async function newProject(page: Page, title: string, kind = 'libre') {
 async function uploadAndInsert(page: Page, file: string) {
   await page.getByRole('tab', { name: 'Biblioteca' }).click()
   const n = await inApp<number>(page, 'return s.project.assets.length')
-  await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + file)
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles(FIXTURES + file)
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(n + 1)
   await inApp(page, 's.select([])')
   await page.locator('aside button[draggable=true]').first().click()

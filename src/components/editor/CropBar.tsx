@@ -30,10 +30,10 @@ export function CropBar() {
       <input type="range" min={0.02} max={4} step={0.01} value={panel.image.scale} onChange={(e) => zoomTo(Number(e.target.value))} className="w-28" aria-label="Zoom de la imagen" />
       {asset && (
         <>
-          <Button size="sm" variant="ghost" onClick={() => set(coverFit(panel, asset))} title="Rellenar la viñeta">
+          <Button size="sm" variant="ghost" onClick={() => set(coverFit(panel, asset, panel.image!.rotation))} title="Rellenar la viñeta">
             <Maximize size={13} /> Rellenar
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => set(containFit(panel, asset))} title="Mostrar la imagen completa">
+          <Button size="sm" variant="ghost" onClick={() => set(containFit(panel, asset, panel.image!.rotation))} title="Mostrar la imagen completa">
             <Minimize size={13} /> Encajar
           </Button>
         </>

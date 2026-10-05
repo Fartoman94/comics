@@ -6,7 +6,7 @@ import { placeAsset } from './placement'
 import { saveComposition, updateLibraryItem, type LibraryItem } from './storage'
 
 /** Lleva al proyecto los recursos que faltan (mismo blob, por referencia: nada se copia ni se pierde). */
-function ensureAssets(assets: Asset[]) {
+export function ensureAssets(assets: Asset[]) {
   const s = useEditor.getState()
   const have = new Set(s.project?.assets.map((a) => a.id))
   const missing = assets.filter((a) => !have.has(a.id))

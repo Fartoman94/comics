@@ -33,7 +33,9 @@ test.describe('flujo completo sólo con el dedo (390×844)', () => {
     }, panel)
     await page.touchscreen.tap(p.x, p.y)
     await expect(page.getByRole('toolbar', { name: 'Acciones de lo seleccionado' })).toBeVisible()
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Poner foto' }).tap()])
+    // "Poner foto" abre el selector (Subir / Galería); sin imágenes en el proyecto arranca en Subir.
+    await page.getByRole('button', { name: 'Poner foto' }).tap()
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('dialog').getByRole('button', { name: /Elegí o soltá una imagen/ }).tap()])
     await chooser.setFiles(FIXTURES + 'foto-a.png')
     await expect.poll(() => inApp<string | null>(page, `return s.project.pages[1].elements.find(e => e.id === '${panel}').image?.assetId ?? null`)).not.toBeNull()
     // Globo con el botón "+".

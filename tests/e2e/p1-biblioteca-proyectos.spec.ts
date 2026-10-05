@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 async function upload(page: Page, files: string[]) {
   await page.getByRole('tab', { name: 'Biblioteca' }).click()
   await page.getByRole('button', { name: 'Este proyecto' }).click()
-  await page.locator('input[type=file][accept="image/*"]').setInputFiles(files.map((f) => FIXTURES + f))
+  await page.locator('input[type=file][accept*="image/png"]').setInputFiles(files.map((f) => FIXTURES + f))
 }
 const imagesOnPage = (page: Page) => inApp<string[]>(page, 'return s.project.pages.find(p => p.id === s.pageId).elements.filter(e => e.type === "image").map(e => e.assetId)')
 
@@ -66,7 +66,7 @@ test.describe('biblioteca en el celular', () => {
     const a = await createProjectInDb(page, 'Móvil A', 'comic', 1)
     await openProject(page, a)
     await page.getByRole('navigation', { name: 'Herramientas' }).getByRole('button', { name: 'Imágenes' }).tap()
-    await page.locator('input[type=file][accept="image/*"]').setInputFiles(FIXTURES + 'foto-a.png')
+    await page.locator('input[type=file][accept*="image/png"]').setInputFiles(FIXTURES + 'foto-a.png')
     await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
     await page.getByRole('button', { name: 'Biblioteca', exact: true }).tap()
     await inApp(page, 's.select([])')
@@ -260,7 +260,7 @@ test('se puede elegir el mismo archivo dos veces seguidas (y se reutiliza sin du
   const id = await createProjectInDb(page, 'Mismo archivo', 'comic', 1)
   await openProject(page, id)
   await page.getByRole('tab', { name: 'Biblioteca' }).click()
-  const input = page.locator('input[type=file][accept="image/*"]')
+  const input = page.locator('input[type=file][accept*="image/png"]')
   await input.setInputFiles(FIXTURES + 'foto-a.png')
   await expect.poll(() => inApp<number>(page, 'return s.project.assets.length')).toBe(1)
   // El input quedó vacío: el navegador vuelve a avisar aunque sea el mismo archivo.
